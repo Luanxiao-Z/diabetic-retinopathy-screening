@@ -4,6 +4,8 @@ import cn.edu.fzu.drs.module.common.exception.AccessDeniedException;
 import cn.edu.fzu.drs.module.common.exception.BusinessException;
 import cn.edu.fzu.drs.module.common.exception.UnauthorizedException;
 import cn.edu.fzu.drs.module.common.result.Result;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -12,6 +14,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(UnauthorizedException.class)
     public Result<Void> handleUnauthorized(UnauthorizedException e) {
@@ -30,6 +34,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public Result<Void> handleException(Exception e) {
+        log.error("未处理的系统异常", e);
         return Result.fail(500, "系统错误");
     }
 }

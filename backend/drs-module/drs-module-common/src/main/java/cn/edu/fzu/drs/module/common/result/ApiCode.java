@@ -5,7 +5,7 @@ package cn.edu.fzu.drs.module.common.result;
  */
 public enum ApiCode {
 
-    SUCCESS(0, "success"),
+    SUCCESS(200, "success"),
     UNAUTHORIZED(401, "未登录或登录已过期"),
     FORBIDDEN(403, "无访问权限"),
     PARAM_ERROR(400, "参数错误"),

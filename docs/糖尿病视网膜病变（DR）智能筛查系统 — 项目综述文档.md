@@ -82,8 +82,8 @@ services:
     container_name: fjzhmz-minio
     restart: unless-stopped
     environment:
-      MINIO_ACCESS_KEY: minio.admin
-      MINIO_SECRET_KEY: minio.123!@#
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
       MINIO_ADDRESS: ":9000"
       MINIO_CONSOLE_ADDRESS: ":9001"
     ports:
@@ -106,7 +106,7 @@ services:
       - ./docker/data/redis/db:/data
     command:
       - '--port 26379'
-      - '--requirepass cne.123!@#'
+      - '--requirepass ${REDIS_PASSWORD}'
       - '--dir /data'
       - '--appendonly yes'
 
@@ -207,12 +207,23 @@ services:
 ## 10. 部署方案（Docker Compose）
 
 编写`docker-compose.yml`，包含以下服务：
-- `mysql`：MySQL 8，挂载数据卷。
-- `redis`：Redis 7。
-- `minio`：MinIO服务器，暴露9000（API）和9001（控制台）。
-- `model-service`：Python FastAPI模型服务，内部端口8000。
-- `backend`：SpringBoot应用，构建自Dockerfile，内部端口8080。
-- `frontend`：前端构建产物，使用Nginx镜像托管静态文件，并配置反向代理（将`/api`代理到`backend:8080`）。
+- `mysql`：MySQL 8，映射宿主机端口 **3306**，挂载数据卷。
+- `redis`：Redis 7，映射宿主机端口 **26379**（密码通过环境变量 `REDIS_PASSWORD` 注入）。
+- `minio`：MinIO服务器，暴露 **9000**（API）和 **9001**（控制台），凭据通过环境变量 `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY` 注入。
+- `model-service`：Python FastAPI模型服务，内部端口 **8000**。
+- `backend`：SpringBoot应用，构建自Dockerfile，内部端口 **8080**。
+- `frontend`：前端构建产物，使用Nginx镜像托管静态文件（开发期 Vite 端口 **5173**），并配置反向代理（将`/api`代理到`backend:8080`）。
+
+> **端口规范一览（宿主机视角）**
+>
+> | 服务 | 端口 | 说明 |
+> | --- | --- | --- |
+> | 后端 backend | 8080 | 业务 API（`/api/v1`） |
+> | 模型服务 model-service | 8000 | 推理接口（`/predict`） |
+> | 前端 web（dev） | 5173 | Vite 开发服务器 |
+> | MySQL | 3306 | 业务库 `dr_screening` |
+> | Redis | 26379 | 会话/缓存（需密码） |
+> | MinIO API / Console | 9000 / 9001 | 对象存储 / 管理控制台 |
 
 Nginx配置要点：
 - 根路径托管前端静态文件，支持Vue Router的history模式。

@@ -27,7 +27,7 @@ service.interceptors.request.use((config: InternalAxiosRequestConfig) => {
 service.interceptors.response.use(
   (response: AxiosResponse): any => {
     const res = response.data as ApiResult
-    if (res.code !== 0) {
+    if (res.code !== 200) {
       if (res.code === 401) {
         localStorage.removeItem('token')
         window.location.href = '/login'

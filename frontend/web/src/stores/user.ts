@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { login as loginApi, type LoginParams, type LoginResult } from '@/api/auth'
+import { login as loginApi, logout as logoutApi, type LoginParams, type LoginResult } from '@/api/auth'
 
 export const useUserStore = defineStore('user', () => {
   const token = ref(localStorage.getItem('token') || '')
@@ -24,7 +24,12 @@ export const useUserStore = defineStore('user', () => {
     permissions.value = p.permissions
   }
 
-  function logout() {
+  async function logout() {
+    try {
+      await logoutApi()
+    } catch {
+      // 忽略网络错误，本地状态仍清空
+    }
     token.value = ''
     role.value = ''
     username.value = ''

@@ -25,5 +25,10 @@
             <artifactId>drs-module-common</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>cn.edu.fzu.drs</groupId>
+            <artifactId>drs-module-security</artifactId>
+            <version>${project.version}</version>
+        </dependency>
     </dependencies>
 </project>

@@ -40,7 +40,7 @@ tools/mvn.sh           Git Bash 下 Maven 包装脚本（解决 POSIX 路径问�
 docker compose -f deploy/docker-compose.yml up -d
 ```
 
-连接信息：`dr_screening / root:root123`（MySQL 3306）、`redis:6379`、`minio:9000/9001`（minioadmin/minioadmin）。`sql/init` 在 MySQL 首次启动后自动执行建表与字典初始化。
+连接信息：MySQL 3306（业务库 `dr_screening`）、Redis 26379、MinIO `9000`/`9001`；数据库与中间件账号、密码均通过环境变量注入（如 `DB_PASSWORD` / `REDIS_PASSWORD` / `MINIO_SECRET_KEY`），**请勿将明文写入版本库**。`sql/init` 在 MySQL 首次启动后执行建表与字典初始化。
 
 ### 2. 后端
 
@@ -84,7 +84,7 @@ yarn build        # 生产构建，产物位于 dist/
 | 模型服务 model-service | 8000 |
 | 前端 web（dev） | 5173 |
 | MySQL | 3306 |
-| Redis | 6379 |
+| Redis | 26379 |
 | MinIO API / Console | 9000 / 9001 |
 
 ## 阶段进度

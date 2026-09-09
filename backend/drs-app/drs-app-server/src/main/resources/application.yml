@@ -10,16 +10,59 @@ spring:
     name: drs-backend
   profiles:
     active: local
+  datasource:
+    url: jdbc:mysql://127.0.0.1:3306/dr_screening?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
+    username: root
+    # 密码通过环境变量 DB_PASSWORD 注入，勿写明文入库
+    password: ${DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
   data:
     redis:
       host: localhost
-      port: 6379
+      # Docker 容器 fjzhmz-redis 映射端口（非默认 6379）
+      port: 26379
+      # 密码通过环境变量 REDIS_PASSWORD 注入，勿写明文入库
+      password: ${REDIS_PASSWORD}
+      database: 0
       timeout: 5000ms
   jackson:
     date-format: yyyy-MM-dd HH:mm:ss
     time-zone: GMT+8
     default-property-inclusion: non_null
 
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/**/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      # 逻辑删除：所有实体继承 BaseEntity 的 deleteFlag 字段（VARCHAR(1) N/Y）
+      logic-delete-field: deleteFlag
+      logic-not-delete-value: N
+      logic-delete-value: Y
+
+knife4j:
+  enable: true
+  setting:
+    language: zh_cn
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs
+
 drs:
   auth:
     token-header: X-Access-Token
+  # MinIO 对象存储（Docker 容器 fjzhmz-minio）；阶段1 仅预留，上传接口在后续阶段实现
+  minio:
+    endpoint: http://127.0.0.1:9000
+    # AccessKey / SecretKey 通过环境变量 MINIO_ACCESS_KEY / MINIO_SECRET_KEY 注入，勿写明文入库
+    access-key: ${MINIO_ACCESS_KEY}
+    secret-key: ${MINIO_SECRET_KEY}
+    bucket: dr-screening
+  # 模型推理服务（Python FastAPI，Docker 容器/本地运行）；阶段1 预留
+  model-service:
+    base-url: http://127.0.0.1:8000
