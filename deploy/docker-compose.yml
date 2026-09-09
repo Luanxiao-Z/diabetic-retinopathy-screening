@@ -1,0 +1,92 @@
+# DR 智能筛查系统 —— 本地一键基础设施（本期交付形态：纯本地运行，docker 预留）
+# 使用：在仓库根目录执行  docker compose -f deploy/docker-compose.yml up -d --build
+# 说明：build context 为仓库根目录，dockerfile 指向 deploy/docker/*。
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: drs-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: dr_screening
+      TZ: Asia/Shanghai
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_0900_ai_ci
+    ports:
+      - "3306:3306"
+    volumes:
+      - ../sql/init:/docker-entrypoint-initdb.d:ro
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-proot123"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [drs-net]
+
+  redis:
+    image: redis:7
+    container_name: drs-redis
+    ports:
+      - "6379:6379"
+    networks: [drs-net]
+
+  minio:
+    image: minio/minio
+    container_name: drs-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+    networks: [drs-net]
+
+  backend:
+    build:
+      context: ..
+      dockerfile: deploy/docker/Dockerfile.backend
+    container_name: drs-backend
+    ports:
+      - "8080:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/dr_screening?useUnicode=true&characterEncoding=utf8mb4&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root123
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: "6379"
+    networks: [drs-net]
+
+  model-service:
+    build:
+      context: ..
+      dockerfile: deploy/docker/Dockerfile.model
+    container_name: drs-model
+    ports:
+      - "8000:8000"
+    networks: [drs-net]
+
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/docker/Dockerfile.frontend
+    container_name: drs-web
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks: [drs-net]
+
+volumes:
+  mysql-data:
+  minio-data:
+
+networks:
+  drs-net:
+    driver: bridge

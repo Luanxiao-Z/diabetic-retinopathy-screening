@@ -1,0 +1,26 @@
+# ============ 构建产物 ============
+backend/**/target/
+**/*.class
+
+# ============ 前端依赖与构建产物 ============
+node_modules/
+dist/
+frontend/web/dist/
+
+# ============ Python ============
+venv/
+__pycache__/
+*.pyc
+
+# ============ 工具/IDE ============
+.mvn/
+.idea/
+*.iml
+.vscode/
+
+# ============ WorkBuddy 工作记忆（本地数据，不纳入版本控制） ============
+.workbuddy/
+
+# ============ 系统 ============
+.DS_Store
+Thumbs.db

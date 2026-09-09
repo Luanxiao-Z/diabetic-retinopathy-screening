@@ -1,0 +1,6 @@
+# DR 筛查模型服务依赖（阶段 0 占位，阶段 3 增加 torch / timm / pytorch-grad-cam）
+fastapi>=0.115.0
+uvicorn[standard]>=0.34.0
+python-multipart>=0.0.20
+pillow>=11.0.0
+numpy>=2.1.0

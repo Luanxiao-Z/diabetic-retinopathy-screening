@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.4.4</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>cn.edu.fzu.drs</groupId>
+    <artifactId>drs-backend</artifactId>
+    <version>1.0.0</version>
+    <packaging>pom</packaging>
+    <name>drs-backend</name>
+    <description>糖尿病视网膜病变（DR）智能筛查系统 —— 后端聚合工程</description>
+
+    <modules>
+        <module>drs-dependencies/drs-dependencies-bom</module>
+        <module>drs-module/drs-module-common</module>
+        <module>drs-module/drs-module-security</module>
+        <module>drs-module/drs-module-system</module>
+        <module>drs-module/drs-module-screening</module>
+        <module>drs-app/drs-app-server</module>
+    </modules>
+
+    <properties>
+        <java.version>21</java.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.parameters>true</maven.compiler.parameters>
+        <mybatis-plus.version>3.5.11</mybatis-plus.version>
+        <knife4j.version>4.5.0</knife4j.version>
+        <jedis.version>5.2.0</jedis.version>
+        <aws.sdk.version>2.30.0</aws.sdk.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>cn.edu.fzu.drs</groupId>
+                <artifactId>drs-dependencies-bom</artifactId>
+                <version>${project.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-maven-plugin</artifactId>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+    </build>
+</project>

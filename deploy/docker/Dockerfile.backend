@@ -1,0 +1,12 @@
+# 后端镜像（多阶段）：先 maven 编译，再 jre 运行
+FROM maven:3.9.9-eclipse-temurin-21 AS build
+WORKDIR /app
+COPY backend/pom.xml backend/
+COPY backend/ backend/
+RUN mvn -B -q package -DskipTests -pl drs-app/drs-app-server -am
+
+FROM eclipse-temurin:21-jre
+WORKDIR /app
+COPY --from=build /app/backend/drs-app/drs-app-server/target/*.jar app.jar
+EXPOSE 8080
+ENTRYPOINT ["java", "-jar", "app.jar"]
