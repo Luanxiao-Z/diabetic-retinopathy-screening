@@ -29,6 +29,12 @@ spring:
     date-format: yyyy-MM-dd HH:mm:ss
     time-zone: GMT+8
     default-property-inclusion: non_null
+  servlet:
+    multipart:
+      # 眼底图单文件较大，放宽上传限制（阶段4 筛查上传）
+      enabled: true
+      max-file-size: 20MB
+      max-request-size: 100MB
 
 mybatis-plus:
   mapper-locations: classpath*:/mapper/**/*.xml

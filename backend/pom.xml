@@ -34,7 +34,6 @@
         <mybatis-plus.version>3.5.11</mybatis-plus.version>
         <knife4j.version>4.5.0</knife4j.version>
         <jedis.version>5.2.0</jedis.version>
-        <aws.sdk.version>2.30.0</aws.sdk.version>
     </properties>
 
     <dependencyManagement>

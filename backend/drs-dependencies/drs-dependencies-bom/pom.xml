@@ -16,7 +16,7 @@
         <mybatis-plus.version>3.5.11</mybatis-plus.version>
         <knife4j.version>4.5.0</knife4j.version>
         <jedis.version>5.2.0</jedis.version>
-        <aws.sdk.version>2.30.0</aws.sdk.version>
+        <minio.version>8.5.7</minio.version>
         <swagger-annotations.version>2.2.8</swagger-annotations.version>
     </properties>
 
@@ -48,17 +48,11 @@
                 <artifactId>jedis</artifactId>
                 <version>${jedis.version}</version>
             </dependency>
+            <!-- MinIO 对象存储 Java 客户端（S3 兼容），用于眼底图与热力图存储 -->
             <dependency>
-                <groupId>software.amazon.awssdk</groupId>
-                <artifactId>bom</artifactId>
-                <version>${aws.sdk.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-            <dependency>
-                <groupId>software.amazon.awssdk</groupId>
-                <artifactId>s3</artifactId>
-                <version>${aws.sdk.version}</version>
+                <groupId>io.minio</groupId>
+                <artifactId>minio</artifactId>
+                <version>${minio.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

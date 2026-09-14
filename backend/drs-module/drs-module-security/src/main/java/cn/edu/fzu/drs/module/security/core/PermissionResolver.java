@@ -19,6 +19,7 @@ public class PermissionResolver {
     private static final Set<String> DOCTOR_PERMISSIONS = Set.of(
             PermissionConstants.BIZ_SCREENING_CREATE,
             PermissionConstants.BIZ_SCREENING_VIEW,
+            PermissionConstants.BIZ_SCREENING_DELETE,
             PermissionConstants.COMMON_DICT_VIEW
     );
 
