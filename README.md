@@ -1,6 +1,6 @@
 # 糖尿病视网膜病变（DR）智能筛查系统
 
-基于 `spec/` 规范体系与 `docs/项目开发计划.md`（v1.1 决策冻结版）实现的工程骨架。**阶段 0（脚手架）、阶段 1（数据层 + 认证接口）与阶段 2（认证与权限）已完成**：后端多模块编译/构建通过、前端构建通过、MySQL 建表与字典初始化已落库、登录 / 字典 / 当前用户接口端到端验证可用；阶段 2 新增管理员用户与字典 CRUD 接口并接入 `@RequirePermission`，角色—权限映射与数据权限 SELF/ALL 落地，401/403 鉴权端到端验证通过。
+基于 `spec/` 规范体系与 `docs/项目开发计划.md`（v1.1 决策冻结版）实现的工程骨架。**阶段 0（脚手架）、阶段 1（数据层 + 认证接口）、阶段 2（认证与权限）与阶段 3（模型服务）已完成**：后端多模块编译/构建通过、前端构建通过、MySQL 建表与字典初始化已落库、登录 / 字典 / 当前用户接口端到端验证可用；阶段 2 新增管理员用户与字典 CRUD 接口并接入 `@RequirePermission`，角色—权限映射与数据权限 SELF/ALL 落地，401/403 鉴权端到端验证通过；阶段 3 实现 FastAPI 模型服务（MobileNetV3-Small 5 类推理管线、自实现 Grad-CAM 热力图、/predict 与 /cam 接口，CUDA cu130 版 PyTorch 跑在本地 RTX 4050 上）。**本期使用未经训练的随机初始化模型**（权重缺失时自动回退），用于打通管线与联调；模型训练推迟至最后阶段实现，训练完成后导出 `models/best_model.pth` 即可零代码切换。
 
 ## 技术栈
 
@@ -27,7 +27,7 @@ tools/mvn.sh           Git Bash 下 Maven 包装脚本（解决 POSIX 路径问�
 
 - JDK 21、Maven 3.9.x
 - Node.js 18+（推荐 22）、Yarn 1.22
-- Python 3.10+
+- Python 3.12+
 - Docker（可选，仅用于基础设施；本期交付形态为纯本地运行，Docker 配置作预留）
 
 ## 快速开始
@@ -69,16 +69,21 @@ java -jar drs-app-server-1.0.0.jar --server.port=8080
 
 > 开发模式亦可用 `bash tools/mvn.sh -pl drs-app/drs-app-server -am spring-boot:run`（需在该模块上执行，而非聚合根）。若所在终端被代理注入 `SERVER__PORT` 导致端口异常，显式加 `--server.port=8080` 覆盖即可。
 
-### 3. 模型服务
+### 3. 模型服务（FastAPI，独立端口 8000）
+
+> 依赖含 CUDA 13.0 (cu130) 版 PyTorch，本地 RTX 4050 可加速训练/推理；无 NVIDIA GPU 环境请把 `requirements.txt` 末两行改为 `+cpu` 轮子后再安装。
 
 ```bash
 cd model-service
+python -m venv .venv && source .venv/bin/activate   # 推荐虚拟环境
 pip install -r requirements.txt
-uvicorn main:app --host 0.0.0.0 --port 8000
-# 健康检查：GET http://localhost:8000/health
+uvicorn app.main:app --host 0.0.0.0 --port 8000
+# 健康检查：GET  http://localhost:8000/health
+# 推理：      POST http://localhost:8000/predict  (multipart/form-data: image=眼底图)
+# 热力图：    POST http://localhost:8000/cam       (multipart/form-data: image=眼底图，返回 PNG)
 ```
 
-阶段 0 仅提供确定性占位推理（返回 LEVEL_2 模拟结果），用于前后端联调；阶段 3 替换为真实模型推理与 Grad-CAM 热力图。
+> 本期使用**未经训练的随机初始化模型**（`models/best_model.pth` 缺失时自动回退），仅用于打通推理管线、Grad-CAM 与前后端联调；**模型训练推迟至最后阶段实现**，训练完成后导出 `models/best_model.pth` 即可零代码切换。
 
 ### 4. 前端（已配置国内镜像）
 
@@ -140,12 +145,37 @@ yarn build        # 生产构建，产物位于 dist/
 
 > 角色权限矩阵（轻量化，无 RBAC 表）：`ADMIN` 拥有全部 `admin:*` 与 `common:*` 权限、数据权限 `ALL`；`DOCTOR` 仅拥有 `common:dict:view` 与 `biz:screening:*`，数据权限 `SELF`。以 `DOCTOR` 令牌访问 `/admin/**` 返回 `HTTP 403`。
 
+## 阶段 3 接口速览（模型服务，独立部署不走 `/api/v1`）
+
+模型服务独立部署于 8000 端口，后端经 HTTP 调用并在失败/超时时降级（返回 503）。响应契约 `PredictResponse`：
+
+```json
+{
+  "record_id": "uuid",
+  "result_level": "LEVEL_2",
+  "result_label": "中度 NPDR",
+  "confidence": 0.873,
+  "probabilities": {"LEVEL_0": 0.01, "LEVEL_1": 0.02, "LEVEL_2": 0.873, "LEVEL_3": 0.05, "LEVEL_4": 0.047},
+  "suggestion": "CLINIC",
+  "model_version": "dev-untrained-0.1.0"
+}
+```
+
+| 方法 | 路径 | 说明 | 请求 |
+| --- | --- | --- | --- |
+| GET | `/health` | 健康检查（Docker 探针）；返回 `status / model / device / cuda_available / trained` | — |
+| POST | `/predict` | 多分类推理：返回分级编码、标签、置信度、各分级概率、转诊建议 | `multipart/form-data: image=眼底图` |
+| POST | `/cam` | 生成 Grad-CAM 热力图，返回叠加 PNG（同时以响应头返回 `X-Record-Id` / `X-Target-Level` / `X-Confidence`） | `multipart/form-data: image=眼底图` |
+
+> 分级与转诊映射（与后端 `B_DR_LEVEL` / `B_DR_SUGGESTION` 一致，业务层维护）：`LEVEL_0/1 → REVIEW`（定期复查）、`LEVEL_2 → CLINIC`（建议眼科就诊）、`LEVEL_3/4 → REFERRAL`（建议尽快转诊）。本期模型未经训练，结果为随机初始化权重输出，仅验证管线；热力图上传 MinIO 与后端落库 `grad_cam_key` 留待阶段 4。
+
 ## 阶段进度
 
 - [x] 阶段 0 脚手架与基础设施（后端编译通过、前端构建通过、部署与 SQL 脚本就绪）
 - [x] 阶段 1 数据层与认证接口（MyBatis-Plus 配置、Entity/Mapper/Convert/DTO/VO、登录/字典/当前用户接口、AuthFilter + Redis Token、建表落库并端到端验证）
 - [x] 阶段 2 认证与权限（@RequirePermission 拦截器对接业务接口、管理员用户/字典 CRUD、角色—权限映射与数据权限 SELF/ALL 落地、401/403 鉴权端到端验证）
-- [ ] 阶段 3 模型服务（模型训练 + Grad-CAM）
+- [x] 阶段 3 模型服务（FastAPI 推理管线 + 自实现 Grad-CAM + /predict、/cam、/health 接口；CUDA cu130 跑在 RTX 4050，使用未经训练模型验证管线）
+- [ ] 模型训练（推迟至最后阶段：APTOS 2019 训练 MobileNetV3-Small、导出 `models/best_model.pth` 后零代码切换）
 - [ ] 阶段 4 业务核心（筛查上传→推理→落库→统计→导出）
 - [ ] 阶段 5 前端 PC 业务页面
 - [ ] 阶段 6 H5（后续可选）

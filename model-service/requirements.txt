@@ -1,6 +1,19 @@
-# DR 筛查模型服务依赖（阶段 0 占位，阶段 3 增加 torch / timm / pytorch-grad-cam）
+# ===========================================================================
+# DR 筛查模型服务依赖
+# ---------------------------------------------------------------------------
+# PyTorch 采用 CUDA 13.0 (cu130) GPU 轮子，本地 RTX 4050 可加速训练/推理。
+# 若运行环境无 NVIDIA GPU，请将最后两行改为：
+#     torch==2.14.0+cpu
+#     torchvision==0.29.0+cpu
+# （同样走 PyTorch 额外索引；CPU 轮子也可直接从 PyPI 安装，去掉 +cu130 即可）
+# 安装命令：pip install -r requirements.txt
+# ===========================================================================
+--extra-index-url https://download.pytorch.org/whl/cu130
+
 fastapi>=0.115.0
 uvicorn[standard]>=0.34.0
 python-multipart>=0.0.20
 pillow>=11.0.0
 numpy>=2.1.0
+torch==2.14.0+cu130
+torchvision==0.29.0+cu130

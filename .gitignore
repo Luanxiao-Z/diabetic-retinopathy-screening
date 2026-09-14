@@ -9,8 +9,13 @@ frontend/web/dist/
 
 # ============ Python ============
 venv/
+.venv/
 __pycache__/
 *.pyc
+
+# ============ 模型服务产物（权重与生成的热力图不纳入版本控制） ============
+model-service/models/
+model-service/heatmaps/
 
 # ============ 工具/IDE ============
 .mvn/
