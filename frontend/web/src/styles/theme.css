@@ -1,0 +1,77 @@
+:root {
+  /* DR 智能筛查系统设计令牌（医疗蓝绿主色 / 健康绿 CTA） */
+  --drs-primary: #0891B2;
+  --drs-primary-dark: #06748E;
+  --drs-cta: #22C55E;
+  --drs-cta-dark: #16A34A;
+  --drs-bg: #F0FDFA;
+  --drs-surface: #FFFFFF;
+  --drs-text: #0F172A;
+  --drs-text-soft: #64748B;
+  --drs-border: #E2E8F0;
+  --drs-danger: #EF4444;
+  --drs-warn: #F59E0B;
+
+  /* Element Plus 主色系（覆盖为医疗蓝绿） */
+  --el-color-primary: #0891B2;
+  --el-color-primary-light-3: #52B2C9;
+  --el-color-primary-light-5: #84C8D9;
+  --el-color-primary-light-7: #B5DEE8;
+  --el-color-primary-light-8: #CEE9F0;
+  --el-color-primary-light-9: #E6F4F7;
+  --el-color-primary-dark-2: #06748E;
+  --el-color-success: #22C55E;
+  --el-color-warning: #F59E0B;
+  --el-color-danger: #EF4444;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--drs-bg);
+  color: var(--drs-text);
+  font-family: 'Figtree', 'Noto Sans SC', 'Segoe UI', system-ui, -apple-system, 'PingFang SC',
+    'Microsoft YaHei', sans-serif;
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--drs-primary);
+  text-decoration: none;
+}
+
+/* 通用卡片阴影（轻量化、医疗风格） */
+.drs-card {
+  background: var(--drs-surface);
+  border: 1px solid var(--drs-border);
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 16px rgba(8, 145, 178, 0.06);
+}
+
+.drs-page {
+  padding: 20px 24px;
+}
+
+.drs-page-title {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0 0 4px;
+  color: var(--drs-text);
+}
+
+.drs-page-subtitle {
+  font-size: 13px;
+  color: var(--drs-text-soft);
+  margin: 0 0 18px;
+}

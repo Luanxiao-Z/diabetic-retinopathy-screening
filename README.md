@@ -192,6 +192,6 @@ yarn build        # 生产构建，产物位于 dist/
 - [x] 阶段 3 模型服务（FastAPI 推理管线 + 自实现 Grad-CAM + /predict、/cam、/health 接口；CUDA cu130 跑在 RTX 4050，使用未经训练模型验证管线）
 - [x] 阶段 4 业务核心（筛查上传→推理→落库→统计→导出：MinIO 私有桶存储、模型服务 HTTP 调用、数据权限 SELF/ALL、Excel 导出；后端 compile/package 验证通过）
 - [ ] 模型训练（推迟至最后阶段：APTOS 2019 训练 MobileNetV3-Small、导出 `models/best_model.pth` 后零代码切换）
-- [ ] 阶段 5 前端 PC 业务页面
+- [x] 阶段 5 前端 PC 业务页面（看板 / 上传 / 记录 / 统计 / 个人中心 / 403：vue-tsc 类型检查 + vite build 通过，含权限对齐与导出二进制处理）
 - [ ] 阶段 6 H5（后续可选）
 - [ ] 阶段 7 部署（本地运行 + Docker 预留）
