@@ -1,6 +1,6 @@
 # 糖尿病视网膜病变（DR）智能筛查系统
 
-基于 `spec/` 规范体系与 `docs/项目开发计划.md`（v1.1 决策冻结版）实现的工程骨架。**阶段 0（脚手架）、阶段 1（数据层 + 认证接口）、阶段 2（认证与权限）与阶段 3（模型服务）已完成**：后端多模块编译/构建通过、前端构建通过、MySQL 建表与字典初始化已落库、登录 / 字典 / 当前用户接口端到端验证可用；阶段 2 新增管理员用户与字典 CRUD 接口并接入 `@RequirePermission`，角色—权限映射与数据权限 SELF/ALL 落地，401/403 鉴权端到端验证通过；阶段 3 实现 FastAPI 模型服务（MobileNetV3-Small 5 类推理管线、自实现 Grad-CAM 热力图、/predict 与 /cam 接口，CUDA cu130 版 PyTorch 跑在本地 RTX 4050 上）。**本期使用未经训练的随机初始化模型**（权重缺失时自动回退），用于打通管线与联调；模型训练推迟至最后阶段实现，训练完成后导出 `models/best_model.pth` 即可零代码切换。
+基于 `spec/` 规范体系与 `docs/项目开发计划.md`（v1.1 决策冻结版）实现的工程骨架。**阶段 0（脚手架）、阶段 1（数据层 + 认证接口）、阶段 2（认证与权限）、阶段 3（模型服务）与阶段 4（业务核心）已完成**：后端多模块编译/构建通过、前端构建通过、MySQL 建表与字典初始化已落库、登录 / 字典 / 当前用户接口端到端验证可用；阶段 2 新增管理员用户与字典 CRUD 接口并接入 `@RequirePermission`，角色—权限映射与数据权限 SELF/ALL 落地，401/403 鉴权端到端验证通过；阶段 3 实现 FastAPI 模型服务（MobileNetV3-Small 5 类推理管线、自实现 Grad-CAM 热力图、/predict 与 /cam 接口，CUDA cu130 版 PyTorch 跑在本地 RTX 4050 上）。**本期使用未经训练的随机初始化模型**（权重缺失时自动回退），用于打通管线与联调；模型训练推迟至最后阶段实现，训练完成后导出 `models/best_model.pth` 即可零代码切换。
 
 ## 技术栈
 
@@ -50,7 +50,7 @@ docker compose -f deploy/docker-compose.yml up -d
 | --- | --- |
 | `DB_PASSWORD` | MySQL 密码（应用以 `root` 连接业务库 `dr_screening`） |
 | `REDIS_PASSWORD` | Redis 密码（Docker 容器 `fjzhmz-redis`，端口 26379） |
-| `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY` | MinIO 凭据（阶段 1 仅预留，上传接口后续阶段实现） |
+| `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY` | MinIO 凭据（阶段 4 用于眼底图与热力图私有桶存储） |
 
 > 首次启动会由 `DataInitializer` 自动播种账号：**`admin` / `admin123`**（角色 ADMIN，数据权限 ALL）与 **`doctor` / `doctor123`**（角色 DOCTOR，数据权限 SELF），用于演示与鉴权联调；账号已存在则跳过（幂等）。
 
@@ -167,7 +167,22 @@ yarn build        # 生产构建，产物位于 dist/
 | POST | `/predict` | 多分类推理：返回分级编码、标签、置信度、各分级概率、转诊建议 | `multipart/form-data: image=眼底图` |
 | POST | `/cam` | 生成 Grad-CAM 热力图，返回叠加 PNG（同时以响应头返回 `X-Record-Id` / `X-Target-Level` / `X-Confidence`） | `multipart/form-data: image=眼底图` |
 
-> 分级与转诊映射（与后端 `B_DR_LEVEL` / `B_DR_SUGGESTION` 一致，业务层维护）：`LEVEL_0/1 → REVIEW`（定期复查）、`LEVEL_2 → CLINIC`（建议眼科就诊）、`LEVEL_3/4 → REFERRAL`（建议尽快转诊）。本期模型未经训练，结果为随机初始化权重输出，仅验证管线；热力图上传 MinIO 与后端落库 `grad_cam_key` 留待阶段 4。
+> 分级与转诊映射（与后端 `B_DR_LEVEL` / `B_DR_SUGGESTION` 一致，业务层维护）：`LEVEL_0/1 → REVIEW`（定期复查）、`LEVEL_2 → CLINIC`（建议眼科就诊）、`LEVEL_3/4 → REFERRAL`（建议尽快转诊）。本期模型未经训练，结果为随机初始化权重输出，仅验证管线；阶段 4 已实现热力图上传统 MinIO 并落库 `grad_cam_key`。
+
+## 阶段 4 接口速览（业务核心，已验证编译/打包）
+
+基础路径 `/api/v1`，响应体统一为 `{code, msg, data}`；所有接口均需 `X-Access-Token`。筛查记录落库表 `biz_screening_record`（见 `sql/init/01_init_dr_screening.sql`）。
+
+| 方法 | 路径 | 说明 | 所需权限 |
+| --- | --- | --- | --- |
+| POST | `/biz/screening-records` | 批量上传眼底图：`multipart` 多文件 + 患者信息 → 上传 MinIO → 调模型服务推理 → 落库（含热力图） | `biz:screening:create` |
+| GET | `/biz/screening-records` | 分页查询（患者名模糊 / 分级 / 起止时间），受数据权限 SELF/ALL 约束 | `biz:screening:view` |
+| GET | `/biz/screening-records/{id}` | 详情（含图片与热力图预签名 URL） | `biz:screening:view` |
+| DELETE | `/biz/screening-records/{id}` | 删除（逻辑删除 + 清理 MinIO 对象；管理员或记录创建者） | `biz:screening:delete` |
+| GET | `/biz/screening-records/statistics` | 统计：各级/建议分布、转诊率、近 30 天趋势 | `biz:screening:view` |
+| GET | `/biz/screening-records/exports` | 导出 Excel（按 ids 或当前筛选条件） | `biz:screening:export` |
+
+> 权限矩阵（轻量化，无 RBAC 表）：`DOCTOR` 拥有 `biz:screening:create/view/export/delete` 与 `common:dict:view`，数据权限 `SELF`（仅查本人记录）；`ADMIN` 额外拥有全部 `admin:*`，数据权限 `ALL`。对象存储采用 MinIO Java 客户端（S3 兼容），私有桶 `dr-screening`，图片/热力图以预签名 URL（30 分钟时效）返回前端；模型服务不可达时推理与热力图生成降级（热力图失败不阻断主流程）。Excel 导出仅导出 Excel（见 spec 约定）。
 
 ## 阶段进度
 
@@ -175,8 +190,8 @@ yarn build        # 生产构建，产物位于 dist/
 - [x] 阶段 1 数据层与认证接口（MyBatis-Plus 配置、Entity/Mapper/Convert/DTO/VO、登录/字典/当前用户接口、AuthFilter + Redis Token、建表落库并端到端验证）
 - [x] 阶段 2 认证与权限（@RequirePermission 拦截器对接业务接口、管理员用户/字典 CRUD、角色—权限映射与数据权限 SELF/ALL 落地、401/403 鉴权端到端验证）
 - [x] 阶段 3 模型服务（FastAPI 推理管线 + 自实现 Grad-CAM + /predict、/cam、/health 接口；CUDA cu130 跑在 RTX 4050，使用未经训练模型验证管线）
+- [x] 阶段 4 业务核心（筛查上传→推理→落库→统计→导出：MinIO 私有桶存储、模型服务 HTTP 调用、数据权限 SELF/ALL、Excel 导出；后端 compile/package 验证通过）
 - [ ] 模型训练（推迟至最后阶段：APTOS 2019 训练 MobileNetV3-Small、导出 `models/best_model.pth` 后零代码切换）
-- [ ] 阶段 4 业务核心（筛查上传→推理→落库→统计→导出）
 - [ ] 阶段 5 前端 PC 业务页面
 - [ ] 阶段 6 H5（后续可选）
 - [ ] 阶段 7 部署（本地运行 + Docker 预留）
