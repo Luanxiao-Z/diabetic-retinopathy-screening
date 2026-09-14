@@ -4,10 +4,14 @@ import cn.edu.fzu.drs.module.common.entity.BaseEntity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import lombok.Getter;
+import lombok.Setter;
 
 /**
  * 字典项实体（对应表 sys_dict_item）。
  */
+@Getter
+@Setter
 @TableName("sys_dict_item")
 public class SysDictItemEntity extends BaseEntity {
 
@@ -31,60 +35,4 @@ public class SysDictItemEntity extends BaseEntity {
 
     /** 备注 */
     private String remark;
-
-    public String getId() {
-        return id;
-    }
-
-    public void setId(String id) {
-        this.id = id;
-    }
-
-    public String getDomainCode() {
-        return domainCode;
-    }
-
-    public void setDomainCode(String domainCode) {
-        this.domainCode = domainCode;
-    }
-
-    public String getItemCode() {
-        return itemCode;
-    }
-
-    public void setItemCode(String itemCode) {
-        this.itemCode = itemCode;
-    }
-
-    public String getItemName() {
-        return itemName;
-    }
-
-    public void setItemName(String itemName) {
-        this.itemName = itemName;
-    }
-
-    public String getItemValue() {
-        return itemValue;
-    }
-
-    public void setItemValue(String itemValue) {
-        this.itemValue = itemValue;
-    }
-
-    public Integer getSort() {
-        return sort;
-    }
-
-    public void setSort(Integer sort) {
-        this.sort = sort;
-    }
-
-    public String getRemark() {
-        return remark;
-    }
-
-    public void setRemark(String remark) {
-        this.remark = remark;
-    }
 }

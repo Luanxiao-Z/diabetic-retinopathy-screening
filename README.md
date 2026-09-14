@@ -1,6 +1,6 @@
 # 糖尿病视网膜病变（DR）智能筛查系统
 
-基于 `spec/` 规范体系与 `docs/项目开发计划.md`（v1.1 决策冻结版）实现的工程骨架。**阶段 0（脚手架）与阶段 1（数据层 + 认证接口）已完成**：后端多模块编译/构建通过、前端构建通过、MySQL 建表与字典初始化已落库、登录 / 字典 / 当前用户接口端到端验证可用。
+基于 `spec/` 规范体系与 `docs/项目开发计划.md`（v1.1 决策冻结版）实现的工程骨架。**阶段 0（脚手架）、阶段 1（数据层 + 认证接口）与阶段 2（认证与权限）已完成**：后端多模块编译/构建通过、前端构建通过、MySQL 建表与字典初始化已落库、登录 / 字典 / 当前用户接口端到端验证可用；阶段 2 新增管理员用户与字典 CRUD 接口并接入 `@RequirePermission`，角色—权限映射与数据权限 SELF/ALL 落地，401/403 鉴权端到端验证通过。
 
 ## 技术栈
 
@@ -52,7 +52,7 @@ docker compose -f deploy/docker-compose.yml up -d
 | `REDIS_PASSWORD` | Redis 密码（Docker 容器 `fjzhmz-redis`，端口 26379） |
 | `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY` | MinIO 凭据（阶段 1 仅预留，上传接口后续阶段实现） |
 
-> 首次启动会由 `DataInitializer` 自动播种管理员账号 **`admin` / `admin123`**（角色 ADMIN，数据权限 ALL）。
+> 首次启动会由 `DataInitializer` 自动播种账号：**`admin` / `admin123`**（角色 ADMIN，数据权限 ALL）与 **`doctor` / `doctor123`**（角色 DOCTOR，数据权限 SELF），用于演示与鉴权联调；账号已存在则跳过（幂等）。
 
 ### 2. 后端
 
@@ -117,11 +117,34 @@ yarn build        # 生产构建，产物位于 dist/
 
 > 未携带/携带失效 token 访问鉴权接口返回 `code=401`；`DataInitializer` 在 MySQL 就绪后自动播种 `admin`。
 
+## 阶段 2 接口速览（已验证）
+
+在阶段 1 的基础上，新增**管理员域**（`/api/v1/admin`）接口并接入 `@RequirePermission` 功能权限拦截；角色—权限映射与数据权限 SELF/ALL 已落地。响应体仍统一为 `{code, msg, data}`，鉴权失败时同时返回正确的 HTTP 状态码（`401` 未登录 / `403` 无权限）。
+
+| 方法 | 路径 | 说明 | 所需权限 |
+| --- | --- | --- | --- |
+| GET | `/admin/users` | 用户分页列表 | `admin:user:view` |
+| GET | `/admin/users/{id}` | 用户详情 | `admin:user:view` |
+| POST | `/admin/users` | 创建用户（返回 201） | `admin:user:edit` |
+| PUT | `/admin/users/{id}` | 修改用户 | `admin:user:edit` |
+| DELETE | `/admin/users/{id}` | 删除用户（逻辑删除） | `admin:user:edit` |
+| PATCH | `/admin/users/{id}/state` | 启停用户 | `admin:user:edit` |
+| GET | `/admin/dict-domains` | 字典域列表 | `admin:dict:view` |
+| POST | `/admin/dict-domains` | 创建字典域（返回 201） | `admin:dict:edit` |
+| PUT | `/admin/dict-domains/{domainCode}` | 修改字典域 | `admin:dict:edit` |
+| DELETE | `/admin/dict-domains/{domainCode}` | 删除字典域（级联删除其下字典项） | `admin:dict:edit` |
+| GET | `/admin/dict-domains/{domainCode}/items` | 字典项列表 | `admin:dict:view` |
+| POST | `/admin/dict-domains/{domainCode}/items` | 创建字典项（返回 201） | `admin:dict:edit` |
+| PUT | `/admin/dict-domains/{domainCode}/items/{itemCode}` | 修改字典项 | `admin:dict:edit` |
+| DELETE | `/admin/dict-domains/{domainCode}/items/{itemCode}` | 删除字典项 | `admin:dict:edit` |
+
+> 角色权限矩阵（轻量化，无 RBAC 表）：`ADMIN` 拥有全部 `admin:*` 与 `common:*` 权限、数据权限 `ALL`；`DOCTOR` 仅拥有 `common:dict:view` 与 `biz:screening:*`，数据权限 `SELF`。以 `DOCTOR` 令牌访问 `/admin/**` 返回 `HTTP 403`。
+
 ## 阶段进度
 
 - [x] 阶段 0 脚手架与基础设施（后端编译通过、前端构建通过、部署与 SQL 脚本就绪）
 - [x] 阶段 1 数据层与认证接口（MyBatis-Plus 配置、Entity/Mapper/Convert/DTO/VO、登录/字典/当前用户接口、AuthFilter + Redis Token、建表落库并端到端验证）
-- [ ] 阶段 2 认证与权限（@RequirePermission 拦截器对接业务接口、数据权限 SELF/ALL 落地）
+- [x] 阶段 2 认证与权限（@RequirePermission 拦截器对接业务接口、管理员用户/字典 CRUD、角色—权限映射与数据权限 SELF/ALL 落地、401/403 鉴权端到端验证）
 - [ ] 阶段 3 模型服务（模型训练 + Grad-CAM）
 - [ ] 阶段 4 业务核心（筛查上传→推理→落库→统计→导出）
 - [ ] 阶段 5 前端 PC 业务页面
