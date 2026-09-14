@@ -8,7 +8,7 @@ import java.util.Set;
 /**
  * 轻量化角色→权限映射（本期仅 DOCTOR / ADMIN 两角色，不建 RBAC 表）。
  * <ul>
- *   <li>DOCTOR：本人筛查记录的创建/查看、字典查看</li>
+ *   <li>DOCTOR：本人筛查记录的创建/查看/导出/删除、字典查看（导出受 SELF 数据权限约束，仅本人记录）</li>
  *   <li>ADMIN：全量用户与筛查记录的管理、导出、删除</li>
  * </ul>
  * 数据权限：ADMIN=ALL，其余=SELF。
@@ -19,6 +19,7 @@ public class PermissionResolver {
     private static final Set<String> DOCTOR_PERMISSIONS = Set.of(
             PermissionConstants.BIZ_SCREENING_CREATE,
             PermissionConstants.BIZ_SCREENING_VIEW,
+            PermissionConstants.BIZ_SCREENING_EXPORT,
             PermissionConstants.BIZ_SCREENING_DELETE,
             PermissionConstants.COMMON_DICT_VIEW
     );

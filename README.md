@@ -184,6 +184,39 @@ yarn build        # 生产构建，产物位于 dist/
 
 > 权限矩阵（轻量化，无 RBAC 表）：`DOCTOR` 拥有 `biz:screening:create/view/export/delete` 与 `common:dict:view`，数据权限 `SELF`（仅查本人记录）；`ADMIN` 额外拥有全部 `admin:*`，数据权限 `ALL`。对象存储采用 MinIO Java 客户端（S3 兼容），私有桶 `dr-screening`，图片/热力图以预签名 URL（30 分钟时效）返回前端；模型服务不可达时推理与热力图生成降级（热力图失败不阻断主流程）。Excel 导出仅导出 Excel（见 spec 约定）。
 
+## 端到端联调结论（2026-09-14）
+
+本期（阶段 5 完成后）在不实现阶段 6（H5）的前提下，对本地运行的完整链路做了一次端到端联调。基础设施 MinIO（9000/9001）、Redis（26379）、MySQL（3306）已就绪并在物理机后台监听；后端（8080）、模型服务（8000）、前端 dev（5173）依次启动后逐项验证。
+
+### 验证环境
+
+| 服务 | 端口 | 状态 |
+| --- | --- | --- |
+| MySQL | 3306 | 业务库 `dr_screening`，就绪 |
+| Redis | 26379 | 令牌会话，就绪 |
+| MinIO | 9000 / 9001 | 私有桶 `dr-screening`，就绪 |
+| 后端 backend | 8080 | 启动成功（JDK 21，自动建桶 / 连库 / 播种账号） |
+| 模型服务 | 8000 | FastAPI，CUDA cu130 + 未训练模型，`/health`=UP |
+| 前端 dev | 5173 | Vite 6，`/api` 代理至后端 8080 |
+
+### 验证清单（全部通过）
+
+- 登录 `admin` / `doctor` → 200，返回 token + 角色 + 权限集 + 数据权限（ADMIN=ALL，DOCTOR=SELF）
+- 筛查上传（doctor）→ 200，记录含 `resultLevel` / `confidence` / `probabilities` / 图片与热力图预签名 URL；模型推理 → MinIO 落库 → DB 全通
+- 分页 / 详情 / 统计 → 正常
+- Excel 导出（admin / doctor）→ 200，合法 `.xlsx`（含表头与数据行）
+- 删除（doctor 删本人记录）→ 200，逻辑删除
+- 数据权限 SELF 隔离 → doctor 仅见本人记录（0 条），admin（ALL）见全部；验证通过
+- 功能权限 → doctor 访问 `/admin/users` → 403
+- 前端代理 5173 → 8080 → 登录 / 数据正确
+
+### 本轮修复
+
+1. **Excel 导出 500（`NoSuchMethodError`）**：POI 5.3.0 编译依赖 `commons-compress 1.26.2`，而 Spring Boot 3.4.4 父 BOM 将其管理为 `1.24.0`，二者方法签名不兼容（`ZipArchiveOutputStream.putArchiveEntry`），导致导出时 `NoSuchMethodError` 并 500。已在后端聚合父 pom 的 `dependencyManagement` 中显式锁定 `commons-compress 1.26.2`，覆盖父 BOM；重新构建后 fat-jar 内含 1.26.2，导出恢复 200。
+2. **医生缺导出权限（403）**：`PermissionResolver` 的 `DOCTOR_PERMISSIONS` 漏配 `BIZ_SCREENING_EXPORT`，与文档 / 前端约定（DOCTOR 拥有 `biz:screening:*`）不一致，导致医生导出被 403。已补入该权限（导出仍受 SELF 数据权限约束，仅本人记录）。
+
+> 本期模型为未经训练的随机初始化权重，分级结果为随机输出，仅用于打通管线；模型训练推迟至最后阶段，导出 `models/best_model.pth` 后零代码切换。
+
 ## 阶段进度
 
 - [x] 阶段 0 脚手架与基础设施（后端编译通过、前端构建通过、部署与 SQL 脚本就绪）
@@ -193,5 +226,6 @@ yarn build        # 生产构建，产物位于 dist/
 - [x] 阶段 4 业务核心（筛查上传→推理→落库→统计→导出：MinIO 私有桶存储、模型服务 HTTP 调用、数据权限 SELF/ALL、Excel 导出；后端 compile/package 验证通过）
 - [ ] 模型训练（推迟至最后阶段：APTOS 2019 训练 MobileNetV3-Small、导出 `models/best_model.pth` 后零代码切换）
 - [x] 阶段 5 前端 PC 业务页面（看板 / 上传 / 记录 / 统计 / 个人中心 / 403：vue-tsc 类型检查 + vite build 通过，含权限对齐与导出二进制处理）
+- [x] 端到端联调与修复（2026-09-14）：导出 `NoSuchMethodError` 修复 + 医生导出权限修复，全链路验证通过（见上文「端到端联调结论」）
 - [ ] 阶段 6 H5（后续可选）
 - [ ] 阶段 7 部署（本地运行 + Docker 预留）
