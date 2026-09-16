@@ -39,3 +39,6 @@ HANDOFF.md
 CONVERSATION_HANDOFF.md
 项目交接文档.md
 对话交接文档.md
+
+# ============ 训练数据集（本地大文件，不纳入版本控制） ============
+datasets/
