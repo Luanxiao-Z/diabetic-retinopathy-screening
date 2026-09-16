@@ -2,9 +2,12 @@
 
 支持两种目录布局（自动探测）：
 - 文件夹布局（sovitrath 224x224 预处理版，默认选择）：
-      <root>/colored_images/{0 - No_DR,1 - Mild,2 - Moderate,3 - Severe,4 - Proliferate_DR}/*.png
+      <root>/colored_images/{No_DR,Mild,Moderate,Severe,Proliferate_DR}/*.png
+      也兼容带数字前缀的写法 {0 - No_DR,1 - Mild,2 - Moderate,3 - Severe,4 - Proliferate_DR}/*.png
 - CSV 布局（APTOS 官方原版）：
       <root>/train.csv (id_code,diagnosis) + <root>/train_images/{id_code}.png
+
+标签映射与 B_DR_LEVEL / LEVEL_LABELS 一致：No_DR=0, Mild=1, Moderate=2, Severe=3, PDR=4。
 
 提供：
 - APTOSDataset：torch Dataset，读取图片 + 标签（0..4）。
@@ -30,10 +33,37 @@ from app.config import IMG_SIZE, IMAGENET_MEAN, IMAGENET_STD, NUM_CLASSES
 
 logger = logging.getLogger("drs.training.dataset")
 
-# 文件夹布局：子目录名前缀数字即标签 0..4
+# 文件夹布局：数字前缀风格 '0 - No_DR' 的子目录名首词即标签 0..4
 _FOLDER_PREFIXES = {str(i): i for i in range(NUM_CLASSES)}
+# 文件夹布局：类名风格（sovitrath 224x224 实际命名，归一化后匹配）→ 标签 0..4
+# 顺序与 B_DR_LEVEL / LEVEL_LABELS 一致：No_DR=0, Mild=1, Moderate=2, Severe=3, PDR=4
+_FOLDER_NAME_TO_LABEL = {
+    "no_dr": 0,
+    "normal": 0,
+    "mild": 1,
+    "moderate": 2,
+    "severe": 3,
+    "proliferate_dr": 4,
+    "proliferat_dr": 4,
+    "pdr": 4,
+}
 _IMAGE_EXTS = (".png", ".jpg", ".jpeg", ".bmp", ".tif", ".tiff")
 _NORMALIZE = transforms.Normalize(IMAGENET_MEAN, IMAGENET_STD)
+
+
+def _resolve_folder_label(folder_name: str) -> int | None:
+    """从类别子目录名解析整数标签 0..4。
+
+    支持两种命名：
+    - 数字前缀风格：'0 - No_DR' / '1 - Mild' ...
+    - 纯类名风格（sovitrath 224x224 实际）：'No_DR' / 'Mild' / 'Moderate' / 'Severe' / 'Proliferate_DR'
+    """
+    raw = folder_name.strip()
+    first = raw.split()[0]
+    if first in _FOLDER_PREFIXES:
+        return _FOLDER_PREFIXES[first]
+    norm = raw.lower().replace("-", "_").replace(" ", "_")
+    return _FOLDER_NAME_TO_LABEL.get(norm)
 
 
 def discover_layout(root: str | Path) -> dict:
@@ -61,18 +91,23 @@ def discover_layout(root: str | Path) -> dict:
 
 def _collect_folder_samples(images_dir: Path) -> list[tuple[Path, int]]:
     samples: list[tuple[Path, int]] = []
+    unmapped = []
     for sub in sorted(images_dir.iterdir()):
         if not sub.is_dir():
             continue
-        prefix = sub.name.split()[0]
-        if prefix not in _FOLDER_PREFIXES:
+        label = _resolve_folder_label(sub.name)
+        if label is None:
+            unmapped.append(sub.name)
             continue
-        label = _FOLDER_PREFIXES[prefix]
         for f in sub.iterdir():
             if f.suffix.lower() in _IMAGE_EXTS:
                 samples.append((f, label))
+    if unmapped:
+        logger.warning("文件夹布局有 %d 个未识别的子目录（已跳过）：%s", len(unmapped), unmapped)
     if not samples:
-        raise RuntimeError(f"文件夹布局未收集到任何样本：{images_dir}")
+        raise RuntimeError(
+            f"文件夹布局未收集到任何样本：{images_dir}（未识别任何类别子目录，请检查命名）"
+        )
     return samples
 
 
