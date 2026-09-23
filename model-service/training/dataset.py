@@ -264,8 +264,16 @@ def build_loaders(
     seed: int = 42,
     pin_memory: bool = True,
     weight_scheme: str = "inverse",
+    persistent_workers: bool = True,
+    prefetch_factor: int = 2,
 ) -> tuple[DataLoader, DataLoader, DataLoader, torch.Tensor]:
-    """一键构造 (train_loader, val_loader, test_loader, class_weights)。"""
+    """一键构造 (train_loader, val_loader, test_loader, class_weights)。
+
+    Windows 性能说明：spawn 模式下重建 worker 需重新 import torch，实测单次
+    开销约 13.7s（4 workers）。train/val 每个 epoch 都会重新迭代，故默认开启
+    persistent_workers 复用 worker 进程；test 仅迭代一次，反而 num_workers=0
+    更省（省去一次 spawn，单线程解码 367 张约 2s）。
+    """
     all_samples, _ = collect_samples(root)
     train_s, val_s, test_s = stratified_split(
         all_samples, train_ratio, val_ratio, test_ratio, seed
@@ -274,17 +282,25 @@ def build_loaders(
     val_ds = APTOSDataset(val_s, get_transforms(train=False))
     test_ds = APTOSDataset(test_s, get_transforms(train=False))
 
+    # num_workers=0 时 persistent_workers / prefetch_factor 无意义且会被 torch 拒绝
+    worker_kwargs: dict = (
+        {"persistent_workers": persistent_workers, "prefetch_factor": prefetch_factor}
+        if num_workers > 0 else {}
+    )
+
     train_loader = DataLoader(
         train_ds, batch_size=batch_size, shuffle=True,
         num_workers=num_workers, pin_memory=pin_memory, drop_last=True,
+        **worker_kwargs,
     )
     val_loader = DataLoader(
         val_ds, batch_size=batch_size, shuffle=False,
         num_workers=num_workers, pin_memory=pin_memory,
+        **worker_kwargs,
     )
     test_loader = DataLoader(
         test_ds, batch_size=batch_size, shuffle=False,
-        num_workers=num_workers, pin_memory=pin_memory,
+        num_workers=0, pin_memory=pin_memory,
     )
     class_weights = compute_class_weights([l for _, l in train_s], scheme=weight_scheme)
     logger.info("数据划分 -> train:%d val:%d test:%d", len(train_s), len(val_s), len(test_s))
