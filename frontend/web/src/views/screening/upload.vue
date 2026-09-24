@@ -99,9 +99,28 @@
                 :status="failedCount && !submitting ? 'warning' : undefined"
                 :show-text="false"
               />
+
+              <!-- 待确认提示：点击缩略图可放大预览 -->
+              <div v-if="pendingCount" class="queue-hint">
+                <AppIcon name="info" :size="13" />
+                <span>
+                  已添加 <b>{{ pendingCount }}</b> 张影像，<b>点击缩略图可放大预览</b>；
+                  确认无误后点击右上角「开始筛查」。
+                </span>
+              </div>
+
               <ul class="queue-list">
                 <li v-for="it in items" :key="it.key" class="queue-item">
-                  <img v-if="it.previewUrl" :src="it.previewUrl" class="qi-thumb" alt="影像预览" />
+                  <el-image
+                    v-if="it.previewUrl"
+                    :src="it.previewUrl"
+                    :preview-src-list="previewList"
+                    :initial-index="previewList.indexOf(it.previewUrl)"
+                    fit="cover"
+                    class="qi-thumb"
+                    alt="影像预览"
+                    preview-teleported
+                  />
                   <span class="qi-ico" :class="`qi-${it.status}`">
                     <AppIcon :name="statusIcon(it.status)" :size="13" />
                   </span>
@@ -113,7 +132,7 @@
 
             <p class="upload-note">
               <AppIcon name="info" :size="13" />
-              逐张独立提交：单张失败不影响其它影像，可在完成后单独重试。
+              先预览确认、再开始筛查；逐张独立提交，单张失败不影响其它影像，可在完成后单独重试。
             </p>
           </div>
         </section>
@@ -131,8 +150,9 @@
               <el-empty :image-size="96" description="选择眼底图后会自动开始筛查，结果将在此展示" />
               <ol class="flow">
                 <li><b>1</b> 填写患者信息（可留空）</li>
-                <li><b>2</b> 选择一张或多张眼底影像（自动开始筛查）</li>
-                <li><b>3</b> 左右切换查看每张影像的分级与热力图</li>
+                <li><b>2</b> 选择一张或多张眼底影像</li>
+                <li><b>3</b> 点击缩略图预览确认影像无误</li>
+                <li><b>4</b> 点击「开始筛查」获取分级与热力图</li>
               </ol>
             </div>
 
@@ -227,6 +247,11 @@ const progressPercent = computed(() =>
   items.value.length ? Math.round((doneCount.value / items.value.length) * 100) : 0
 )
 
+/** 队列缩略图的放大预览列表（按队列顺序） */
+const previewList = computed(() =>
+  items.value.map((i) => i.previewUrl).filter((u): u is string => !!u)
+)
+
 /* ---------------- 文件入队 ---------------- */
 function onFileChange(file: UploadFile) {
   if (!file.raw) return
@@ -238,8 +263,9 @@ function onFileChange(file: UploadFile) {
     status: 'pending'
   }
   items.value.push(item)
-  // 选择即自动开始筛查（串行队列，多选时依次处理）
-  drainQueue()
+  // 仅入队，不自动开始筛查：先让用户预览确认，再手动点击「开始筛查」
+  const n = items.value.filter((i) => i.status === 'pending').length
+  ElMessage.info(`已添加 ${file.name}，当前待筛查 ${n} 张。请确认影像无误后点击右上角「开始筛查」`)
   // 展示由队列接管（show-file-list=false），此处不清理 el-upload 内部列表，
   // 避免在 on-change 中触发 clearFiles 造成递归。
 }
@@ -628,14 +654,34 @@ async function loadDemoSample() {
   flex-shrink: 0;
 }
 
-/* 队列缩略图 */
+/* 队列缩略图（el-image，点击可放大预览） */
 .qi-thumb {
   width: 30px;
   height: 30px;
-  object-fit: cover;
   border-radius: 5px;
   flex-shrink: 0;
+  overflow: hidden;
   background: var(--drs-ink-100);
+  cursor: zoom-in;
+}
+
+/* 待确认提示 */
+.queue-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 9px 11px;
+  border-radius: var(--drs-radius-sm);
+  background: var(--drs-primary-50);
+  color: var(--drs-primary-800);
+  font-size: 12.5px;
+  line-height: 1.7;
+}
+
+.queue-hint :deep(svg) {
+  margin-top: 3px;
+  flex-shrink: 0;
 }
 
 /* ---------- 结果轮播（每次只显示一张） ---------- */
