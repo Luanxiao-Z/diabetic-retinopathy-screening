@@ -53,7 +53,7 @@
       </div>
 
       <div class="table-wrap">
-        <el-table v-loading="loading" :data="list" row-key="id">
+        <el-table v-loading="loading" :data="list" row-key="id" border>
           <el-table-column prop="username" label="用户名" min-width="130">
             <template #default="{ row }">
               <span class="uname">
@@ -65,7 +65,7 @@
           <el-table-column label="姓名" min-width="110">
             <template #default="{ row }">{{ row.realName || '—' }}</template>
           </el-table-column>
-          <el-table-column label="角色" width="110">
+          <el-table-column label="角色" min-width="110">
             <template #default="{ row }">
               <span class="chip" :class="row.role === 'ADMIN' ? 'chip-admin' : 'chip-doctor'">
                 {{ roleLabel(row.role) }}
@@ -75,7 +75,7 @@
           <el-table-column label="手机号" min-width="130">
             <template #default="{ row }">{{ row.phone || '—' }}</template>
           </el-table-column>
-          <el-table-column label="状态" width="106">
+          <el-table-column label="状态" min-width="106">
             <template #default="{ row }">
               <el-switch
                 :model-value="row.status === 'ENABLED'"

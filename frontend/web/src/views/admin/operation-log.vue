@@ -64,19 +64,19 @@
       </div>
 
       <div class="table-wrap">
-        <el-table v-loading="loading" :data="list" row-key="id">
+        <el-table v-loading="loading" :data="list" row-key="id" border>
           <el-table-column label="时间" min-width="164">
             <template #default="{ row }">{{ row.createTime || '—' }}</template>
           </el-table-column>
-          <el-table-column label="操作人" width="120">
+          <el-table-column label="操作人" min-width="120">
             <template #default="{ row }">{{ row.username || '—' }}</template>
           </el-table-column>
-          <el-table-column label="模块" width="110">
+          <el-table-column label="模块" min-width="110">
             <template #default="{ row }">
               <span class="chip chip-module">{{ row.moduleName || row.module }}</span>
             </template>
           </el-table-column>
-          <el-table-column label="动作" width="110">
+          <el-table-column label="动作" min-width="110">
             <template #default="{ row }">{{ row.actionName || row.action }}</template>
           </el-table-column>
           <el-table-column label="操作对象" min-width="180">
@@ -85,19 +85,19 @@
               <span v-if="row.errorMsg" class="err">{{ row.errorMsg }}</span>
             </template>
           </el-table-column>
-          <el-table-column label="结果" width="96">
+          <el-table-column label="结果" min-width="96">
             <template #default="{ row }">
               <span class="chip" :class="row.result === 'SUCCESS' ? 'chip-ok' : 'chip-fail'">
                 {{ row.result === 'SUCCESS' ? '成功' : '失败' }}
               </span>
             </template>
           </el-table-column>
-          <el-table-column label="耗时" width="90">
+          <el-table-column label="耗时" min-width="90">
             <template #default="{ row }">
               {{ row.costMs == null ? '—' : `${row.costMs} ms` }}
             </template>
           </el-table-column>
-          <el-table-column label="IP" width="130">
+          <el-table-column label="IP" min-width="130">
             <template #default="{ row }">{{ row.ip || '—' }}</template>
           </el-table-column>
           <template #empty>

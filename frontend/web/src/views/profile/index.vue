@@ -1,6 +1,12 @@
 <template>
   <div class="drs-page">
-    <PageHeader title="个人中心" subtitle="当前登录账号、数据权限与功能权限" :crumbs="['账户', '个人中心']" />
+    <PageHeader title="个人中心" subtitle="当前登录账号、数据权限与功能权限" :crumbs="['账户', '个人中心']">
+      <template #actions>
+        <el-button type="primary" @click="openPwdDialog">
+          <AppIcon name="lock" :size="15" class="btn-ico" />修改密码
+        </el-button>
+      </template>
+    </PageHeader>
 
     <div class="profile-grid">
       <!-- ============ 账号信息 ============ -->
@@ -58,14 +64,9 @@
         </div>
       </section>
 
-      <!-- ============ 修改密码 ============ -->
-      <section class="drs-card">
-        <div class="drs-card-head">
-          <h3>修改密码</h3>
-          <span class="drs-card-meta">修改后当前会话仍有效，下次登录请使用新密码</span>
-        </div>
-        <div class="drs-card-body">
-          <el-form ref="pwdFormRef" :model="pwdForm" :rules="pwdRules" label-position="top">
+    <el-dialog v-model="pwdDialogVisible" title="修改密码" width="440px" destroy-on-close>
+      <p class="pwd-tip">修改后当前会话仍有效，下次登录请使用新密码。</p>
+      <el-form ref="pwdFormRef" :model="pwdForm" :rules="pwdRules" label-position="top">
             <el-form-item label="原密码" prop="oldPassword">
               <el-input
                 v-model="pwdForm.oldPassword"
@@ -93,13 +94,13 @@
                 autocomplete="new-password"
               />
             </el-form-item>
-            <el-button type="primary" :loading="pwdSubmitting" @click="submitPassword">
-              确认修改
-            </el-button>
             <span class="pwd-hint">密码经 SHA-256 加盐后存储，修改动作会记入操作日志</span>
-          </el-form>
-        </div>
-      </section>
+      </el-form>
+      <template #footer>
+        <el-button @click="pwdDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="pwdSubmitting" @click="submitPassword">确认修改</el-button>
+      </template>
+    </el-dialog>
     </div>
   </div>
 </template>
@@ -115,9 +116,17 @@ import { useUserStore } from '@/stores/user'
 const userStore = useUserStore()
 
 /* ---------------- 修改密码 ---------------- */
+const pwdDialogVisible = ref(false)
 const pwdFormRef = ref<FormInstance>()
 const pwdSubmitting = ref(false)
 const pwdForm = reactive({ oldPassword: '', newPassword: '', confirmPassword: '' })
+
+function openPwdDialog() {
+  pwdForm.oldPassword = ''
+  pwdForm.newPassword = ''
+  pwdForm.confirmPassword = ''
+  pwdDialogVisible.value = true
+}
 
 const pwdRules: FormRules = {
   oldPassword: [{ required: true, message: '请输入原密码', trigger: 'blur' }],
@@ -143,6 +152,7 @@ async function submitPassword() {
   try {
     await changePassword(pwdForm.oldPassword, pwdForm.newPassword)
     ElMessage.success('密码已修改，下次登录请使用新密码')
+    pwdDialogVisible.value = false
     pwdForm.oldPassword = ''
     pwdForm.newPassword = ''
     pwdForm.confirmPassword = ''
@@ -355,6 +365,16 @@ const permissionGroups = computed(() => {
   font-size: 12px;
   line-height: 1.6;
   color: var(--drs-ink-500);
+}
+
+.pwd-tip {
+  margin: 0 0 16px;
+  font-size: 13px;
+  color: var(--drs-ink-600);
+}
+
+.btn-ico {
+  margin-right: 5px;
 }
 
 @media (max-width: 1024px) {

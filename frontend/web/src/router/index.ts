@@ -33,6 +33,12 @@ const routes: RouteRecordRaw[] = [
         meta: { permission: 'biz:screening:view', title: '筛查记录', group: '筛查业务', crumb: '筛查记录' }
       },
       {
+        path: 'screening/todos',
+        name: 'ScreeningTodos',
+        component: () => import('@/views/screening/todo-center.vue'),
+        meta: { permission: 'biz:screening:view', title: '随访待办', group: '筛查业务', crumb: '随访待办' }
+      },
+      {
         path: 'screening/statistics',
         name: 'ScreeningStatistics',
         component: () => import('@/views/screening/statistics.vue'),
@@ -49,6 +55,12 @@ const routes: RouteRecordRaw[] = [
         name: 'Profile',
         component: () => import('@/views/profile/index.vue'),
         meta: { title: '个人中心', group: '账户', crumb: '个人中心' }
+      },
+      {
+        path: 'guide',
+        name: 'Guide',
+        component: () => import('@/views/guide/index.vue'),
+        meta: { title: '使用指南', group: '帮助', crumb: '使用指南' }
       },
       {
         path: 'admin/users',

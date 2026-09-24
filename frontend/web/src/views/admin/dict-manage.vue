@@ -75,13 +75,13 @@
           </div>
 
           <div class="table-wrap">
-            <el-table v-loading="loadingItems" :data="items" row-key="itemCode">
+            <el-table v-loading="loadingItems" :data="items" row-key="itemCode" border>
               <el-table-column prop="itemCode" label="编码" min-width="140" />
               <el-table-column prop="itemName" label="名称" min-width="150" />
               <el-table-column label="扩展值" min-width="110">
                 <template #default="{ row }">{{ row.itemValue || '—' }}</template>
               </el-table-column>
-              <el-table-column label="排序" width="80">
+              <el-table-column label="排序" min-width="80">
                 <template #default="{ row }">{{ row.sort ?? '—' }}</template>
               </el-table-column>
               <el-table-column label="操作" width="130" fixed="right">

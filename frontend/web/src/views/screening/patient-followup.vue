@@ -43,7 +43,7 @@
       </div>
 
       <div class="table-wrap">
-        <el-table v-loading="loading" :data="list" row-key="patientName">
+        <el-table v-loading="loading" :data="list" row-key="patientName" border>
           <el-table-column label="患者" min-width="140">
             <template #default="{ row }">
               <span class="patient">
@@ -55,7 +55,7 @@
               </span>
             </template>
           </el-table-column>
-          <el-table-column label="筛查次数" width="100">
+          <el-table-column label="筛查次数" min-width="100">
             <template #default="{ row }">
               <span class="count">{{ row.totalCount }}</span>
             </template>
@@ -74,10 +74,10 @@
               </span>
             </template>
           </el-table-column>
-          <el-table-column label="最近置信度" width="120">
+          <el-table-column label="最近置信度" min-width="120">
             <template #default="{ row }">{{ confidenceText(row.latestConfidence) }}</template>
           </el-table-column>
-          <el-table-column label="待复核" width="96">
+          <el-table-column label="待复核" min-width="96">
             <template #default="{ row }">
               <span v-if="row.needReviewCount" class="review-badge">{{ row.needReviewCount }}</span>
               <span v-else class="muted">—</span>

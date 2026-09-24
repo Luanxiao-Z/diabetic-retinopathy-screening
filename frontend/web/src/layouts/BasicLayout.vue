@@ -72,6 +72,17 @@
 
         <div class="topbar-spacer"></div>
 
+        <button
+          type="button"
+          class="guide-btn"
+          title="使用指南"
+          aria-label="打开使用指南"
+          @click="router.push('/guide')"
+        >
+          <AppIcon name="book" :size="15" />
+          <span class="guide-txt">使用指南</span>
+        </button>
+
         <span class="drs-scope-bar scope-badge" :title="scopeTip">
           <AppIcon name="database" :size="13" />
           <span class="scope-label">数据范围</span>
@@ -138,6 +149,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { path: '/screening/upload', title: '筛查上传', icon: 'upload', permission: 'biz:screening:create' },
       { path: '/screening/records', title: '筛查记录', icon: 'list', permission: 'biz:screening:view' },
+      { path: '/screening/todos', title: '随访待办', icon: 'inbox', permission: 'biz:screening:view' },
       { path: '/screening/patients', title: '患者随访', icon: 'activity', permission: 'biz:screening:view' },
       { path: '/screening/statistics', title: '统计分析', icon: 'chart', permission: 'biz:screening:view' }
     ]
@@ -145,7 +157,10 @@ const NAV_GROUPS: NavGroup[] = [
   {
     key: 'account',
     title: '账户',
-    items: [{ path: '/profile', title: '个人中心', icon: 'user' }]
+    items: [
+      { path: '/profile', title: '个人中心', icon: 'user' },
+      { path: '/guide', title: '使用指南', icon: 'book' }
+    ]
   },
   {
     key: 'system',
@@ -490,6 +505,29 @@ function onCommand(cmd: string) {
   flex-shrink: 0;
 }
 
+/* 使用指南入口 */
+.guide-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  flex-shrink: 0;
+  border: 1px solid var(--drs-border);
+  border-radius: 999px;
+  background: var(--drs-surface);
+  color: var(--drs-ink-600);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+}
+
+.guide-btn:hover {
+  background: var(--drs-primary-50);
+  border-color: var(--drs-primary-200);
+  color: var(--drs-primary-800);
+}
+
 .user-btn {
   display: inline-flex;
   align-items: center;
@@ -573,7 +611,8 @@ function onCommand(cmd: string) {
   }
 
   .scope-label,
-  .user-meta {
+  .user-meta,
+  .guide-txt {
     display: none;
   }
 }
