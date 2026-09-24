@@ -195,7 +195,8 @@ python -m training.train --data-root ../datasets/aptos2019_224x224 \
 | 测试集样本数 | 181 / 37 / 100 / 20 / 29 |
 
 > **结论与局限**：`LEVEL_0`（正常）识别可靠，`LEVEL_3`（重度）F1 仅 0.378——测试集中该类仅 20 张，样本量过小导致指标不稳定；`LEVEL_1` 与 `LEVEL_4` 亦有明显混淆。60 轮训练中最佳验证轮次出现在第 **29** 轮，此后验证指标下降（末轮 train acc 0.977 vs val acc 0.798，存在过拟合），说明脚本原有 `--epochs 30` 默认值已接近最优，继续增加轮次收益有限。进一步提升方向：更大规模数据 / 更强增强 / 类别重采样。
-> 训练指标完整记录：`model-service/models/train_metrics.json`（含 60 轮 history，已 gitignore）。
+> 训练指标完整记录：`model-service/models/train_metrics.json`（含 60 轮 history）。
+> **权重与训练指标均已纳入版本控制**（体积约 5.9MB / 23KB），克隆仓库后即可直接使用，无需重新训练；仅训练数据集 `datasets/` 与生成的热力图不入库。
 
 **训练性能**：Windows 下 DataLoader 每 epoch 重建 worker 会重新 `import torch`（单次约 13.7s）。已默认启用 `persistent_workers=True`、`test_loader` 用 `num_workers=0`，稳态由 32.61s/epoch 降至 **4.25s/epoch**（约 7.7 倍），60 轮总耗时约 5 分钟。
 

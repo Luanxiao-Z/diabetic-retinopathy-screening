@@ -13,8 +13,13 @@ venv/
 __pycache__/
 *.pyc
 
-# ============ 模型服务产物（权重与生成的热力图不纳入版本控制） ============
-model-service/models/
+# ============ 模型服务产物 ============
+# 权重与训练指标体积较小（约 5.9MB / 23KB），纳入版本控制以便复现与分发；
+# 注意须用 models/* 而非 models/，否则目录本身被排除后 ! 反选规则不生效
+model-service/models/*
+!model-service/models/best_model.pth
+!model-service/models/train_metrics.json
+# 生成的热力图不纳入版本控制
 model-service/heatmaps/
 
 # ============ 工具/IDE ============
