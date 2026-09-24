@@ -271,14 +271,92 @@ yarn build      # 生产构建，产物位于 dist/
 
 ---
 
-## 十一、模型说明
+## 十一、数据集
+
+系统使用 **APTOS 2019 糖尿病视网膜病变数据集**（2019 APTOS Blindness Detection）训练与评估模型。
+
+### 数据集概况
+
+| 项 | 说明 |
+| --- | --- |
+| 名称 | APTOS 2019 Blindness Detection |
+| 来源 | Kaggle 竞赛，眼底图像由印度 Aravind Eye Hospital 提供 |
+| 任务 | 眼底图像 DR 五级分级（0 = 无病变 … 4 = 增殖期） |
+| 本项目使用版本 | `sovitrath` 发布的 224×224 预处理版（已裁去黑边并统一尺寸） |
+| 图像总数 | 3662 张 |
+| 标注文件 | `train.csv`（字段 `id_code, diagnosis`） |
+| 图像格式 | PNG，224×224，RGB |
+
+### 类别分布
+
+| 分级 | 标签值 | 目录名 | 图像数 | 占比 |
+| --- | --- | --- | --- | --- |
+| LEVEL_0 正常 | 0 | `No_DR` | 1805 | 49.3% |
+| LEVEL_1 轻度 | 1 | `Mild` | 370 | 10.1% |
+| LEVEL_2 中度 | 2 | `Moderate` | 999 | 27.3% |
+| LEVEL_3 重度 | 3 | `Severe` | 193 | 5.3% |
+| LEVEL_4 增殖期 | 4 | `Proliferate_DR` | 295 | 8.1% |
+| **合计** | | | **3662** | 100% |
+
+> 类别分布明显不均衡（LEVEL_0 占近一半，LEVEL_3 仅 5.3%）。训练脚本因此采用**分层抽样**划分
+> 训练/验证/测试集，并对损失函数施加**类别权重**；这也是 LEVEL_3 的 F1 偏低（0.378）的主要原因。
+
+### 目录约定
+
+```
+datasets/aptos2019_224x224/
+├── train.csv                  标注文件（id_code, diagnosis）
+└── colored_images/            按分级分目录存放
+    ├── No_DR/                 1805 张
+    ├── Mild/                  370 张
+    ├── Moderate/              999 张
+    ├── Severe/                193 张
+    └── Proliferate_DR/        295 张
+```
+
+> `datasets/` **不纳入版本控制**（已在 `.gitignore` 中忽略），需自行下载后放置。
+
+### 获取方式
+
+**方式一：Kaggle 数据集页（推荐）**
+
+```bash
+# 需先配置 Kaggle API 凭据（~/.kaggle/kaggle.json）
+kaggle datasets download -d sovitrath/diabetic-retinopathy-224x224-2019-data
+unzip diabetic-retinopathy-224x224-2019-data.zip -d datasets/
+```
+
+数据集页：<https://www.kaggle.com/datasets/sovitrath/diabetic-retinopathy-224x224-2019-data>
+
+**方式二：原始竞赛数据**
+
+竞赛页：<https://www.kaggle.com/c/aptos2019-blindness-detection>
+
+下载的是原始分辨率眼底图（含黑边），需自行裁圆并缩放至 224×224，或改用其他预处理版本。
+
+**放置位置**：确保最终目录结构为 `datasets/aptos2019_224x224/{train.csv, colored_images/*}`。
+训练脚本通过 `--data-root ../datasets/aptos2019_224x224` 读取（相对 `model-service/` 目录）。
+
+> **网络提示**：Kaggle 在中国大陆通常需经代理访问；`kaggle` CLI 支持 `--proxy` 参数，
+> 或通过环境变量 `HTTPS_PROXY` / `HTTP_PROXY` 指定代理。
+
+### 使用许可与引用
+
+数据集版权归原始提供方所有，**仅限科研与教学用途，不得用于商业用途**，使用时请遵循
+Kaggle 竞赛页面载明的规则。学术引用建议注明来源：
+
+> APTOS 2019 Blindness Detection, Kaggle. Data provided by Aravind Eye Hospital, India.
+
+---
+
+## 十二、模型说明
 
 | 项 | 说明 |
 | --- | --- |
 | 骨干网络 | MobileNetV3-Small（5 类分类头） |
-| 训练数据 | APTOS 2019（sovitrath 224×224 预处理版，3662 张，5 类） |
+| 训练数据 | APTOS 2019（sovitrath 224×224 预处理版，3662 张，5 类，详见「十一、数据集」） |
 | 训练入口 | `model-service/training/train.py`（分层抽样、类别加权、按验证集宏 F1 选优） |
-| 权重路径 | `model-service/models/best_model.pth`（**不入版本库**；缺失时回退随机初始化） |
+| 权重路径 | `model-service/models/best_model.pth`（**已纳入版本控制**，约 5.9 MB；缺失时回退随机初始化） |
 | 分级映射 | `LEVEL_0/1 → REVIEW`、`LEVEL_2 → CLINIC`、`LEVEL_3/4 → REFERRAL` |
 
 ```bash
@@ -287,12 +365,15 @@ python -m training.train --data-root ../datasets/aptos2019_224x224 \
   --epochs 30 --batch-size 32 --lr 3e-4
 ```
 
-训练完成后导出 `models/best_model.pth` 与 `models/train_metrics.json`，推理服务**零代码切换**。
-模型性能指标可在系统内「综合看板 → 模型信息」页查看。
+训练完成后导出 `models/best_model.pth` 与 `models/train_metrics.json`（两者均已纳入版本控制），
+推理服务**零代码切换**。模型性能指标可在系统内「综合看板 → 模型信息」页查看。
+
+> 当前已训练权重在测试集（367 张）上的表现为：准确率 **0.8147**、宏平均 F1 **0.6555**；
+> 最佳验证轮次出现在第 29 轮，继续增加训练轮次会过拟合，提升精度应转向数据规模与增强策略。
 
 ---
 
-## 十二、开发规范与质量
+## 十三、开发规范与质量
 
 - **规范效力**：`spec/` 目录效力高于 `docs/` 与本文档，冲突时以 `spec/` 为准
 - **前端**：TypeScript 全量，ESLint + Prettier + Stylelint
@@ -309,7 +390,7 @@ python -m training.train --data-root ../datasets/aptos2019_224x224 \
 
 ---
 
-## 十三、部署
+## 十四、部署
 
 - **本地运行**：见「六、快速开始」，三个服务分别启动，基础设施由本机提供
 - **容器化**：`deploy/` 提供 `docker-compose.yml`、三个 Dockerfile 与 Nginx 配置，
@@ -318,7 +399,7 @@ python -m training.train --data-root ../datasets/aptos2019_224x224 \
 
 ---
 
-## 十四、辅助脚本
+## 十五、辅助脚本
 
 | 脚本 | 用途 |
 | --- | --- |
@@ -327,6 +408,6 @@ python -m training.train --data-root ../datasets/aptos2019_224x224 \
 
 ---
 
-## 十五、许可证
+## 十六、许可证
 
 本项目采用 [MIT License](LICENSE)。第三方组件遵循各自开源许可，清单见系统内「帮助 → 关于系统」页。
