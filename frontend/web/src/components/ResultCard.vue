@@ -149,11 +149,26 @@ const levelLabel = LEVEL_LABEL
 
 const levelChipStyle = computed(() => {
   const hex = levelColor.value
+  // 实色底 + 自动对比前景：原实现「同色文字 + 同色半透明底」几乎无对比度
   return {
-    color: hex,
-    background: hexToRgba(hex, 0.92)
+    color: readableOn(hex),
+    background: hex
   }
 })
+
+/**
+ * 依据背景色相对亮度选择可读的前景色：
+ * 浅色底用深字、深色底用白字，保证分级徽章文字清晰可辨。
+ */
+function readableOn(hex: string): string {
+  const h = hex.replace('#', '')
+  const full = h.length === 3 ? h.split('').map((c) => c + c).join('') : h
+  const r = parseInt(full.slice(0, 2), 16) / 255
+  const g = parseInt(full.slice(2, 4), 16) / 255
+  const b = parseInt(full.slice(4, 6), 16) / 255
+  const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b
+  return lum > 0.6 ? '#1f2937' : '#ffffff'
+}
 
 const suggestStyle = computed(() => {
   const hex = SUGGESTION_COLOR[props.record.suggestion || ''] || '#64748b'

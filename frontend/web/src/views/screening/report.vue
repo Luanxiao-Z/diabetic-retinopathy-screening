@@ -52,13 +52,23 @@
         <h2 class="rp-h2">二、影像资料</h2>
         <div class="rp-images">
           <figure class="rp-fig">
-            <img v-if="record.imageUrl" :src="record.imageUrl" alt="眼底影像" />
-            <div v-else class="rp-img-empty">影像不可用</div>
+            <img
+              v-if="record.imageUrl && !imageFailed"
+              :src="record.imageUrl"
+              alt="眼底原始影像"
+              @error="imageFailed = true"
+            />
+            <div v-else class="rp-img-empty">{{ emptyReason('影像') }}</div>
             <figcaption>图 1 眼底原始影像</figcaption>
           </figure>
           <figure class="rp-fig">
-            <img v-if="record.gradCamUrl" :src="record.gradCamUrl" alt="Grad-CAM 热力图" />
-            <div v-else class="rp-img-empty">热力图不可用</div>
+            <img
+              v-if="record.gradCamUrl && !camFailed"
+              :src="record.gradCamUrl"
+              alt="Grad-CAM 热力图"
+              @error="camFailed = true"
+            />
+            <div v-else class="rp-img-empty">{{ emptyReason('热力图') }}</div>
             <figcaption>图 2 Grad-CAM 关注区域热力图</figcaption>
           </figure>
         </div>
@@ -131,7 +141,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AppIcon from '@/components/AppIcon.vue'
 import { detailScreening } from '@/api/screening'
@@ -143,6 +153,21 @@ const router = useRouter()
 
 const loading = ref(true)
 const record = ref<ScreeningRecordVO | null>(null)
+/** 影像加载失败标记：预签名 URL 过期或对象不存在时降级为占位提示，避免显示破图 */
+const imageFailed = ref(false)
+const camFailed = ref(false)
+
+/**
+ * 影像缺失时的说明文案。
+ * 演示数据脚本生成的记录不含真实影像（对象键为占位路径），需与「链接过期」区分提示。
+ */
+function emptyReason(kind: string): string {
+  const key = record.value?.imageKey || ''
+  if (key.startsWith('demo/')) {
+    return `${kind}不可用（演示数据未包含影像）`
+  }
+  return `${kind}不可用（链接可能已过期，请重新打开）`
+}
 
 const levelOrder = LEVEL_ORDER
 const levelLabel = LEVEL_LABEL
@@ -173,16 +198,34 @@ function goBack() {
   else router.push('/screening/records')
 }
 
-onMounted(async () => {
+async function load(id: string) {
+  loading.value = true
+  // 重置影像失败标记，避免复用组件时残留上一条记录的状态
+  imageFailed.value = false
+  camFailed.value = false
   try {
-    record.value = await detailScreening(String(route.params.id))
+    record.value = await detailScreening(id)
     document.title = `诊断报告 · ${record.value.patientName || '未登记患者'}`
   } catch {
     record.value = null
   } finally {
     loading.value = false
   }
-})
+}
+
+onMounted(() => load(String(route.params.id)))
+
+/**
+ * 多标签页使用 KeepAlive 缓存组件：同一路由仅 :id 变化时组件会被**复用**，
+ * onMounted 不会再次触发。若不监听参数变化，会出现「打开 A 的报告后再打开 B，
+ * 仍显示 A 的数据与图片状态」的问题。
+ */
+watch(
+  () => route.params.id,
+  (id) => {
+    if (id) load(String(id))
+  }
+)
 </script>
 
 <style scoped>

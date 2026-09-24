@@ -515,8 +515,8 @@ async function loadDemoSample() {
   display: grid;
   grid-template-columns: minmax(340px, 420px) minmax(0, 1fr);
   gap: var(--drs-gap);
-  /* 两列等高：配合列内最后一张卡片 flex:1，使左右两列底部对齐 */
-  align-items: stretch;
+  /* 顶部对齐、高度随内容（紧凑）：不做等高拉伸，避免出现大片空白 */
+  align-items: start;
 }
 
 .col-left,
@@ -524,11 +524,6 @@ async function loadDemoSample() {
   display: flex;
   flex-direction: column;
   gap: var(--drs-gap);
-}
-
-.col-left > .drs-card:last-child,
-.col-right > .drs-card:last-child {
-  flex: 1;
 }
 
 /* 列内已由 gap 控制间距，避免与 .mt 叠加 */
@@ -832,6 +827,11 @@ async function loadDemoSample() {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+/* 影像区固定高度，保持紧凑；不随容器拉伸 */
+.carousel :deep(.rc-image) {
+  height: 220px;
 }
 
 .carousel-head {
