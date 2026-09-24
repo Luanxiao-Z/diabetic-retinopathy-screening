@@ -1,5 +1,6 @@
 import request from '@/utils/request'
 import type {
+  ModelInfoVO,
   PageResult,
   PatientFollowUpVO,
   ScreeningPageQuery,
@@ -78,6 +79,11 @@ export function pagePatients(query: ScreeningPageQuery) {
   return request.get('/biz/screening-records/patients', { params: query }) as unknown as Promise<
     PageResult<PatientFollowUpVO>
   >
+}
+
+/** 模型元信息与训练指标（后端转发模型服务 /model/info）。 */
+export function modelInfo() {
+  return request.get('/biz/screening-records/model-info') as unknown as Promise<ModelInfoVO>
 }
 
 /** 指定患者的历次筛查（随访时间线），按时间倒序。 */

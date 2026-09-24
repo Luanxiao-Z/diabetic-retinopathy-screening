@@ -114,4 +114,12 @@ public class ScreeningRecordController {
             @RequestParam(value = "remark", required = false) String remark) {
         return Result.ok(screeningRecordService.review(id, remark));
     }
+
+    @Operation(summary = "模型元信息与训练指标",
+            description = "转发模型服务 /model/info：模型版本、骨干、推理设备、是否已训练，以及训练指标（准确率、宏平均 F1、逐类 F1）。")
+    @GetMapping("/model-info")
+    @RequirePermission(PermissionConstants.BIZ_SCREENING_VIEW)
+    public Result<java.util.Map<String, Object>> modelInfo() {
+        return Result.ok(screeningRecordService.modelInfo());
+    }
 }

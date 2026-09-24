@@ -97,6 +97,27 @@ export interface PatientFollowUpVO {
   needReviewCount?: number
 }
 
+/** 模型元信息与训练指标（对齐模型服务 /model/info） */
+export interface ModelInfoVO {
+  version?: string
+  backbone?: string
+  device?: string
+  cuda_available?: boolean
+  trained?: boolean
+  num_classes?: number
+  img_size?: number
+  weights_path?: string
+  metrics?: {
+    best_val_macro_f1?: number
+    test_acc?: number
+    test_macro_f1?: number
+    test_f1_per_class?: number[]
+    test_counts?: number[]
+    history?: { epoch: number; train_acc: number; val_acc: number; val_macro_f1: number }[]
+    args?: Record<string, unknown>
+  } | null
+}
+
 export interface PageResult<T> {
   total: number
   current: number

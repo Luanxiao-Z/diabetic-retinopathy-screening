@@ -188,7 +188,10 @@ const NAV_GROUPS: NavGroup[] = [
   {
     key: 'overview',
     title: '综合看板',
-    items: [{ path: '/dashboard', title: '筛查看板', icon: 'dashboard', permission: 'biz:screening:view' }]
+    items: [
+      { path: '/dashboard', title: '筛查看板', icon: 'dashboard', permission: 'biz:screening:view' },
+      { path: '/model-info', title: '模型信息', icon: 'layers', permission: 'biz:screening:view' }
+    ]
   },
   {
     key: 'screening',

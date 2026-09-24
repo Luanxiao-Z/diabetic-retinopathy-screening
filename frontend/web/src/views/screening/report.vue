@@ -1,5 +1,5 @@
 <template>
-  <div class="report-page">
+  <div class="report-page drs-page">
     <!-- 工具条：仅屏幕显示 -->
     <div class="toolbar no-print">
       <button type="button" class="tb-btn" @click="goBack">
@@ -186,10 +186,9 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+/* 报告作为壳层内的普通页面展示（不占满视口），打印时再全幅输出 */
 .report-page {
-  min-height: 100vh;
-  background: var(--drs-bg);
-  padding: 0 0 40px;
+  padding-bottom: 32px;
 }
 
 /* ---------- 工具条 ---------- */
@@ -200,8 +199,9 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 24px;
-  background: var(--drs-surface);
+  padding: 10px 0 12px;
+  margin-bottom: 4px;
+  background: var(--drs-bg);
   border-bottom: 1px solid var(--drs-border);
 }
 

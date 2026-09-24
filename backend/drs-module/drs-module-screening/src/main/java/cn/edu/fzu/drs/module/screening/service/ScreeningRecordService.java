@@ -61,4 +61,10 @@ public interface ScreeningRecordService {
      * <p>仅允许对置信度低于阈值且尚未复核的记录操作，受数据权限约束。</p>
      */
     ScreeningRecordVO review(String id, String remark);
+
+    /**
+     * 查询模型元信息与训练指标（转发模型服务 /model/info）。
+     * <p>用于前端「模型信息」页展示模型来源与可信度。</p>
+     */
+    java.util.Map<String, Object> modelInfo();
 }

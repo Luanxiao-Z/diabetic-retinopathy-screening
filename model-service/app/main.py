@@ -1,21 +1,24 @@
 """DR 智能筛查模型服务（FastAPI）。
 
 提供接口（独立部署，不走 /api/v1）：
-- GET  /health  健康检查（Docker 探针；返回设备/是否训练等信息）
-- POST /predict 多分类推理，返回分级、置信度、各分级概率、转诊建议
-- POST /cam     生成 Grad-CAM 热力图（PNG），阶段 4 将改为上传 MinIO
+- GET  /health     健康检查（Docker 探针；返回设备/是否训练等信息）
+- GET  /model/info 模型元信息与训练指标（供前端「模型信息」页展示）
+- POST /predict    多分类推理，返回分级、置信度、各分级概率、转诊建议
+- POST /cam        生成 Grad-CAM 热力图（PNG），阶段 4 将改为上传 MinIO
 """
 from __future__ import annotations
 
+import json
 import time
 import uuid
+from pathlib import Path
 
 import torch
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 
 from . import schemas
-from .config import MODEL_VERSION, DEVICE
+from .config import MODEL_VERSION, DEVICE, MODELS_DIR, NUM_CLASSES, IMG_SIZE
 from .gradcam import generate_gradcam
 from .inference import predict_image
 from .model_loader import get_model
@@ -40,6 +43,35 @@ def health() -> schemas.HealthResponse:
         trained=meta.get("trained", False),
         ts=int(time.time()),
     )
+
+
+@app.get("/model/info")
+def model_info() -> dict:
+    """模型元信息与训练指标。
+
+    供前端「模型信息」页展示模型来源与可信度：版本、骨干、设备、是否已训练，
+    以及训练脚本导出的 train_metrics.json（含测试集准确率、宏平均 F1、逐类 F1
+    与逐轮 history）。指标文件缺失时 metrics 返回 None。
+    """
+    _, meta = get_model()
+    metrics = None
+    metrics_path = Path(MODELS_DIR) / "train_metrics.json"
+    if metrics_path.exists():
+        try:
+            metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
+        except Exception:  # 文件损坏不影响元信息返回
+            metrics = None
+    return {
+        "version": meta.get("version", MODEL_VERSION),
+        "backbone": meta.get("backbone"),
+        "device": DEVICE,
+        "cuda_available": torch.cuda.is_available(),
+        "trained": meta.get("trained", False),
+        "num_classes": NUM_CLASSES,
+        "img_size": IMG_SIZE,
+        "weights_path": meta.get("weights_path"),
+        "metrics": metrics,
+    }
 
 
 def _validate_image(upload: UploadFile) -> None:

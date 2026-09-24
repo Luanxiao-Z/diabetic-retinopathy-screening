@@ -18,12 +18,14 @@ import org.springframework.web.client.RestTemplate;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
+import java.util.Map;
 
 /**
  * 模型推理服务客户端：调用 Python FastAPI 模型服务（独立部署，不走 /api/v1）。
  * <ul>
  *   <li>{@code POST /predict}：多分类推理，返回分级、置信度、各类概率、转诊建议。</li>
  *   <li>{@code POST /cam}：生成 Grad-CAM 热力图（PNG 字节）。</li>
+ *   <li>{@code GET /model/info}：模型元信息与训练指标。</li>
  * </ul>
  * 服务不可达或返回非 2xx 时统一抛出业务异常，便于后端降级提示。
  */
@@ -44,10 +46,23 @@ public class ModelInferenceClient {
     }
 
     /**
+     * 查询模型元信息与训练指标（转发模型服务 {@code GET /model/info}）。
+     * 用于前端「模型信息」页展示模型来源与可信度。
+     */
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> modelInfo() {
+        try {
+            return restTemplate.getForObject(baseUrl + "/model/info", Map.class);
+        } catch (RestClientException e) {
+            log.error("调用模型服务 /model/info 失败：{}", e.getMessage());
+            throw new BusinessException(503, "无法连接模型推理服务，请确认服务已启动");
+        }
+    }
+
+    /**
      * 调用推理接口，返回分类结果。
      */
-    public ModelPredictResponse predict(byte[] imageBytes, String originalFilename) {
-        HttpEntity<MultiValueMap<String, Object>> request = buildMultipartRequest(imageBytes, originalFilename);
+    public ModelPredictResponse predict(byte[] imageBytes, String originalFilename) {        HttpEntity<MultiValueMap<String, Object>> request = buildMultipartRequest(imageBytes, originalFilename);
         try {
             ResponseEntity<ModelPredictResponse> response = restTemplate.postForEntity(
                     baseUrl + "/predict", request, ModelPredictResponse.class);

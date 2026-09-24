@@ -57,6 +57,18 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '个人中心', group: '账户', crumb: '个人中心' }
       },
       {
+        path: 'screening/records/:id/report',
+        name: 'ScreeningReport',
+        component: () => import('@/views/screening/report.vue'),
+        meta: { permission: 'biz:screening:view', title: '诊断报告', group: '筛查业务', crumb: '诊断报告' }
+      },
+      {
+        path: 'model-info',
+        name: 'ModelInfo',
+        component: () => import('@/views/model-info/index.vue'),
+        meta: { permission: 'biz:screening:view', title: '模型信息', group: '综合看板', crumb: '模型信息' }
+      },
+      {
         path: 'guide',
         name: 'Guide',
         component: () => import('@/views/guide/index.vue'),
@@ -81,13 +93,6 @@ const routes: RouteRecordRaw[] = [
         meta: { permission: 'admin:log:view', title: '操作日志', group: '系统管理', crumb: '操作日志' }
       }
     ]
-  },
-  {
-    // 诊断报告为独立整页（不套用后台布局），便于打印与另存为 PDF
-    path: '/screening/records/:id/report',
-    name: 'ScreeningReport',
-    component: () => import('@/views/screening/report.vue'),
-    meta: { permission: 'biz:screening:view', title: '诊断报告' }
   },
   {
     path: '/403',

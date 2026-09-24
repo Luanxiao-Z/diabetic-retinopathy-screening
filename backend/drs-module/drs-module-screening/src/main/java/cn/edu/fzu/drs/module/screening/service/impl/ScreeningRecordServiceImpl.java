@@ -372,6 +372,11 @@ public class ScreeningRecordServiceImpl implements ScreeningRecordService {
         return toVoSafe(entity);
     }
 
+    @Override
+    public Map<String, Object> modelInfo() {
+        return inferenceClient.modelInfo();
+    }
+
     /** 单患者聚合：最近/上次分级、变化方向、复核需求 */    private PatientFollowUpVO toFollowUp(String patientName, List<BizScreeningRecordEntity> records) {
         PatientFollowUpVO vo = new PatientFollowUpVO();
         vo.setPatientName(patientName);
