@@ -423,7 +423,18 @@ onMounted(loadDomains)
   display: grid;
   grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
   gap: var(--drs-gap);
-  align-items: start;
+  /* 左右两张卡片等高，底部对齐 */
+  align-items: stretch;
+}
+
+.dict-grid > .drs-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.dict-grid > .drs-card > .domain-list,
+.dict-grid > .drs-card > .table-wrap {
+  flex: 1;
 }
 
 /* ---------- 字典域列表 ---------- */

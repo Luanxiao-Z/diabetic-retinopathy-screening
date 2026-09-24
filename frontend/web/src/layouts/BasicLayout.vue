@@ -107,10 +107,57 @@
         </el-dropdown>
       </header>
 
+      <!-- 多标签页：点击菜单打开页签，切换保留页面状态 -->
+      <nav class="tabbar" aria-label="已打开页面">
+        <div class="tabbar-list">
+          <button
+            v-for="t in tabs"
+            :key="t.path"
+            type="button"
+            class="tab"
+            :class="{ 'is-active': t.path === route.path }"
+            @click="router.push(t.path)"
+          >
+            <span class="tab-txt">{{ t.title }}</span>
+            <span
+              v-if="tabs.length > 1"
+              class="tab-close"
+              role="button"
+              :aria-label="`关闭 ${t.title}`"
+              title="关闭"
+              @click.stop="closeTab(t.path)"
+              >×</span
+            >
+          </button>
+        </div>
+        <div class="tabbar-tools">
+          <button
+            type="button"
+            class="tb-mini"
+            :disabled="tabs.length <= 1"
+            title="关闭其他页签"
+            @click="closeOthers"
+          >
+            关闭其他
+          </button>
+          <button
+            type="button"
+            class="tb-mini"
+            :disabled="tabs.length <= 1"
+            title="关闭全部页签"
+            @click="closeAll"
+          >
+            关闭全部
+          </button>
+        </div>
+      </nav>
+
       <main class="content">
         <RouterView v-slot="{ Component }">
           <Transition name="page" mode="out-in">
-            <component :is="Component" />
+            <KeepAlive :max="12">
+              <component :is="Component" />
+            </KeepAlive>
           </Transition>
         </RouterView>
       </main>
@@ -119,7 +166,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import AppIcon from '@/components/AppIcon.vue'
@@ -157,10 +204,12 @@ const NAV_GROUPS: NavGroup[] = [
   {
     key: 'account',
     title: '账户',
-    items: [
-      { path: '/profile', title: '个人中心', icon: 'user' },
-      { path: '/guide', title: '使用指南', icon: 'book' }
-    ]
+    items: [{ path: '/profile', title: '个人中心', icon: 'user' }]
+  },
+  {
+    key: 'help',
+    title: '帮助',
+    items: [{ path: '/guide', title: '使用指南', icon: 'book' }]
   },
   {
     key: 'system',
@@ -248,6 +297,55 @@ const scopeTip = computed(() =>
     ? '当前账号可查看全部筛查记录'
     : '当前账号仅可查看本人创建的筛查记录'
 )
+
+/* ---------- 多标签页 ---------- */
+const TABS_KEY = 'drs_open_tabs'
+const tabs = ref<{ path: string; title: string }[]>([])
+
+// 恢复上次打开的页签（刷新后不丢失）
+try {
+  const raw = sessionStorage.getItem(TABS_KEY)
+  if (raw) tabs.value = JSON.parse(raw) as { path: string; title: string }[]
+} catch {
+  tabs.value = []
+}
+
+function syncTab() {
+  const path = route.path
+  if (!tabs.value.some((t) => t.path === path)) {
+    tabs.value.push({ path, title: (route.meta.title as string) || '页面' })
+  }
+}
+
+function persistTabs() {
+  try {
+    sessionStorage.setItem(TABS_KEY, JSON.stringify(tabs.value))
+  } catch {
+    /* 存储不可用时忽略 */
+  }
+}
+
+watch(() => route.path, syncTab, { immediate: true })
+watch(tabs, persistTabs, { deep: true })
+
+function closeTab(path: string) {
+  const idx = tabs.value.findIndex((t) => t.path === path)
+  if (idx < 0) return
+  tabs.value.splice(idx, 1)
+  if (path === route.path) {
+    const next = tabs.value[Math.min(idx, tabs.value.length - 1)]
+    router.push(next ? next.path : '/dashboard')
+  }
+}
+
+function closeOthers() {
+  tabs.value = tabs.value.filter((t) => t.path === route.path)
+}
+
+function closeAll() {
+  tabs.value = []
+  router.push('/dashboard')
+}
 
 function onCommand(cmd: string) {
   if (cmd === 'profile') {
@@ -586,6 +684,104 @@ function onCommand(cmd: string) {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
+}
+
+/* ---------- 多标签页 ---------- */
+.tabbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  padding: 6px 12px;
+  background: var(--drs-surface);
+  border-bottom: 1px solid var(--drs-border);
+}
+
+.tabbar-list {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--drs-border);
+  border-radius: var(--drs-radius-xs);
+  background: var(--drs-surface);
+  color: var(--drs-ink-600);
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: background-color 0.16s ease, color 0.16s ease, border-color 0.16s ease;
+}
+
+.tab:hover {
+  background: var(--drs-ink-50);
+  color: var(--drs-ink-900);
+}
+
+.tab.is-active {
+  background: var(--drs-primary-50);
+  border-color: var(--drs-primary-200);
+  color: var(--drs-primary-800);
+  font-weight: 500;
+}
+
+.tab-txt {
+  white-space: nowrap;
+}
+
+.tab-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--drs-ink-400);
+}
+
+.tab-close:hover {
+  background: var(--drs-danger-bg);
+  color: var(--drs-danger);
+}
+
+.tabbar-tools {
+  display: inline-flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.tb-mini {
+  height: 26px;
+  padding: 0 9px;
+  border: 1px solid var(--drs-border);
+  border-radius: var(--drs-radius-xs);
+  background: var(--drs-surface);
+  color: var(--drs-ink-500);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 0.16s ease, color 0.16s ease;
+}
+
+.tb-mini:hover:not(:disabled) {
+  background: var(--drs-ink-50);
+  color: var(--drs-ink-800);
+}
+
+.tb-mini:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 /* 页面切换动画：轻微位移 + 淡入，遵循 prefers-reduced-motion */

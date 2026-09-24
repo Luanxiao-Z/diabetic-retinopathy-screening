@@ -6,6 +6,9 @@
       :crumbs="['筛查业务', '筛查上传']"
     >
       <template #actions>
+        <el-button :disabled="submitting" @click="loadDemoSample">
+          <AppIcon name="image" :size="15" class="btn-ico" />演示样例
+        </el-button>
         <el-button :disabled="submitting" @click="resetAll">
           <AppIcon name="refresh" :size="15" class="btn-ico" />清空
         </el-button>
@@ -277,6 +280,38 @@ function resetAll() {
   items.value = []
   results.value = []
 }
+
+/**
+ * 演示样例：加载内置样例眼底图并直接进入筛查流程，便于演示与验收。
+ * 样例图随前端静态资源一同发布（public/samples/demo-fundus.png）。
+ */
+const DEMO_SAMPLE_URL = '/samples/demo-fundus.png'
+
+async function loadDemoSample() {
+  try {
+    const resp = await fetch(DEMO_SAMPLE_URL)
+    if (!resp.ok) throw new Error('样例图片不可用')
+    const blob = await resp.blob()
+    const file = new File([blob], 'demo-fundus.png', { type: blob.type || 'image/png' })
+
+    if (!form.patientName) form.patientName = '演示样例患者'
+    if (form.patientAge == null) form.patientAge = 58
+    if (!form.patientGender) form.patientGender = 'MALE'
+    if (!form.remark) form.remark = '演示样例数据'
+
+    const item: QueueItem = {
+      key: `demo-${Date.now()}`,
+      name: '演示样例（demo-fundus.png）',
+      file,
+      status: 'pending'
+    }
+    items.value.push(item)
+    ElMessage.info('已载入演示样例，正在自动筛查…')
+    await runQueue([item])
+  } catch (e) {
+    ElMessage.error((e as Error).message || '演示样例加载失败')
+  }
+}
 </script>
 
 <style scoped>
@@ -288,7 +323,25 @@ function resetAll() {
   display: grid;
   grid-template-columns: minmax(340px, 420px) minmax(0, 1fr);
   gap: var(--drs-gap);
-  align-items: start;
+  /* 两列等高：配合列内最后一张卡片 flex:1，使左右两列底部对齐 */
+  align-items: stretch;
+}
+
+.col-left,
+.col-right {
+  display: flex;
+  flex-direction: column;
+  gap: var(--drs-gap);
+}
+
+.col-left > .drs-card:last-child,
+.col-right > .drs-card:last-child {
+  flex: 1;
+}
+
+/* 列内已由 gap 控制间距，避免与 .mt 叠加 */
+.col-left .mt {
+  margin-top: 0;
 }
 
 .mt {

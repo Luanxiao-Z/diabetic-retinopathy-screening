@@ -216,19 +216,14 @@ const permissionGroups = computed(() => {
 
 <style scoped>
 /*
- * 采用分栏流式（masonry 式）布局而非网格：
- * 网格会让第二行起点取决于本行最高的卡片，导致矮卡片下方留下大片空白；
- * 分栏流式让每张卡片紧接上一张，顶部天然对齐且无空洞。
+ * 两列等高网格：两张卡片并排且高度一致（底部对齐）。
+ * 若卡片数量变化需改为分栏流式布局，可换回 column-count。
  */
 .profile-grid {
-  column-count: 2;
-  column-gap: var(--drs-gap);
-}
-
-.profile-grid > .drs-card {
-  width: 100%;
-  break-inside: avoid;
-  margin: 0 0 var(--drs-gap);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--drs-gap);
+  align-items: stretch;
 }
 
 /* ---------- 账号信息 ---------- */
@@ -379,7 +374,7 @@ const permissionGroups = computed(() => {
 
 @media (max-width: 1024px) {
   .profile-grid {
-    column-count: 1;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 </style>
