@@ -1,6 +1,6 @@
 # 糖尿病视网膜病变（DR）智能筛查系统
 
-基于 `spec/` 规范体系与 `docs/项目开发计划.md`（v1.1 决策冻结版）实现的工程骨架。**阶段 0（脚手架）、阶段 1（数据层 + 认证接口）、阶段 2（认证与权限）、阶段 3（模型服务）与阶段 4（业务核心）已完成**：后端多模块编译/构建通过、前端构建通过、MySQL 建表与字典初始化已落库、登录 / 字典 / 当前用户接口端到端验证可用；阶段 2 新增管理员用户与字典 CRUD 接口并接入 `@RequirePermission`，角色—权限映射与数据权限 SELF/ALL 落地，401/403 鉴权端到端验证通过；阶段 3 实现 FastAPI 模型服务（MobileNetV3-Small 5 类推理管线、自实现 Grad-CAM 热力图、/predict 与 /cam 接口，CUDA cu130 版 PyTorch 跑在本地 RTX 4050 上）。**本期使用未经训练的随机初始化模型**（权重缺失时自动回退），用于打通管线与联调；模型训练推迟至最后阶段实现，训练完成后导出 `models/best_model.pth` 即可零代码切换。
+基于 `spec/` 规范体系与 `docs/项目开发计划.md`（v1.1 决策冻结版）实现的工程骨架。**阶段 0（脚手架）、阶段 1（数据层 + 认证接口）、阶段 2（认证与权限）、阶段 3（模型服务）与阶段 4（业务核心）已完成**：后端多模块编译/构建通过、前端构建通过、MySQL 建表与字典初始化已落库、登录 / 字典 / 当前用户接口端到端验证可用；阶段 2 新增管理员用户与字典 CRUD 接口并接入 `@RequirePermission`，角色—权限映射与数据权限 SELF/ALL 落地，401/403 鉴权端到端验证通过；阶段 3 实现 FastAPI 模型服务（MobileNetV3-Small 5 类推理管线、自实现 Grad-CAM 热力图、/predict 与 /cam 接口，CUDA cu130 版 PyTorch 跑在本地 RTX 4050 上）。**模型训练已完成**：基于 APTOS 2019（3662 张）训练 MobileNetV3-Small（5 类），权重导出至 `model-service/models/best_model.pth`，推理服务零代码切换（权重缺失时仍自动回退随机初始化，仅用于管线联调）。测试集准确率 **81.47%**、宏平均 F1 **0.6555**（详见「模型训练」章节）。
 
 ## 技术栈
 
@@ -83,7 +83,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 # 热力图：    POST http://localhost:8000/cam       (multipart/form-data: image=眼底图，返回 PNG)
 ```
 
-> 本期使用**未经训练的随机初始化模型**（`models/best_model.pth` 缺失时自动回退），仅用于打通推理管线、Grad-CAM 与前后端联调；**模型训练推迟至最后阶段实现**，训练完成后导出 `models/best_model.pth` 即可零代码切换。
+> 模型已基于 APTOS 2019 完成训练，权重位于 `models/best_model.pth`（缺失或损坏时自动回退随机初始化，仅用于管线联调）。训练与评测细节见下文「模型训练」章节。
 
 ### 4. 前端（已配置国内镜像）
 
@@ -157,7 +157,7 @@ yarn build        # 生产构建，产物位于 dist/
   "confidence": 0.873,
   "probabilities": {"LEVEL_0": 0.01, "LEVEL_1": 0.02, "LEVEL_2": 0.873, "LEVEL_3": 0.05, "LEVEL_4": 0.047},
   "suggestion": "CLINIC",
-  "model_version": "dev-untrained-0.1.0"
+  "model_version": "aptos2019-mobilenetv3s-1.0.0"
 }
 ```
 
@@ -167,7 +167,37 @@ yarn build        # 生产构建，产物位于 dist/
 | POST | `/predict` | 多分类推理：返回分级编码、标签、置信度、各分级概率、转诊建议 | `multipart/form-data: image=眼底图` |
 | POST | `/cam` | 生成 Grad-CAM 热力图，返回叠加 PNG（同时以响应头返回 `X-Record-Id` / `X-Target-Level` / `X-Confidence`） | `multipart/form-data: image=眼底图` |
 
-> 分级与转诊映射（与后端 `B_DR_LEVEL` / `B_DR_SUGGESTION` 一致，业务层维护）：`LEVEL_0/1 → REVIEW`（定期复查）、`LEVEL_2 → CLINIC`（建议眼科就诊）、`LEVEL_3/4 → REFERRAL`（建议尽快转诊）。本期模型未经训练，结果为随机初始化权重输出，仅验证管线；阶段 4 已实现热力图上传统 MinIO 并落库 `grad_cam_key`。
+> 分级与转诊映射（与后端 `B_DR_LEVEL` / `B_DR_SUGGESTION` 一致，业务层维护）：`LEVEL_0/1 → REVIEW`（定期复查）、`LEVEL_2 → CLINIC`（建议眼科就诊）、`LEVEL_3/4 → REFERRAL`（建议尽快转诊）。阶段 4 已实现热力图上传统 MinIO 并落库 `grad_cam_key`。
+> `/health` 的 `trained` 字段由权重是否成功加载决定；`model` 字段在加载成功时为 `aptos2019-mobilenetv3s-1.0.0`，回退随机初始化时为 `dev-untrained-0.1.0`。
+
+## 模型训练（APTOS 2019，已完成）
+
+**数据集**：`datasets/aptos2019_224x224/`（sovitrath 224×224 预处理版 APTOS 2019，3662 张 5 类，已 gitignore）。分层抽样 8:1:1 → train 2929 / val 366 / test 367。
+
+**训练配置**：MobileNetV3-Small（ImageNet 预训练初始化）+ 5 类头；加权 CrossEntropyLoss（逆频率，缓解类别不均衡）；AdamW（lr 3e-4、weight-decay 1e-4）+ CosineAnnealingLR；batch 32、60 epochs；按**验证集宏平均 F1** 选优保存。
+
+**复现命令**（在 `model-service` 目录下）：
+
+```bash
+python -m training.train --data-root ../datasets/aptos2019_224x224 \
+  --epochs 60 --batch-size 32 --lr 3e-4
+# 离线（无法下载 ImageNet 预训练权重）时追加 --no-pretrained
+```
+
+**测试集结果**（367 张）：
+
+| 指标 | 数值 |
+| --- | --- |
+| 准确率 | 0.8147 |
+| 宏平均 F1 | 0.6555 |
+| 最佳验证集宏 F1 | 0.6940（第 29 轮） |
+| 各级 F1 | LEVEL_0 **0.978** / LEVEL_1 0.617 / LEVEL_2 0.759 / LEVEL_3 **0.378** / LEVEL_4 0.546 |
+| 测试集样本数 | 181 / 37 / 100 / 20 / 29 |
+
+> **结论与局限**：`LEVEL_0`（正常）识别可靠，`LEVEL_3`（重度）F1 仅 0.378——测试集中该类仅 20 张，样本量过小导致指标不稳定；`LEVEL_1` 与 `LEVEL_4` 亦有明显混淆。60 轮训练中最佳验证轮次出现在第 **29** 轮，此后验证指标下降（末轮 train acc 0.977 vs val acc 0.798，存在过拟合），说明脚本原有 `--epochs 30` 默认值已接近最优，继续增加轮次收益有限。进一步提升方向：更大规模数据 / 更强增强 / 类别重采样。
+> 训练指标完整记录：`model-service/models/train_metrics.json`（含 60 轮 history，已 gitignore）。
+
+**训练性能**：Windows 下 DataLoader 每 epoch 重建 worker 会重新 `import torch`（单次约 13.7s）。已默认启用 `persistent_workers=True`、`test_loader` 用 `num_workers=0`，稳态由 32.61s/epoch 降至 **4.25s/epoch**（约 7.7 倍），60 轮总耗时约 5 分钟。
 
 ## 阶段 4 接口速览（业务核心，已验证编译/打包）
 
@@ -215,16 +245,17 @@ yarn build        # 生产构建，产物位于 dist/
 1. **Excel 导出 500（`NoSuchMethodError`）**：POI 5.3.0 编译依赖 `commons-compress 1.26.2`，而 Spring Boot 3.4.4 父 BOM 将其管理为 `1.24.0`，二者方法签名不兼容（`ZipArchiveOutputStream.putArchiveEntry`），导致导出时 `NoSuchMethodError` 并 500。已在后端聚合父 pom 的 `dependencyManagement` 中显式锁定 `commons-compress 1.26.2`，覆盖父 BOM；重新构建后 fat-jar 内含 1.26.2，导出恢复 200。
 2. **医生缺导出权限（403）**：`PermissionResolver` 的 `DOCTOR_PERMISSIONS` 漏配 `BIZ_SCREENING_EXPORT`，与文档 / 前端约定（DOCTOR 拥有 `biz:screening:*`）不一致，导致医生导出被 403。已补入该权限（导出仍受 SELF 数据权限约束，仅本人记录）。
 
-> 本期模型为未经训练的随机初始化权重，分级结果为随机输出，仅用于打通管线；模型训练推迟至最后阶段，导出 `models/best_model.pth` 后零代码切换。
+> 联调期间使用的是未经训练的随机初始化权重，分级结果为随机输出，仅用于打通管线；模型训练已于 2026-09-24 完成，见「模型训练」章节。
 
 ## 阶段进度
 
 - [x] 阶段 0 脚手架与基础设施（后端编译通过、前端构建通过、部署与 SQL 脚本就绪）
 - [x] 阶段 1 数据层与认证接口（MyBatis-Plus 配置、Entity/Mapper/Convert/DTO/VO、登录/字典/当前用户接口、AuthFilter + Redis Token、建表落库并端到端验证）
 - [x] 阶段 2 认证与权限（@RequirePermission 拦截器对接业务接口、管理员用户/字典 CRUD、角色—权限映射与数据权限 SELF/ALL 落地、401/403 鉴权端到端验证）
-- [x] 阶段 3 模型服务（FastAPI 推理管线 + 自实现 Grad-CAM + /predict、/cam、/health 接口；CUDA cu130 跑在 RTX 4050，使用未经训练模型验证管线）
+- [x] 阶段 3 模型服务（FastAPI 推理管线 + 自实现 Grad-CAM + /predict、/cam、/health 接口；CUDA cu130 跑在 RTX 4050）
 - [x] 阶段 4 业务核心（筛查上传→推理→落库→统计→导出：MinIO 私有桶存储、模型服务 HTTP 调用、数据权限 SELF/ALL、Excel 导出；后端 compile/package 验证通过）
-- [ ] 模型训练（推迟至最后阶段：APTOS 2019 训练 MobileNetV3-Small、导出 `models/best_model.pth` 后零代码切换）
+- [x] 模型训练（2026-09-24：APTOS 2019 训练 MobileNetV3-Small，导出 `models/best_model.pth`，测试集 acc 0.8147 / macro F1 0.6555，推理服务零代码切换；另完成训练脚本性能优化，稳态提速 7.7 倍）
+- [ ] 模型训练增强（可选：更大数据 / 更强增强 / 类别重采样，改善 LEVEL_1/3/4 的 F1）
 - [x] 阶段 5 前端 PC 业务页面（看板 / 上传 / 记录 / 统计 / 个人中心 / 403：vue-tsc 类型检查 + vite build 通过，含权限对齐与导出二进制处理）
 - [x] 端到端联调与修复（2026-09-14）：导出 `NoSuchMethodError` 修复 + 医生导出权限修复，全链路验证通过（见上文「端到端联调结论」）
 - [ ] 阶段 6 H5（后续可选）

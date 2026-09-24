@@ -17,7 +17,9 @@ IMG_SIZE = 224
 BACKBONE = "mobilenet_v3_small"  # 备选: efficientnet_b0
 # 训练完成后导出 best_model.pth；缺失则随机初始化（未经训练，仅用于管线联调）
 MODEL_WEIGHTS_PATH = MODELS_DIR / "best_model.pth"
-MODEL_VERSION = "dev-untrained-0.1.0"
+# 权重加载成功时对外标识的版本；权重缺失/损坏回退随机初始化时用 UNTRAINED 标识
+MODEL_VERSION = "aptos2019-mobilenetv3s-1.0.0"
+MODEL_VERSION_UNTRAINED = "dev-untrained-0.1.0"
 
 # ---- DR 分级与转诊字典（与后端 B_DR_LEVEL / B_DR_SUGGESTION 保持一致）----
 LEVEL_CODES = [f"LEVEL_{i}" for i in range(NUM_CLASSES)]

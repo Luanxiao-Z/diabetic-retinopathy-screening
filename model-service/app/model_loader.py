@@ -12,7 +12,14 @@ import torch
 import torch.nn as nn
 from torchvision import models
 
-from .config import BACKBONE, NUM_CLASSES, MODEL_WEIGHTS_PATH, MODEL_VERSION, DEVICE
+from .config import (
+    BACKBONE,
+    NUM_CLASSES,
+    MODEL_WEIGHTS_PATH,
+    MODEL_VERSION,
+    MODEL_VERSION_UNTRAINED,
+    DEVICE,
+)
 
 logger = logging.getLogger("drs.model")
 
@@ -44,7 +51,7 @@ def load_model() -> tuple[nn.Module, dict]:
     meta = {
         "trained": False,
         "weights_path": str(MODEL_WEIGHTS_PATH),
-        "version": MODEL_VERSION,
+        "version": MODEL_VERSION_UNTRAINED,
         "backbone": BACKBONE,
     }
 
@@ -55,6 +62,7 @@ def load_model() -> tuple[nn.Module, dict]:
                 state = state["state_dict"]
             model.load_state_dict(state, strict=False)
             meta["trained"] = True
+            meta["version"] = MODEL_VERSION
             logger.info("已加载权重: %s", MODEL_WEIGHTS_PATH)
         except Exception as exc:  # 权重损坏/格式不符 → 回退随机初始化
             logger.warning("权重加载失败，回退随机初始化: %s", exc)
