@@ -18,7 +18,7 @@ const routes: RouteRecordRaw[] = [
         path: 'dashboard',
         name: 'Dashboard',
         component: () => import('@/views/dashboard/index.vue'),
-        meta: { permission: 'biz:screening:view', title: '筛查看板', group: '综合看板', crumb: '筛查看板' }
+        meta: { permission: 'biz:screening:view', title: '工作台', group: '综合看板', crumb: '工作台' }
       },
       {
         path: 'screening/upload',
@@ -73,6 +73,12 @@ const routes: RouteRecordRaw[] = [
         name: 'Guide',
         component: () => import('@/views/guide/index.vue'),
         meta: { title: '使用指南', group: '帮助', crumb: '使用指南' }
+      },
+      {
+        path: 'about',
+        name: 'About',
+        component: () => import('@/views/about/index.vue'),
+        meta: { title: '关于系统', group: '帮助', crumb: '关于系统' }
       },
       {
         path: 'admin/users',

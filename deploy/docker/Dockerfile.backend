@@ -1,12 +1,28 @@
-# 后端镜像（多阶段）：先 maven 编译，再 jre 运行
+# ============================================================================
+# 后端镜像（多阶段构建）
+#   构建阶段：Maven 3.9 + JDK 21 编译聚合工程
+#   运行阶段：仅携带 JRE 与 fat-jar，镜像更小
+# 构建上下文为仓库根目录（见 deploy/docker-compose.yml 的 context: ..）
+# ============================================================================
 FROM maven:3.9.9-eclipse-temurin-21 AS build
-WORKDIR /app
+WORKDIR /build
+
+# 先拷 POM 以复用依赖层缓存，再拷源码
 COPY backend/pom.xml backend/
-COPY backend/ backend/
-RUN mvn -B -q package -DskipTests -pl drs-app/drs-app-server -am
+COPY backend/drs-dependencies/ backend/drs-dependencies/
+COPY backend/drs-module/ backend/drs-module/
+COPY backend/drs-app/ backend/drs-app/
+RUN mvn -B -q -f backend/pom.xml package -DskipTests
 
 FROM eclipse-temurin:21-jre
 WORKDIR /app
-COPY --from=build /app/backend/drs-app/drs-app-server/target/*.jar app.jar
+
+ENV TZ=Asia/Shanghai \
+    JAVA_OPTS="-Xms256m -Xmx1024m -Dfile.encoding=UTF-8"
+
+COPY --from=build /build/backend/drs-app/drs-app-server/target/drs-app-server-*.jar app.jar
+
 EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "app.jar"]
+
+# 显式指定端口，避免外部注入 SERVER__PORT 造成端口漂移
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar --server.port=8080"]

@@ -47,3 +47,8 @@ CONVERSATION_HANDOFF.md
 
 # ============ 训练数据集（本地大文件，不纳入版本控制） ============
 datasets/
+
+# ============ 部署密钥（保留 .env.example 模板，忽略真实 .env） ============
+deploy/.env
+.env
+.env.local

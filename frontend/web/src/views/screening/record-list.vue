@@ -397,10 +397,10 @@ async function handleReview(row: ScreeningRecordVO) {
   }
 }
 
-/** 打开诊断报告（新窗口，便于打印/另存为 PDF） */
+/** 打开诊断报告（当前页内跳转，不新开浏览器标签页） */
 function openReport(row: ScreeningRecordVO) {
-  const url = router.resolve({ path: `/screening/records/${row.id}/report` }).href
-  window.open(url, '_blank')
+  detailVisible.value = false
+  router.push({ path: `/screening/records/${row.id}/report` })
 }
 
 /** 批量删除：逐条执行并汇总结果 */

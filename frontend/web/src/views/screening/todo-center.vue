@@ -196,7 +196,8 @@ function go(path: string) {
 }
 
 function openReport(id: string) {
-  window.open(router.resolve({ path: `/screening/records/${id}/report` }).href, '_blank')
+  // 页内跳转，不新开浏览器标签页
+  router.push({ path: `/screening/records/${id}/report` })
 }
 
 onMounted(loadAll)

@@ -1,9 +1,9 @@
 <template>
   <div class="drs-page">
     <PageHeader
-      title="筛查看板"
+      title="工作台"
       subtitle="糖尿病视网膜病变（DR）智能筛查总览 · 数据实时同步"
-      :crumbs="['综合看板', '筛查看板']"
+      :crumbs="['综合看板', '工作台']"
     >
       <template #actions>
         <el-button :loading="loading" @click="load">

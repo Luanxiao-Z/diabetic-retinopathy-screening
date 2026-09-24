@@ -14,7 +14,7 @@
           <AppIcon name="chevronLeft" :size="15" class="btn-ico" />返回上一页
         </el-button>
         <el-button type="primary" @click="goHome">
-          <AppIcon name="dashboard" :size="15" class="btn-ico" />返回看板
+          <AppIcon name="dashboard" :size="15" class="btn-ico" />返回工作台
         </el-button>
       </div>
     </div>

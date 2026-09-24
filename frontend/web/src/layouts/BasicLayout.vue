@@ -189,7 +189,8 @@ const NAV_GROUPS: NavGroup[] = [
     key: 'overview',
     title: '综合看板',
     items: [
-      { path: '/dashboard', title: '筛查看板', icon: 'dashboard', permission: 'biz:screening:view' },
+      { path: '/dashboard', title: '工作台', icon: 'dashboard', permission: 'biz:screening:view' },
+      { path: '/screening/statistics', title: '统计分析', icon: 'chart', permission: 'biz:screening:view' },
       { path: '/model-info', title: '模型信息', icon: 'layers', permission: 'biz:screening:view' }
     ]
   },
@@ -200,8 +201,7 @@ const NAV_GROUPS: NavGroup[] = [
       { path: '/screening/upload', title: '筛查上传', icon: 'upload', permission: 'biz:screening:create' },
       { path: '/screening/records', title: '筛查记录', icon: 'list', permission: 'biz:screening:view' },
       { path: '/screening/todos', title: '随访待办', icon: 'inbox', permission: 'biz:screening:view' },
-      { path: '/screening/patients', title: '患者随访', icon: 'activity', permission: 'biz:screening:view' },
-      { path: '/screening/statistics', title: '统计分析', icon: 'chart', permission: 'biz:screening:view' }
+      { path: '/screening/patients', title: '患者随访', icon: 'activity', permission: 'biz:screening:view' }
     ]
   },
   {
@@ -210,17 +210,20 @@ const NAV_GROUPS: NavGroup[] = [
     items: [{ path: '/profile', title: '个人中心', icon: 'user' }]
   },
   {
-    key: 'help',
-    title: '帮助',
-    items: [{ path: '/guide', title: '使用指南', icon: 'book' }]
-  },
-  {
     key: 'system',
     title: '系统管理',
     items: [
       { path: '/admin/users', title: '用户管理', icon: 'users', permission: 'admin:user:view' },
       { path: '/admin/dicts', title: '字典管理', icon: 'layers', permission: 'admin:dict:view' },
       { path: '/admin/logs', title: '操作日志', icon: 'clock', permission: 'admin:log:view' }
+    ]
+  },
+  {
+    key: 'help',
+    title: '帮助',
+    items: [
+      { path: '/guide', title: '使用指南', icon: 'book' },
+      { path: '/about', title: '关于系统', icon: 'info' }
     ]
   }
 ]

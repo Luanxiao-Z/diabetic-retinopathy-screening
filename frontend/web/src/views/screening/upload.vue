@@ -101,6 +101,7 @@
               />
               <ul class="queue-list">
                 <li v-for="it in items" :key="it.key" class="queue-item">
+                  <img v-if="it.previewUrl" :src="it.previewUrl" class="qi-thumb" alt="影像预览" />
                   <span class="qi-ico" :class="`qi-${it.status}`">
                     <AppIcon :name="statusIcon(it.status)" :size="13" />
                   </span>
@@ -127,16 +128,53 @@
           </div>
           <div class="drs-card-body">
             <div v-if="!results.length" class="result-empty">
-              <el-empty :image-size="96" description="上传并筛查后，结果将在此展示" />
+              <el-empty :image-size="96" description="选择眼底图后会自动开始筛查，结果将在此展示" />
               <ol class="flow">
                 <li><b>1</b> 填写患者信息（可留空）</li>
-                <li><b>2</b> 选择一张或多张眼底影像</li>
-                <li><b>3</b> 点击「开始筛查」逐张获取分级与热力图</li>
+                <li><b>2</b> 选择一张或多张眼底影像（自动开始筛查）</li>
+                <li><b>3</b> 左右切换查看每张影像的分级与热力图</li>
               </ol>
             </div>
 
-            <div v-else class="result-grid">
-              <ResultCard v-for="r in results" :key="r.id" :record="r" />
+            <!-- 结果卡片：左右切换，每次只显示一张 -->
+            <div v-else class="carousel">
+              <div class="carousel-head">
+                <button
+                  type="button"
+                  class="nav-btn"
+                  :disabled="resultIndex <= 0"
+                  aria-label="上一张"
+                  @click="prevResult"
+                >
+                  <AppIcon name="chevronLeft" :size="16" />
+                </button>
+                <span class="carousel-idx">
+                  第 {{ resultIndex + 1 }} / {{ results.length }} 张
+                </span>
+                <button
+                  type="button"
+                  class="nav-btn"
+                  :disabled="resultIndex >= results.length - 1"
+                  aria-label="下一张"
+                  @click="nextResult"
+                >
+                  <AppIcon name="chevronRight" :size="16" />
+                </button>
+              </div>
+
+              <ResultCard :record="results[resultIndex]" />
+
+              <div v-if="results.length > 1" class="carousel-dots">
+                <button
+                  v-for="(r, i) in results"
+                  :key="r.id"
+                  type="button"
+                  class="dot"
+                  :class="{ 'is-active': i === resultIndex }"
+                  :aria-label="`查看第 ${i + 1} 张结果`"
+                  @click="resultIndex = i"
+                ></button>
+              </div>
             </div>
           </div>
         </section>
@@ -162,6 +200,8 @@ interface QueueItem {
   key: string
   name: string
   file: File
+  /** 本地预览地址（objectURL），用于队列缩略图 */
+  previewUrl?: string
   status: ItemStatus
   error?: string
   costMs?: number
@@ -189,15 +229,18 @@ const progressPercent = computed(() =>
 
 /* ---------------- 文件入队 ---------------- */
 function onFileChange(file: UploadFile) {
-  if (file.raw) {
-    items.value.push({
-      key: `${file.uid}-${Date.now()}`,
-      name: file.name,
-      file: file.raw,
-      status: 'pending'
-    })
+  if (!file.raw) return
+  const item: QueueItem = {
+    key: `${file.uid}-${Date.now()}`,
+    name: file.name,
+    file: file.raw,
+    previewUrl: URL.createObjectURL(file.raw),
+    status: 'pending'
   }
-  // 展示由下方队列接管（show-file-list=false），此处不清理 el-upload 内部列表，
+  items.value.push(item)
+  // 选择即自动开始筛查（串行队列，多选时依次处理）
+  drainQueue()
+  // 展示由队列接管（show-file-list=false），此处不清理 el-upload 内部列表，
   // 避免在 on-change 中触发 clearFiles 造成递归。
 }
 
@@ -221,54 +264,92 @@ function statusText(it: QueueItem) {
   }
 }
 
-/* ---------------- 提交（逐张） ---------------- */
-async function runQueue(targets: QueueItem[]) {
-  if (!targets.length) return
-  submitting.value = true
-  let okCount = 0
-  for (const it of targets) {
-    it.status = 'uploading'
-    it.error = undefined
-    const startedAt = Date.now()
-    try {
-      const data = await uploadScreening({
-        files: [it.file],
-        patientName: form.patientName || undefined,
-        patientAge: form.patientAge,
-        patientGender: form.patientGender || undefined,
-        remark: form.remark || undefined
-      })
-      it.status = 'done'
-      it.costMs = Date.now() - startedAt
-      results.value = [...data, ...results.value]
-      okCount += 1
-    } catch (e) {
-      it.status = 'error'
-      it.error = (e as Error).message || '筛查失败'
-    }
-  }
-  submitting.value = false
+/* ---------------- 提交（逐张串行） ---------------- */
+let draining = false
 
-  if (okCount === targets.length) {
-    ElMessage.success(`筛查完成，共 ${okCount} 条记录`)
-  } else {
-    ElMessage.warning(`完成 ${okCount} 条，失败 ${targets.length - okCount} 条，可点击「重试失败」重新提交`)
+/** 串行消费队列中所有 pending 项；重复调用会被忽略 */
+async function drainQueue() {
+  if (draining) return
+  draining = true
+  submitting.value = true
+  let ok = 0
+  let fail = 0
+  try {
+    for (;;) {
+      const it = items.value.find((i) => i.status === 'pending')
+      if (!it) break
+      const success = await runOne(it)
+      if (success) ok += 1
+      else fail += 1
+    }
+  } finally {
+    draining = false
+    submitting.value = false
+  }
+  if (ok && !fail) {
+    ElMessage.success(`筛查完成，共 ${ok} 条记录`)
+  } else if (fail && !ok) {
+    ElMessage.error(`筛查失败 ${fail} 条，可点击「重试失败」重新提交`)
+  } else if (ok && fail) {
+    ElMessage.warning(`完成 ${ok} 条，失败 ${fail} 条，可点击「重试失败」重新提交`)
   }
 }
 
+/** 提交单张影像，返回是否成功 */
+async function runOne(it: QueueItem): Promise<boolean> {
+  it.status = 'uploading'
+  it.error = undefined
+  const startedAt = Date.now()
+  try {
+    const data = await uploadScreening({
+      files: [it.file],
+      patientName: form.patientName || undefined,
+      patientAge: form.patientAge,
+      patientGender: form.patientGender || undefined,
+      remark: form.remark || undefined
+    })
+    it.status = 'done'
+    it.costMs = Date.now() - startedAt
+    // 新结果插到最前，并自动切到该结果
+    results.value = [...data, ...results.value]
+    resultIndex.value = 0
+    return true
+  } catch (e) {
+    it.status = 'error'
+    it.error = (e as Error).message || '筛查失败'
+    return false
+  }
+}
+
+/** 手动触发（用于首次未自动开始或补充提交） */
 function handleSubmit() {
-  const targets = items.value.filter((i) => i.status === 'pending')
-  if (!targets.length) {
+  if (!items.value.some((i) => i.status === 'pending')) {
     ElMessage.warning('请先选择眼底影像')
     return
   }
-  runQueue(targets)
+  drainQueue()
 }
 
+/** 失败项重试：状态回退为 pending 后重新排队 */
 function retryFailed() {
-  const targets = items.value.filter((i) => i.status === 'error')
-  if (!targets.length) return
-  runQueue(targets)
+  const failed = items.value.filter((i) => i.status === 'error')
+  if (!failed.length) return
+  failed.forEach((i) => {
+    i.status = 'pending'
+    i.error = undefined
+  })
+  drainQueue()
+}
+
+/* ---------------- 结果左右切换 ---------------- */
+const resultIndex = ref(0)
+
+function prevResult() {
+  if (resultIndex.value > 0) resultIndex.value -= 1
+}
+
+function nextResult() {
+  if (resultIndex.value < results.value.length - 1) resultIndex.value += 1
 }
 
 function resetAll() {
@@ -277,8 +358,11 @@ function resetAll() {
   form.patientGender = ''
   form.remark = ''
   uploadRef.value?.clearFiles()
+  // 释放本地预览占用的 objectURL
+  items.value.forEach((i) => i.previewUrl && URL.revokeObjectURL(i.previewUrl))
   items.value = []
   results.value = []
+  resultIndex.value = 0
 }
 
 /**
@@ -303,11 +387,12 @@ async function loadDemoSample() {
       key: `demo-${Date.now()}`,
       name: '演示样例（demo-fundus.png）',
       file,
+      previewUrl: URL.createObjectURL(file),
       status: 'pending'
     }
     items.value.push(item)
     ElMessage.info('已载入演示样例，正在自动筛查…')
-    await runQueue([item])
+    await drainQueue()
   } catch (e) {
     ElMessage.error((e as Error).message || '演示样例加载失败')
   }
@@ -543,10 +628,84 @@ async function loadDemoSample() {
   flex-shrink: 0;
 }
 
-.result-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: var(--drs-gap);
+/* 队列缩略图 */
+.qi-thumb {
+  width: 30px;
+  height: 30px;
+  object-fit: cover;
+  border-radius: 5px;
+  flex-shrink: 0;
+  background: var(--drs-ink-100);
+}
+
+/* ---------- 结果轮播（每次只显示一张） ---------- */
+.carousel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.carousel-head {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+}
+
+.carousel-idx {
+  font-size: 12.5px;
+  color: var(--drs-ink-600);
+  font-variant-numeric: tabular-nums;
+  min-width: 96px;
+  text-align: center;
+}
+
+.nav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--drs-border);
+  border-radius: 50%;
+  background: var(--drs-surface);
+  color: var(--drs-ink-600);
+  cursor: pointer;
+  transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+}
+
+.nav-btn:hover:not(:disabled) {
+  background: var(--drs-primary-50);
+  border-color: var(--drs-primary-200);
+  color: var(--drs-primary-800);
+}
+
+.nav-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.carousel-dots {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--drs-ink-300);
+  cursor: pointer;
+  transition: background-color 0.16s ease, width 0.16s ease;
+}
+
+.dot.is-active {
+  width: 20px;
+  border-radius: 4px;
+  background: var(--drs-primary);
 }
 
 @media (max-width: 1024px) {
