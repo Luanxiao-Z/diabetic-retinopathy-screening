@@ -6,6 +6,9 @@
       :crumbs="['筛查业务', '筛查上传']"
     >
       <template #actions>
+        <el-button :disabled="submitting" @click="openPatientDialog">
+          <AppIcon name="user" :size="15" class="btn-ico" />{{ patientButtonText }}
+        </el-button>
         <el-button :disabled="submitting" @click="loadDemoSample">
           <AppIcon name="image" :size="15" class="btn-ico" />演示样例
         </el-button>
@@ -28,43 +31,9 @@
     </PageHeader>
 
     <div class="upload-cols">
-      <!-- ============ 左：信息与影像 ============ -->
+      <!-- ============ 左：眼底影像 ============ -->
       <div class="col-left">
         <section class="drs-card">
-          <div class="drs-card-head">
-            <h3>患者信息</h3>
-            <span class="drs-card-meta">全部选填</span>
-          </div>
-          <div class="drs-card-body">
-            <el-form :model="form" label-position="top">
-              <el-form-item label="患者姓名">
-                <el-input v-model="form.patientName" placeholder="留空记为未登记" clearable />
-              </el-form-item>
-              <div class="form-row">
-                <el-form-item label="患者年龄">
-                  <el-input-number
-                    v-model="form.patientAge"
-                    :min="0"
-                    :max="120"
-                    :controls="false"
-                    placeholder="岁"
-                    class="full"
-                  />
-                </el-form-item>
-                <el-form-item label="患者性别">
-                  <el-select v-model="form.patientGender" placeholder="请选择" clearable class="full">
-                    <el-option v-for="g in genderOptions" :key="g.value" :label="g.label" :value="g.value" />
-                  </el-select>
-                </el-form-item>
-              </div>
-              <el-form-item label="备注">
-                <el-input v-model="form.remark" type="textarea" :rows="2" placeholder="可填写就诊号、病史等" />
-              </el-form-item>
-            </el-form>
-          </div>
-        </section>
-
-        <section class="drs-card mt">
           <div class="drs-card-head">
             <h3>眼底影像</h3>
             <span class="drs-card-meta">支持多张 · jpg / png</span>
@@ -73,6 +42,7 @@
             <el-upload
               ref="uploadRef"
               class="fundus-upload"
+              :class="{ 'is-fill': !items.length }"
               drag
               multiple
               accept="image/*"
@@ -169,7 +139,7 @@
             <div v-if="!results.length" class="result-empty">
               <el-empty :image-size="96" description="选择眼底图并点击「开始筛查」后，结果将在此展示" />
               <ol class="flow">
-                <li><b>1</b> 填写患者信息（可留空）</li>
+                <li><b>1</b> 点击右上角「填写患者信息」（可留空）</li>
                 <li><b>2</b> 选择一张或多张眼底影像</li>
                 <li><b>3</b> 点击缩略图预览确认影像无误</li>
                 <li><b>4</b> 点击「开始筛查」获取分级与热力图</li>
@@ -220,6 +190,64 @@
         </section>
       </div>
     </div>
+
+    <!-- ============ 患者信息模态框 ============ -->
+    <el-dialog
+      v-model="patientDialogVisible"
+      title="患者信息"
+      width="520px"
+      align-center
+      :close-on-click-modal="false"
+      class="patient-dialog"
+    >
+      <p class="pd-hint">
+        <AppIcon name="info" :size="13" />
+        以下信息全部选填。填写后随筛查记录与诊断报告一并保存，留空则记为「未登记」。
+      </p>
+      <el-form :model="patientDraft" label-position="top">
+        <el-form-item label="患者姓名">
+          <el-input
+            v-model="patientDraft.patientName"
+            placeholder="留空记为未登记"
+            maxlength="20"
+            show-word-limit
+            clearable
+          />
+        </el-form-item>
+        <div class="form-row">
+          <el-form-item label="患者年龄">
+            <el-input-number
+              v-model="patientDraft.patientAge"
+              :min="0"
+              :max="120"
+              :controls="false"
+              placeholder="岁"
+              class="full"
+            />
+          </el-form-item>
+          <el-form-item label="患者性别">
+            <el-select v-model="patientDraft.patientGender" placeholder="请选择" clearable class="full">
+              <el-option v-for="g in genderOptions" :key="g.value" :label="g.label" :value="g.value" />
+            </el-select>
+          </el-form-item>
+        </div>
+        <el-form-item label="备注">
+          <el-input
+            v-model="patientDraft.remark"
+            type="textarea"
+            :rows="3"
+            maxlength="200"
+            show-word-limit
+            placeholder="可填写就诊号、病史等"
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="clearPatientDraft">清空</el-button>
+        <el-button @click="patientDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="savePatientDraft">保存</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -267,6 +295,56 @@ const form = reactive({
   patientGender: '',
   remark: ''
 })
+
+/* ---------------- 患者信息模态框 ---------------- */
+
+const patientDialogVisible = ref(false)
+
+/** 编辑副本：确认前不影响已保存的 form，取消可无痕退出 */
+const patientDraft = reactive({
+  patientName: '',
+  patientAge: undefined as number | undefined,
+  patientGender: '',
+  remark: ''
+})
+
+const hasPatientInfo = computed(
+  () =>
+    !!form.patientName ||
+    form.patientAge != null ||
+    !!form.patientGender ||
+    !!form.remark
+)
+
+/** 入口按钮文案：已填写时直接展示摘要，便于提交前确认本次筛查归属 */
+const patientButtonText = computed(() => {
+  if (!hasPatientInfo.value) return '填写患者信息'
+  const parts: string[] = []
+  if (form.patientName) parts.push(form.patientName)
+  if (form.patientAge != null) parts.push(`${form.patientAge}岁`)
+  const g = genderOptions.find((o) => o.value === form.patientGender)
+  if (g) parts.push(g.label)
+  if (form.remark) parts.push('有备注')
+  return `患者：${parts.join(' · ')}`
+})
+
+function openPatientDialog() {
+  Object.assign(patientDraft, form)
+  patientDialogVisible.value = true
+}
+
+function clearPatientDraft() {
+  patientDraft.patientName = ''
+  patientDraft.patientAge = undefined
+  patientDraft.patientGender = ''
+  patientDraft.remark = ''
+}
+
+function savePatientDraft() {
+  Object.assign(form, patientDraft)
+  patientDialogVisible.value = false
+  ElMessage.success(hasPatientInfo.value ? '患者信息已保存' : '患者信息已清空')
+}
 
 const pendingCount = computed(() => items.value.filter((i) => i.status === 'pending').length)
 const failedCount = computed(() => items.value.filter((i) => i.status === 'error').length)
@@ -513,26 +591,49 @@ async function loadDemoSample() {
 
 .upload-cols {
   display: grid;
-  grid-template-columns: minmax(340px, 420px) minmax(0, 1fr);
+  grid-template-columns: minmax(360px, 440px) minmax(0, 1fr);
   gap: var(--drs-gap);
-  /* 顶部对齐、高度随内容（紧凑）：不做等高拉伸，避免出现大片空白 */
-  align-items: start;
+  /* 两列等高：以视口为基准给定列高，列内各自滚动。
+     不用内容互相撑高，避免长队列把右侧结果卡一并拉高（此前曾因弹性拉伸把影像区撑到 801px） */
+  align-items: stretch;
+  height: calc(100vh - 246px);
+  min-height: 460px;
 }
 
 .col-left,
 .col-right {
   display: flex;
   flex-direction: column;
-  gap: var(--drs-gap);
+  min-height: 0;
+  height: 100%;
 }
 
-/* 列内已由 gap 控制间距，避免与 .mt 叠加 */
-.col-left .mt {
-  margin-top: 0;
+/* 列内卡片撑满列高，卡片内部滚动，使左右卡片视觉高度严格对齐 */
+.col-left > .drs-card,
+.col-right > .drs-card {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
-.mt {
-  margin-top: var(--drs-gap);
+.col-left > .drs-card > .drs-card-head,
+.col-right > .drs-card > .drs-card-head {
+  flex-shrink: 0;
+}
+
+.col-left > .drs-card > .drs-card-body,
+.col-right > .drs-card > .drs-card-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* 左列内容纵向排布，使拖拽区可在队列为空时填充剩余高度 */
+.col-left > .drs-card > .drs-card-body {
+  display: flex;
+  flex-direction: column;
 }
 
 .form-row {
@@ -553,6 +654,19 @@ async function loadDemoSample() {
   border-color: var(--drs-border-strong);
   background: var(--drs-bg-soft);
   transition: border-color 0.18s ease, background-color 0.18s ease;
+}
+
+/* 队列为空时拖拽区填充卡片剩余高度，避免卡片下方出现大片空白 */
+.fundus-upload.is-fill {
+  flex: 1;
+  min-height: 200px;
+  display: flex;
+}
+
+.fundus-upload.is-fill :deep(.el-upload-dragger) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .fundus-upload :deep(.el-upload-dragger:hover) {
@@ -758,6 +872,11 @@ async function loadDemoSample() {
 /* ---------- 结果区 ---------- */
 .result-empty {
   padding: 20px 0 8px;
+  /* 空态在卡片内垂直居中，避免内容堆在顶部、与卡片底部留白失衡 */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 100%;
 }
 
 .flow {
@@ -897,9 +1016,36 @@ async function loadDemoSample() {
   background: var(--drs-primary);
 }
 
+/* ---------- 患者信息模态框 ---------- */
+.pd-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0 0 var(--drs-gap);
+  padding: 9px 12px;
+  border-radius: var(--drs-radius-sm);
+  background: var(--drs-primary-50);
+  color: var(--drs-primary-800);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+.pd-hint :deep(svg) {
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
 @media (max-width: 1024px) {
   .upload-cols {
     grid-template-columns: minmax(0, 1fr);
+    /* 单列时取消定高，恢复随内容自适应 */
+    height: auto;
+    min-height: 0;
+  }
+
+  .col-left > .drs-card,
+  .col-right > .drs-card {
+    min-height: 420px;
   }
 }
 </style>
