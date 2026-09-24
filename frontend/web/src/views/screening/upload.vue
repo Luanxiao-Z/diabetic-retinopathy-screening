@@ -114,7 +114,8 @@
                 <AppIcon name="info" :size="13" />
                 <span>
                   已添加 <b>{{ pendingCount }}</b> 张影像，<b>点击缩略图可放大预览</b>；
-                  确认无误后点击右上角「开始筛查」。
+                  确认无误后点击右上角「开始筛查」。误传的影像可点击行尾
+                  <AppIcon name="trash" :size="12" /> 移除。
                 </span>
               </div>
 
@@ -135,6 +136,16 @@
                   </span>
                   <span class="qi-name" :title="it.name">{{ it.name }}</span>
                   <span class="qi-status" :class="`qi-txt-${it.status}`">{{ statusText(it) }}</span>
+                  <button
+                    type="button"
+                    class="qi-remove"
+                    :disabled="it.status === 'uploading'"
+                    :title="it.status === 'uploading' ? '筛查中不可移除' : '移除（误传撤回）'"
+                    :aria-label="`移除 ${it.name}`"
+                    @click="removeItem(it)"
+                  >
+                    <AppIcon name="trash" :size="13" />
+                  </button>
                 </li>
               </ul>
             </div>
@@ -214,14 +225,17 @@
 
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import type { UploadFile, UploadInstance } from 'element-plus'
 import AppIcon from '@/components/AppIcon.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import ResultCard from '@/components/ResultCard.vue'
-import { uploadScreening } from '@/api/screening'
+import { removeScreening, uploadScreening } from '@/api/screening'
+import { useUserStore } from '@/stores/user'
 import { GENDER_OPTIONS } from '@/types/screening'
 import type { ScreeningRecordVO } from '@/types/screening'
+
+const userStore = useUserStore()
 
 type ItemStatus = 'pending' | 'uploading' | 'done' | 'error'
 
@@ -237,6 +251,8 @@ interface QueueItem {
   status: ItemStatus
   error?: string
   costMs?: number
+  /** 筛查成功后生成的记录 id（用于误传时撤销删除） */
+  recordId?: string
 }
 
 const genderOptions = GENDER_OPTIONS
@@ -356,6 +372,7 @@ async function runOne(it: QueueItem): Promise<boolean> {
     })
     it.status = 'done'
     it.costMs = Date.now() - startedAt
+    it.recordId = data[0]?.id
     // 新结果插到最前，并自动切到该结果
     results.value = [...data, ...results.value]
     resultIndex.value = 0
@@ -385,6 +402,50 @@ function retryFailed() {
     i.error = undefined
   })
   drainQueue()
+}
+
+/**
+ * 移除队列项（误传撤回）。
+ * - 未开始 / 失败：直接从队列移除；
+ * - 已筛查成功：同时删除已生成的记录，避免误传影像留在系统中。
+ */
+async function removeItem(it: QueueItem) {
+  if (it.status === 'uploading') return
+
+  if (it.status === 'done' && it.recordId) {
+    if (!userStore.permissions.includes('biz:screening:delete')) {
+      ElMessage.warning('当前账号无删除权限，无法撤销已生成的记录，可在「筛查记录」页联系管理员处理')
+      return
+    }
+    try {
+      await ElMessageBox.confirm(
+        `「${it.name}」已完成筛查并生成记录，确认一并删除该记录？`,
+        '误传撤回',
+        { type: 'warning', confirmButtonText: '确认删除', cancelButtonText: '取消' }
+      )
+    } catch {
+      return
+    }
+    try {
+      await removeScreening(it.recordId)
+      results.value = results.value.filter((r) => r.id !== it.recordId)
+      ElMessage.success('已删除该记录')
+    } catch (e) {
+      ElMessage.error((e as Error).message || '删除失败')
+      return
+    }
+  }
+
+  dropItem(it)
+}
+
+/** 仅从队列与结果中移除，并释放本地预览地址 */
+function dropItem(it: QueueItem) {
+  if (it.previewUrl) URL.revokeObjectURL(it.previewUrl)
+  items.value = items.value.filter((i) => i.key !== it.key)
+  if (resultIndex.value > results.value.length - 1) {
+    resultIndex.value = Math.max(0, results.value.length - 1)
+  }
 }
 
 /* ---------------- 结果左右切换 ---------------- */
@@ -657,6 +718,32 @@ async function loadDemoSample() {
 
 .qi-txt-uploading {
   color: var(--drs-primary-700);
+}
+
+/* 行尾移除按钮（误传撤回） */
+.qi-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: var(--drs-radius-xs);
+  background: none;
+  color: var(--drs-ink-400);
+  cursor: pointer;
+  transition: background-color 0.16s ease, color 0.16s ease;
+}
+
+.qi-remove:hover:not(:disabled) {
+  background: var(--drs-danger-bg);
+  color: var(--drs-danger);
+}
+
+.qi-remove:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
 }
 
 .upload-note {
