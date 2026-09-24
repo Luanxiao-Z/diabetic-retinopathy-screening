@@ -57,17 +57,101 @@
           <p v-if="!permissionGroups.length" class="perm-empty">当前账号未分配任何功能权限</p>
         </div>
       </section>
+
+      <!-- ============ 修改密码 ============ -->
+      <section class="drs-card">
+        <div class="drs-card-head">
+          <h3>修改密码</h3>
+          <span class="drs-card-meta">修改后当前会话仍有效，下次登录请使用新密码</span>
+        </div>
+        <div class="drs-card-body">
+          <el-form ref="pwdFormRef" :model="pwdForm" :rules="pwdRules" label-position="top">
+            <el-form-item label="原密码" prop="oldPassword">
+              <el-input
+                v-model="pwdForm.oldPassword"
+                type="password"
+                show-password
+                placeholder="请输入当前密码"
+                autocomplete="current-password"
+              />
+            </el-form-item>
+            <el-form-item label="新密码" prop="newPassword">
+              <el-input
+                v-model="pwdForm.newPassword"
+                type="password"
+                show-password
+                placeholder="6-64 位"
+                autocomplete="new-password"
+              />
+            </el-form-item>
+            <el-form-item label="确认新密码" prop="confirmPassword">
+              <el-input
+                v-model="pwdForm.confirmPassword"
+                type="password"
+                show-password
+                placeholder="再次输入新密码"
+                autocomplete="new-password"
+              />
+            </el-form-item>
+            <el-button type="primary" :loading="pwdSubmitting" @click="submitPassword">
+              确认修改
+            </el-button>
+            <span class="pwd-hint">密码经 SHA-256 加盐后存储，修改动作会记入操作日志</span>
+          </el-form>
+        </div>
+      </section>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, reactive, ref } from 'vue'
+import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import AppIcon from '@/components/AppIcon.vue'
 import PageHeader from '@/components/PageHeader.vue'
+import { changePassword } from '@/api/user'
 import { useUserStore } from '@/stores/user'
 
 const userStore = useUserStore()
+
+/* ---------------- 修改密码 ---------------- */
+const pwdFormRef = ref<FormInstance>()
+const pwdSubmitting = ref(false)
+const pwdForm = reactive({ oldPassword: '', newPassword: '', confirmPassword: '' })
+
+const pwdRules: FormRules = {
+  oldPassword: [{ required: true, message: '请输入原密码', trigger: 'blur' }],
+  newPassword: [
+    { required: true, message: '请输入新密码', trigger: 'blur' },
+    { min: 6, max: 64, message: '新密码长度需为 6-64', trigger: 'blur' }
+  ],
+  confirmPassword: [
+    { required: true, message: '请再次输入新密码', trigger: 'blur' },
+    {
+      validator: (_r, v: string, cb) =>
+        v === pwdForm.newPassword ? cb() : cb(new Error('两次输入的新密码不一致')),
+      trigger: 'blur'
+    }
+  ]
+}
+
+async function submitPassword() {
+  if (!pwdFormRef.value) return
+  const ok = await pwdFormRef.value.validate().catch(() => false)
+  if (!ok) return
+  pwdSubmitting.value = true
+  try {
+    await changePassword(pwdForm.oldPassword, pwdForm.newPassword)
+    ElMessage.success('密码已修改，下次登录请使用新密码')
+    pwdForm.oldPassword = ''
+    pwdForm.newPassword = ''
+    pwdForm.confirmPassword = ''
+  } catch (e) {
+    ElMessage.error((e as Error).message || '修改失败')
+  } finally {
+    pwdSubmitting.value = false
+  }
+}
 
 const permissions = computed(() => userStore.permissions)
 const avatarText = computed(() =>
@@ -253,6 +337,14 @@ const permissionGroups = computed(() => {
 .perm-empty {
   margin: 0;
   font-size: 13px;
+  color: var(--drs-ink-500);
+}
+
+.pwd-hint {
+  display: block;
+  margin-top: 10px;
+  font-size: 12px;
+  line-height: 1.6;
   color: var(--drs-ink-500);
 }
 

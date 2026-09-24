@@ -277,6 +277,20 @@ python -m training.train --data-root ../datasets/aptos2019_224x224 \
 
 > **本轮修复的一个真实缺陷**：`BizScreeningRecordConvert` 使用 `Map.of(...)` 构建的名称映射，在 `get(null)` 时**会抛 NPE**（`Map.of` 生成的不可变 Map 与 HashMap 行为不同），导致列表接口 500。已统一改为空安全查询 `nameOf(...)`，并同步修复导出与随访中的同类隐患（`LEVEL_NAMES` / `SUGGESTION_NAMES` 亦有此潜在问题）。
 
+### 功能拓展（第三批，2026-09-24）
+
+| 功能 | 说明 | 位置 |
+| --- | --- | --- |
+| **上传逐张进度与失败重试** | 上传改为**逐张独立提交**：队列展示每张影像的状态（等待 / 推理中 / 完成含耗时 / 失败含原因）与整体进度条；单张失败不影响其它影像，可一键「重试失败」 | 筛查上传 |
+| **修改密码** | 个人中心新增改密表单（原密码 + 新密码 + 确认）；校验原密码一致、新密码 6-64 位且不得与原密码相同；修改动作记入操作日志 | 个人中心 |
+| **统计环比** | 新增近 30 天 / 前 30 天筛查量与环比增长率，展示在筛查看板与统计分析的趋势卡片头部 | 筛查看板 / 统计分析 |
+
+**新增接口**：`PUT /common/users/me/password`（仅需登录令牌）。统计 VO 增加 `recentTotal` / `prevTotal` / `growthRate`。
+
+> **第三批同时修复两个既有缺陷**：
+> 1. **新增用户一直不可用**：`AdminUserServiceImpl.createUser` 注释称主键与审计字段由 `AuditMetaHandler` 自动填充，但**代码库中并不存在该处理器**，导致插入时 `id` 为 null → `Column 'id' cannot be null` 报 500。已改为显式赋值 `id`/`deleteFlag`/时间戳。
+> 2. **参数校验失败与不存在的路由都返回 500**：`GlobalExceptionHandler` 未处理 `MethodArgumentNotValidException` 与 `NoResourceFoundException`，导致表单填错（如密码过短）只得到笼统的「系统错误」。现已分别映射为 **400（带具体字段提示）** 与 **404**。
+
 ## 端到端联调结论（2026-09-14）
 
 本期（阶段 5 完成后）在不实现阶段 6（H5）的前提下，对本地运行的完整链路做了一次端到端联调。基础设施 MinIO（9000/9001）、Redis（26379）、MySQL（3306）已就绪并在物理机后台监听；后端（8080）、模型服务（8000）、前端 dev（5173）依次启动后逐项验证。

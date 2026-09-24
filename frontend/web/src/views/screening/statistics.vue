@@ -45,7 +45,9 @@
       <section class="drs-card chart-wide">
         <div class="drs-card-head">
           <h3>近 30 天筛查趋势</h3>
-          <span class="drs-card-meta">单位：例</span>
+          <span class="drs-card-meta">
+            近 30 天 {{ recentTotal }} 例 · 前 30 天 {{ prevTotal }} 例 · 环比 {{ growthText }}
+          </span>
         </div>
         <div class="drs-card-body">
           <EChart v-if="hasTrend" :option="trendOption" height="300px" />
@@ -81,6 +83,16 @@ const clinicCount = computed(() => stats.value?.suggestionDistribution?.['CLINIC
 const hasLevel = computed(() => Object.keys(stats.value?.levelDistribution || {}).length > 0)
 const hasSuggestion = computed(() => Object.keys(stats.value?.suggestionDistribution || {}).length > 0)
 const hasTrend = computed(() => (stats.value?.trend || []).some((t) => t.count > 0))
+
+/* 环比：近 30 天 vs 前 30 天 */
+const recentTotal = computed(() => stats.value?.recentTotal ?? 0)
+const prevTotal = computed(() => stats.value?.prevTotal ?? 0)
+const growthText = computed(() => {
+  const r = stats.value?.growthRate
+  if (r == null) return '—'
+  const pct = (Number(r) * 100).toFixed(1)
+  return Number(r) > 0 ? `+${pct}%` : `${pct}%`
+})
 
 const AXIS_LABEL = { color: '#64748b', fontSize: 11 }
 

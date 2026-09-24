@@ -53,6 +53,12 @@ export interface ScreeningStatisticsVO {
   trend: DailyCountVO[]
   /** 需人工复核数量（置信度低于阈值） */
   needReviewCount?: number
+  /** 环比：近 30 天数量 */
+  recentTotal?: number
+  /** 环比：前 30 天数量 */
+  prevTotal?: number
+  /** 环比增长率（可为负；前 30 天为 0 时记 1 表示新增） */
+  growthRate?: number
   /** 人工复核阈值 */
   reviewThreshold?: number
 }

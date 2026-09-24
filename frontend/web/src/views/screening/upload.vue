@@ -2,15 +2,24 @@
   <div class="drs-page">
     <PageHeader
       title="筛查上传"
-      subtitle="上传眼底照片，系统自动完成 AI 分级推理并生成可解释热力图"
+      subtitle="上传眼底照片，系统逐张完成 AI 分级推理并生成可解释热力图"
       :crumbs="['筛查业务', '筛查上传']"
     >
       <template #actions>
         <el-button :disabled="submitting" @click="resetAll">
           <AppIcon name="refresh" :size="15" class="btn-ico" />清空
         </el-button>
-        <el-button type="primary" :loading="submitting" :disabled="submitting" @click="handleSubmit">
-          <AppIcon name="scan" :size="15" class="btn-ico" />开始筛查
+        <el-button
+          v-if="failedCount"
+          type="warning"
+          :disabled="submitting"
+          @click="retryFailed"
+        >
+          <AppIcon name="refresh" :size="15" class="btn-ico" />重试失败（{{ failedCount }}）
+        </el-button>
+        <el-button type="primary" :loading="submitting" :disabled="submitting || !pendingCount" @click="handleSubmit">
+          <AppIcon name="scan" :size="15" class="btn-ico" />
+          开始筛查{{ pendingCount ? `（${pendingCount}）` : '' }}
         </el-button>
       </template>
     </PageHeader>
@@ -65,18 +74,42 @@
               multiple
               accept="image/*"
               :auto-upload="false"
-              :show-file-list="true"
+              :show-file-list="false"
+              :on-change="onFileChange"
             >
               <div class="upload-inner">
                 <AppIcon name="image" :size="30" />
                 <span class="upload-text">拖拽眼底图到此处，或<em>点击选择</em></span>
-                <span class="upload-hint">可一次上传多张，逐张自动分级</span>
+                <span class="upload-hint">可一次上传多张，逐张独立推理</span>
               </div>
             </el-upload>
 
+            <!-- 逐张状态列表 -->
+            <div v-if="items.length" class="queue">
+              <div class="queue-head">
+                <span>待处理队列（{{ items.length }} 张）</span>
+                <span class="queue-progress">已完成 {{ doneCount }} / {{ items.length }}</span>
+              </div>
+              <el-progress
+                :percentage="progressPercent"
+                :stroke-width="6"
+                :status="failedCount && !submitting ? 'warning' : undefined"
+                :show-text="false"
+              />
+              <ul class="queue-list">
+                <li v-for="it in items" :key="it.key" class="queue-item">
+                  <span class="qi-ico" :class="`qi-${it.status}`">
+                    <AppIcon :name="statusIcon(it.status)" :size="13" />
+                  </span>
+                  <span class="qi-name" :title="it.name">{{ it.name }}</span>
+                  <span class="qi-status" :class="`qi-txt-${it.status}`">{{ statusText(it) }}</span>
+                </li>
+              </ul>
+            </div>
+
             <p class="upload-note">
               <AppIcon name="info" :size="13" />
-              影像仅用于本次筛查推理，存储于私有对象桶，链接 30 分钟内有效。
+              逐张独立提交：单张失败不影响其它影像，可在完成后单独重试。
             </p>
           </div>
         </section>
@@ -94,7 +127,7 @@
           <ol class="flow">
             <li><b>1</b> 填写患者信息（可留空）</li>
             <li><b>2</b> 选择一张或多张眼底影像</li>
-            <li><b>3</b> 点击「开始筛查」获取分级与热力图</li>
+            <li><b>3</b> 点击「开始筛查」逐张获取分级与热力图</li>
           </ol>
         </div>
 
@@ -109,7 +142,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import type { UploadInstance, UploadUserFile } from 'element-plus'
+import type { UploadFile, UploadInstance } from 'element-plus'
 import AppIcon from '@/components/AppIcon.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import ResultCard from '@/components/ResultCard.vue'
@@ -117,10 +150,22 @@ import { uploadScreening } from '@/api/screening'
 import { GENDER_OPTIONS } from '@/types/screening'
 import type { ScreeningRecordVO } from '@/types/screening'
 
+type ItemStatus = 'pending' | 'uploading' | 'done' | 'error'
+
+interface QueueItem {
+  key: string
+  name: string
+  file: File
+  status: ItemStatus
+  error?: string
+  costMs?: number
+}
+
 const genderOptions = GENDER_OPTIONS
 const uploadRef = ref<UploadInstance>()
 const submitting = ref(false)
 const results = ref<ScreeningRecordVO[]>([])
+const items = ref<QueueItem[]>([])
 
 const form = reactive({
   patientName: '',
@@ -129,38 +174,95 @@ const form = reactive({
   remark: ''
 })
 
-const fileList = computed<UploadUserFile[]>(() => {
-  const inst = uploadRef.value as unknown as { uploadFiles?: UploadUserFile[] } | undefined
-  return inst?.uploadFiles ?? []
-})
+const pendingCount = computed(() => items.value.filter((i) => i.status === 'pending').length)
+const failedCount = computed(() => items.value.filter((i) => i.status === 'error').length)
+const doneCount = computed(() => items.value.filter((i) => i.status === 'done').length)
+const progressPercent = computed(() =>
+  items.value.length ? Math.round((doneCount.value / items.value.length) * 100) : 0
+)
 
-function gatherFiles(): File[] {
-  return fileList.value.map((f) => f.raw as File | undefined).filter((f): f is File => !!f)
+/* ---------------- 文件入队 ---------------- */
+function onFileChange(file: UploadFile) {
+  if (file.raw) {
+    items.value.push({
+      key: `${file.uid}-${Date.now()}`,
+      name: file.name,
+      file: file.raw,
+      status: 'pending'
+    })
+  }
+  // 展示由下方队列接管（show-file-list=false），此处不清理 el-upload 内部列表，
+  // 避免在 on-change 中触发 clearFiles 造成递归。
 }
 
-async function handleSubmit() {
-  const files = gatherFiles()
-  if (!files.length) {
-    ElMessage.warning('请至少上传一张眼底图片')
+function statusIcon(s: ItemStatus) {
+  if (s === 'done') return 'check'
+  if (s === 'error') return 'alert'
+  if (s === 'uploading') return 'refresh'
+  return 'clock'
+}
+
+function statusText(it: QueueItem) {
+  switch (it.status) {
+    case 'uploading':
+      return '推理中…'
+    case 'done':
+      return it.costMs != null ? `完成 ${(it.costMs / 1000).toFixed(1)}s` : '完成'
+    case 'error':
+      return it.error || '失败'
+    default:
+      return '等待'
+  }
+}
+
+/* ---------------- 提交（逐张） ---------------- */
+async function runQueue(targets: QueueItem[]) {
+  if (!targets.length) return
+  submitting.value = true
+  let okCount = 0
+  for (const it of targets) {
+    it.status = 'uploading'
+    it.error = undefined
+    const startedAt = Date.now()
+    try {
+      const data = await uploadScreening({
+        files: [it.file],
+        patientName: form.patientName || undefined,
+        patientAge: form.patientAge,
+        patientGender: form.patientGender || undefined,
+        remark: form.remark || undefined
+      })
+      it.status = 'done'
+      it.costMs = Date.now() - startedAt
+      results.value = [...data, ...results.value]
+      okCount += 1
+    } catch (e) {
+      it.status = 'error'
+      it.error = (e as Error).message || '筛查失败'
+    }
+  }
+  submitting.value = false
+
+  if (okCount === targets.length) {
+    ElMessage.success(`筛查完成，共 ${okCount} 条记录`)
+  } else {
+    ElMessage.warning(`完成 ${okCount} 条，失败 ${targets.length - okCount} 条，可点击「重试失败」重新提交`)
+  }
+}
+
+function handleSubmit() {
+  const targets = items.value.filter((i) => i.status === 'pending')
+  if (!targets.length) {
+    ElMessage.warning('请先选择眼底影像')
     return
   }
-  submitting.value = true
-  try {
-    const data = await uploadScreening({
-      files,
-      patientName: form.patientName || undefined,
-      patientAge: form.patientAge,
-      patientGender: form.patientGender || undefined,
-      remark: form.remark || undefined
-    })
-    results.value = data
-    ElMessage.success(`筛查完成，共 ${data.length} 条记录`)
-    uploadRef.value?.clearFiles()
-  } catch (e) {
-    ElMessage.error((e as Error).message || '筛查失败，请重试')
-  } finally {
-    submitting.value = false
-  }
+  runQueue(targets)
+}
+
+function retryFailed() {
+  const targets = items.value.filter((i) => i.status === 'error')
+  if (!targets.length) return
+  runQueue(targets)
 }
 
 function resetAll() {
@@ -169,6 +271,7 @@ function resetAll() {
   form.patientGender = ''
   form.remark = ''
   uploadRef.value?.clearFiles()
+  items.value = []
   results.value = []
 }
 </script>
@@ -238,6 +341,101 @@ function resetAll() {
   color: var(--drs-ink-500);
 }
 
+/* ---------- 队列 ---------- */
+.queue {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--drs-border);
+}
+
+.queue-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--drs-ink-600);
+  margin-bottom: 8px;
+}
+
+.queue-progress {
+  color: var(--drs-ink-500);
+  font-variant-numeric: tabular-nums;
+}
+
+.queue-list {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.queue-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+  font-size: 12px;
+}
+
+.qi-ico {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--drs-ink-100);
+  color: var(--drs-ink-500);
+}
+
+.qi-done {
+  background: var(--drs-ok-bg);
+  color: var(--drs-ok);
+}
+
+.qi-error {
+  background: var(--drs-danger-bg);
+  color: var(--drs-danger);
+}
+
+.qi-uploading {
+  background: var(--drs-primary-50);
+  color: var(--drs-primary-700);
+}
+
+.qi-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--drs-ink-700);
+}
+
+.qi-status {
+  flex-shrink: 0;
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--drs-ink-500);
+}
+
+.qi-txt-done {
+  color: var(--drs-ok);
+}
+
+.qi-txt-error {
+  color: var(--drs-danger);
+}
+
+.qi-txt-uploading {
+  color: var(--drs-primary-700);
+}
+
 .upload-note {
   display: flex;
   align-items: flex-start;
@@ -274,13 +472,12 @@ function resetAll() {
 
 .flow {
   list-style: none;
-  margin: 8px 0 0;
+  margin: 8px auto 0;
   padding: 0;
   display: flex;
   flex-direction: column;
   gap: 8px;
   max-width: 360px;
-  margin-inline: auto;
 }
 
 .flow li {

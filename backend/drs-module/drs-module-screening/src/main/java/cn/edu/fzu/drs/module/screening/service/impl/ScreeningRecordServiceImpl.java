@@ -219,6 +219,23 @@ public class ScreeningRecordServiceImpl implements ScreeningRecordService {
         vo.setSuggestionDistribution(suggestionDistribution);
         vo.setReferralRate(referralRate);
         vo.setTrend(buildTrend(all));
+        // 环比：近 30 天 vs 前 30 天（与上方筛选条件同一口径）
+        LocalDate today = LocalDate.now();
+        LocalDateTime from30 = today.minusDays(29).atStartOfDay();
+        LocalDateTime toToday = today.plusDays(1).atStartOfDay().minusNanos(1);
+        LocalDateTime from60 = today.minusDays(59).atStartOfDay();
+        LocalDateTime to30 = today.minusDays(29).atStartOfDay().minusNanos(1);
+        long recentTotal = countInRange(query, from30, toToday);
+        long prevTotal = countInRange(query, from60, to30);
+        BigDecimal growthRate = prevTotal == 0
+                ? (recentTotal == 0 ? BigDecimal.ZERO : BigDecimal.ONE)
+                : BigDecimal.valueOf(recentTotal - prevTotal)
+                        .divide(BigDecimal.valueOf(prevTotal), 4, RoundingMode.HALF_UP);
+
+        vo.setRecentTotal(recentTotal);
+        vo.setPrevTotal(prevTotal);
+        vo.setGrowthRate(growthRate);
+
         vo.setNeedReviewCount(all.stream()
                 .filter(e -> BizScreeningRecordConvert.needReview(e.getConfidence()))
                 .filter(e -> !"CONFIRMED".equals(e.getReviewStatus()))
@@ -401,6 +418,18 @@ public class ScreeningRecordServiceImpl implements ScreeningRecordService {
     // ------------------------- 内部工具 -------------------------
 
     private LambdaQueryWrapper<BizScreeningRecordEntity> buildQueryWrapper(ScreeningPageQuery query) {
+        LambdaQueryWrapper<BizScreeningRecordEntity> wrapper = applyFilters(query);
+        if (query.getStartDate() != null && !query.getStartDate().isBlank()) {
+            wrapper.ge(BizScreeningRecordEntity::getCreateTime, parseDateTime(query.getStartDate()));
+        }
+        if (query.getEndDate() != null && !query.getEndDate().isBlank()) {
+            wrapper.le(BizScreeningRecordEntity::getCreateTime, parseDateTime(query.getEndDate()));
+        }
+        return wrapper;
+    }
+
+    /** 条件筛选（不含时间范围）：数据权限 + 患者 + 分级 + 复核 + 精确患者 */
+    private LambdaQueryWrapper<BizScreeningRecordEntity> applyFilters(ScreeningPageQuery query) {
         LambdaQueryWrapper<BizScreeningRecordEntity> wrapper = new LambdaQueryWrapper<>();
         applyDataScope(wrapper);
         if (query.getPatientName() != null && !query.getPatientName().isBlank()) {
@@ -432,6 +461,15 @@ public class ScreeningRecordServiceImpl implements ScreeningRecordService {
             wrapper.eq(BizScreeningRecordEntity::getPatientName, query.getExactPatientName());
         }
         return wrapper;
+    }
+
+    /** 统计指定时间区间内的记录数（复用同一套筛选条件，保证环比口径一致） */
+    private long countInRange(ScreeningPageQuery query, LocalDateTime from, LocalDateTime to) {
+        LambdaQueryWrapper<BizScreeningRecordEntity> wrapper = applyFilters(query);
+        wrapper.ge(BizScreeningRecordEntity::getCreateTime, from);
+        wrapper.le(BizScreeningRecordEntity::getCreateTime, to);
+        Long count = mapper.selectCount(wrapper);
+        return count == null ? 0L : count;
     }
 
     /**

@@ -32,6 +32,18 @@ public class ScreeningStatisticsVO {
     @Schema(description = "需人工复核数量（置信度低于阈值）")
     private Long needReviewCount;
 
+    /** 环比：近 30 天数量 */
+    @Schema(description = "近 30 天筛查数量")
+    private Long recentTotal;
+
+    /** 环比：前 30 天数量 */
+    @Schema(description = "前 30 天筛查数量（用于环比）")
+    private Long prevTotal;
+
+    /** 环比增长率 =（近30天 - 前30天）/ 前30天；前30天为 0 时记为 1（新增）或 0（持平） */
+    @Schema(description = "环比增长率（4 位小数，可为负）")
+    private BigDecimal growthRate;
+
     @Schema(description = "人工复核阈值")
     private BigDecimal reviewThreshold;
 }

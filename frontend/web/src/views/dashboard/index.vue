@@ -66,7 +66,10 @@
     <section class="drs-card mt">
       <div class="drs-card-head">
         <h3>近 30 天筛查趋势</h3>
-        <span class="drs-card-meta">单位：例</span>
+        <span class="drs-card-meta">
+          近 30 天 {{ recentTotal }} 例 · 前 30 天 {{ prevTotal }} 例 ·
+          <b :class="growthClass">环比 {{ growthText }}</b>
+        </span>
       </div>
       <div class="drs-card-body">
         <EChart v-if="hasTrend" :option="trendOption" height="240px" />
@@ -172,6 +175,22 @@ const referralRate = computed(() => {
 
 const trend = computed(() => stats.value?.trend || [])
 const hasTrend = computed(() => trend.value.some((t) => t.count > 0))
+
+/* 环比：近 30 天 vs 前 30 天 */
+const recentTotal = computed(() => stats.value?.recentTotal ?? 0)
+const prevTotal = computed(() => stats.value?.prevTotal ?? 0)
+const growthRate = computed(() => stats.value?.growthRate)
+const growthText = computed(() => {
+  const r = growthRate.value
+  if (r == null) return '—'
+  const pct = (Number(r) * 100).toFixed(1)
+  return Number(r) > 0 ? `+${pct}%` : `${pct}%`
+})
+const growthClass = computed(() => {
+  const r = growthRate.value
+  if (r == null || Number(r) === 0) return 'growth-flat'
+  return Number(r) > 0 ? 'growth-up' : 'growth-down'
+})
 
 const quickActions = computed(() =>
   [
@@ -288,6 +307,21 @@ onMounted(load)
 
 .btn-ico {
   margin-right: 5px;
+}
+
+/* 环比涨跌配色：上升用青（业务量增长为正向），下降用中性灰，避免与医疗告警色混淆 */
+.growth-up {
+  color: var(--drs-primary-700);
+  font-weight: 600;
+}
+
+.growth-down {
+  color: var(--drs-ink-600);
+  font-weight: 600;
+}
+
+.growth-flat {
+  color: var(--drs-ink-500);
 }
 
 /* ---------- 分级分布 ---------- */

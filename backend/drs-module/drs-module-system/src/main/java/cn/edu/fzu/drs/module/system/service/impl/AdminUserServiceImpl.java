@@ -4,6 +4,7 @@ import cn.edu.fzu.drs.module.common.audit.OperationLogRecorder;
 import cn.edu.fzu.drs.module.common.exception.BusinessException;
 import cn.edu.fzu.drs.module.common.exception.UnauthorizedException;
 import cn.edu.fzu.drs.module.common.result.PageResult;
+import cn.edu.fzu.drs.module.common.util.IdGenerator;
 import cn.edu.fzu.drs.module.common.util.PasswordUtil;
 import cn.edu.fzu.drs.module.security.context.AuthContext;
 import cn.edu.fzu.drs.module.security.model.AuthPrincipal;
@@ -19,6 +20,8 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+
+import java.time.LocalDateTime;
 
 /**
  * 用户管理实现。
@@ -88,7 +91,13 @@ public class AdminUserServiceImpl implements AdminUserService {
         entity.setPhone(dto.getPhone());
         entity.setStatus(StringUtils.hasText(dto.getStatus()) ? dto.getStatus() : STATUS_ENABLED);
         entity.setPassword(PasswordUtil.encode(dto.getPassword()));
-        // id / deleteFlag / createBy / updateBy 由 AuditMetaHandler 自动填充
+        // 说明：本工程未启用 MyBatis-Plus 的 MetaObjectHandler（并不存在 AuditMetaHandler），
+        // 主键与审计字段必须在此显式赋值，否则插入时 id 为 null 会触发
+        // SQLIntegrityConstraintViolationException（Column 'id' cannot be null）。
+        entity.setId(IdGenerator.nextId());
+        entity.setDeleteFlag("N");
+        entity.setCreateTime(LocalDateTime.now());
+        entity.setUpdateTime(LocalDateTime.now());
         userMapper.insert(entity);
         audit.record(OperationLogRecorder.MODULE_USER, OperationLogRecorder.ACTION_CREATE,
                 entity.getUsername() + "（" + entity.getRole() + "）", true, null, 0L);

@@ -52,7 +52,8 @@ public class OperationLogServiceImpl implements OperationLogService {
             Map.entry("CREATE", "新增"),
             Map.entry("UPDATE", "修改"),
             Map.entry("CHANGE_STATE", "启停变更"),
-            Map.entry("REVIEW", "人工复核")
+            Map.entry("REVIEW", "人工复核"),
+            Map.entry("CHANGE_PASSWORD", "修改密码")
     );
 
     private final SysOperationLogMapper mapper;

@@ -17,3 +17,11 @@ export function fetchProfile() {
 export function fetchPermissions() {
   return request.get('/common/users/me/permissions') as unknown as Promise<string[]>
 }
+
+/** 修改当前登录账号密码。 */
+export function changePassword(oldPassword: string, newPassword: string) {
+  return request.put('/common/users/me/password', {
+    oldPassword,
+    newPassword
+  }) as unknown as Promise<void>
+}
