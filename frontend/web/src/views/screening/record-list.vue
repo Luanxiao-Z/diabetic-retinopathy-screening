@@ -1,86 +1,131 @@
 <template>
   <div class="drs-page">
-    <h1 class="drs-page-title">筛查记录</h1>
-    <p class="drs-page-subtitle">查询、查看与导出历史筛查记录（数据权限：医生仅本人，管理员全量）</p>
+    <PageHeader
+      title="筛查记录"
+      :subtitle="scopeSubtitle"
+      :crumbs="['筛查业务', '筛查记录']"
+    >
+      <template #actions>
+        <el-button
+          v-permission="'biz:screening:export'"
+          type="primary"
+          :disabled="loading"
+          @click="handleExport"
+        >
+          <AppIcon name="download" :size="15" class="btn-ico" />
+          {{ selectedIds.length ? `导出所选（${selectedIds.length}）` : '导出 Excel' }}
+        </el-button>
+      </template>
+    </PageHeader>
 
-    <div class="drs-card filter-bar">
-      <el-form :inline="true" :model="query" @submit.prevent>
-        <el-form-item label="患者姓名">
-          <el-input v-model="query.patientName" placeholder="模糊匹配" clearable style="width: 160px" />
-        </el-form-item>
-        <el-form-item label="DR 分级">
-          <el-select v-model="query.level" placeholder="全部" clearable style="width: 150px">
-            <el-option v-for="o in levelOptions" :key="o.value" :label="o.label" :value="o.value" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="筛查时间">
-          <el-date-picker
-            v-model="dateRange"
-            type="daterange"
-            range-separator="至"
-            start-placeholder="开始日期"
-            end-placeholder="结束日期"
-            value-format="YYYY-MM-DD"
-            style="width: 240px"
-          />
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" :loading="loading" @click="handleQuery">查询</el-button>
-          <el-button @click="handleReset">重置</el-button>
-        </el-form-item>
-        <el-form-item class="export-item">
-          <el-button v-permission="'biz:screening:export'" type="success" @click="handleExport">
-            导出 Excel
-          </el-button>
-        </el-form-item>
-      </el-form>
-    </div>
+    <!-- ============ 筛选条件 ============ -->
+    <section class="drs-card filter-card">
+      <div class="drs-card-head">
+        <h3>筛选条件</h3>
+        <span class="drs-card-meta">按患者、分级与时间范围检索</span>
+      </div>
+      <div class="drs-card-body">
+        <el-form :model="query" label-position="top" @submit.prevent>
+          <div class="filter-grid">
+            <el-form-item label="患者姓名">
+              <el-input v-model="query.patientName" placeholder="支持模糊匹配" clearable @keyup.enter="handleQuery" />
+            </el-form-item>
+            <el-form-item label="DR 分级">
+              <el-select v-model="query.level" placeholder="全部分级" clearable>
+                <el-option v-for="o in levelOptions" :key="o.value" :label="o.label" :value="o.value" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="筛查时间">
+              <el-date-picker
+                v-model="dateRange"
+                type="daterange"
+                range-separator="至"
+                start-placeholder="开始日期"
+                end-placeholder="结束日期"
+                value-format="YYYY-MM-DD"
+                class="date-range"
+              />
+            </el-form-item>
+            <div class="filter-actions">
+              <el-button type="primary" :loading="loading" @click="handleQuery">
+                <AppIcon name="search" :size="15" class="btn-ico" />查询
+              </el-button>
+              <el-button @click="handleReset">
+                <AppIcon name="refresh" :size="15" class="btn-ico" />重置
+              </el-button>
+            </div>
+          </div>
+        </el-form>
+      </div>
+    </section>
 
-    <div class="drs-card table-card">
-      <el-table
-        v-loading="loading"
-        :data="list"
-        border
-        stripe
-        @selection-change="onSelectionChange"
-      >
-        <el-table-column type="selection" width="46" />
-        <el-table-column prop="patientName" label="患者姓名" min-width="110">
-          <template #default="{ row }">{{ row.patientName || '未登记' }}</template>
-        </el-table-column>
-        <el-table-column label="性别" width="70">
-          <template #default="{ row }">{{ genderLabel(row.patientGender) }}</template>
-        </el-table-column>
-        <el-table-column prop="patientAge" label="年龄" width="70">
-          <template #default="{ row }">{{ row.patientAge ?? '-' }}</template>
-        </el-table-column>
-        <el-table-column label="DR 分级" width="120">
-          <template #default="{ row }">
-            <el-tag v-if="row.levelName" :color="levelColor(row.resultLevel)" effect="dark" :style="{ border: 'none' }">
-              {{ row.levelName }}
-            </el-tag>
+    <!-- ============ 记录列表 ============ -->
+    <section class="drs-card table-card">
+      <div class="drs-card-head">
+        <h3>记录列表</h3>
+        <span class="drs-card-meta">共 {{ total }} 条{{ selectedIds.length ? ` · 已选 ${selectedIds.length} 条` : '' }}</span>
+      </div>
+
+      <div class="table-wrap">
+        <el-table
+          v-loading="loading"
+          :data="list"
+          row-key="id"
+          @selection-change="onSelectionChange"
+        >
+          <el-table-column type="selection" width="46" />
+          <el-table-column prop="patientName" label="患者姓名" min-width="120">
+            <template #default="{ row }">{{ row.patientName || '未登记' }}</template>
+          </el-table-column>
+          <el-table-column label="性别" width="76">
+            <template #default="{ row }">{{ genderLabel(row.patientGender) }}</template>
+          </el-table-column>
+          <el-table-column label="年龄" width="76">
+            <template #default="{ row }">{{ row.patientAge ?? '—' }}</template>
+          </el-table-column>
+          <el-table-column label="DR 分级" width="126">
+            <template #default="{ row }">
+              <span v-if="row.levelName" class="chip" :style="chipStyle(row.resultLevel, LEVEL_COLOR)">
+                {{ row.levelName }}
+              </span>
+            </template>
+          </el-table-column>
+          <el-table-column label="置信度" width="112">
+            <template #default="{ row }">
+              <span class="conf">
+                <span class="conf-bar" aria-hidden="true">
+                  <span class="conf-fill" :style="{ width: confPercent(row.confidence) }"></span>
+                </span>
+                <span class="conf-txt">{{ confidenceText(row.confidence) }}</span>
+              </span>
+            </template>
+          </el-table-column>
+          <el-table-column label="转诊建议" width="140">
+            <template #default="{ row }">
+              <span v-if="row.suggestionName" class="chip" :style="chipStyle(row.suggestion, SUGGESTION_COLOR)">
+                {{ row.suggestionName }}
+              </span>
+            </template>
+          </el-table-column>
+          <el-table-column prop="createTime" label="筛查时间" min-width="164" />
+          <el-table-column label="操作" width="130" fixed="right">
+            <template #default="{ row }">
+              <el-button link type="primary" @click="openDetail(row as ScreeningRecordVO)">详情</el-button>
+              <el-button
+                v-permission="'biz:screening:delete'"
+                link
+                type="danger"
+                @click="handleDelete(row as ScreeningRecordVO)"
+              >
+                删除
+              </el-button>
+            </template>
+          </el-table-column>
+          <template #empty>
+            <el-empty :image-size="80" description="没有符合条件的筛查记录" />
           </template>
-        </el-table-column>
-        <el-table-column label="置信度" width="100">
-          <template #default="{ row }">{{ confidenceText(row.confidence) }}</template>
-        </el-table-column>
-        <el-table-column label="转诊建议" width="120">
-          <template #default="{ row }">
-            <el-tag v-if="row.suggestionName" :color="suggestionColor(row.suggestion)" effect="dark" :style="{ border: 'none' }">
-              {{ row.suggestionName }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="createTime" label="筛查时间" min-width="150" />
-        <el-table-column label="操作" width="140" fixed="right">
-          <template #default="{ row }">
-            <el-button link type="primary" @click="openDetail(row as ScreeningRecordVO)">详情</el-button>
-            <el-button v-permission="'biz:screening:delete'" link type="danger" @click="handleDelete(row as ScreeningRecordVO)">
-              删除
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+        </el-table>
+      </div>
 
       <div class="pager">
         <el-pagination
@@ -94,22 +139,26 @@
           @size-change="handleSizeChange"
         />
       </div>
-    </div>
+    </section>
 
-    <el-dialog v-model="detailVisible" title="筛查记录详情" width="560px" destroy-on-close>
+    <el-dialog v-model="detailVisible" title="筛查记录详情" width="620px" destroy-on-close>
       <ResultCard v-if="currentRecord" :record="currentRecord" />
     </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import AppIcon from '@/components/AppIcon.vue'
+import PageHeader from '@/components/PageHeader.vue'
 import ResultCard from '@/components/ResultCard.vue'
 import { detailScreening, exportScreening, pageScreening, removeScreening } from '@/api/screening'
+import { useUserStore } from '@/stores/user'
 import { GENDER_OPTIONS, LEVEL_COLOR, LEVEL_OPTIONS, SUGGESTION_COLOR } from '@/types/screening'
 import type { ScreeningRecordVO } from '@/types/screening'
 
+const userStore = useUserStore()
 const levelOptions = LEVEL_OPTIONS
 const genderOptions = GENDER_OPTIONS
 
@@ -131,17 +180,41 @@ const query = reactive({
 const detailVisible = ref(false)
 const currentRecord = ref<ScreeningRecordVO | null>(null)
 
-function levelColor(level?: string) {
-  return LEVEL_COLOR[level || ''] || '#0891B2'
+const scopeSubtitle = computed(() =>
+  userStore.dataScope === 'ALL' || userStore.role === 'ADMIN'
+    ? '查询、查看与导出全部筛查记录（数据权限：全部数据）'
+    : '查询、查看与导出本人创建的筛查记录（数据权限：仅本人数据）'
+)
+
+/** 由等级色生成浅底深字的标签样式，避免大面积实色块 */
+function chipStyle(key: string | undefined, colorMap: Record<string, string>) {
+  const hex = colorMap[key || ''] || '#64748b'
+  return {
+    color: hex,
+    background: hexToRgba(hex, 0.1),
+    borderColor: hexToRgba(hex, 0.28)
+  }
 }
-function suggestionColor(s?: string) {
-  return SUGGESTION_COLOR[s || ''] || '#64748B'
+
+function hexToRgba(hex: string, alpha: number) {
+  const h = hex.replace('#', '')
+  const full = h.length === 3 ? h.split('').map((c) => c + c).join('') : h
+  const r = parseInt(full.slice(0, 2), 16)
+  const g = parseInt(full.slice(2, 4), 16)
+  const b = parseInt(full.slice(4, 6), 16)
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
+
 function genderLabel(g?: string) {
-  return genderOptions.find((o) => o.value === g)?.label || g || '-'
+  return genderOptions.find((o) => o.value === g)?.label || g || '—'
 }
+
 function confidenceText(c?: number) {
-  return c == null ? '-' : `${(c * 100).toFixed(1)}%`
+  return c == null ? '—' : `${(c * 100).toFixed(1)}%`
+}
+
+function confPercent(c?: number) {
+  return c == null ? '0%' : `${Math.max(0, Math.min(1, c)) * 100}%`
 }
 
 function buildQuery() {
@@ -226,26 +299,104 @@ onMounted(loadData)
 </script>
 
 <style scoped>
-.filter-bar {
-  padding: 16px 18px 0;
-  margin-bottom: 16px;
+.btn-ico {
+  margin-right: 5px;
 }
 
-.filter-bar :deep(.el-form-item) {
-  margin-bottom: 16px;
+/* ---------- 筛选栏 ---------- */
+.filter-card {
+  margin-bottom: var(--drs-gap);
 }
 
-.export-item {
-  float: right;
+.filter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0 var(--drs-gap);
+  align-items: end;
 }
 
+.filter-grid :deep(.el-form-item) {
+  margin-bottom: 0;
+}
+
+.filter-grid :deep(.el-select),
+.filter-grid :deep(.el-input) {
+  width: 100%;
+}
+
+.date-range {
+  width: 100%;
+}
+
+.filter-actions {
+  display: flex;
+  gap: 10px;
+  padding-bottom: 1px;
+  align-items: center;
+}
+
+/* ---------- 表格 ---------- */
 .table-card {
-  padding: 14px 18px 18px;
+  overflow: hidden;
+}
+
+.table-wrap {
+  overflow-x: auto;
 }
 
 .pager {
-  margin-top: 16px;
   display: flex;
   justify-content: flex-end;
+  padding: 14px var(--drs-gap-lg);
+  border-top: 1px solid var(--drs-border);
+}
+
+/* 等级 / 建议标签：浅底深字，兼顾可读与克制 */
+.chip {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* 置信度：细进度条 + 数值，避免纯数字难以横向比较 */
+.conf {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.conf-bar {
+  flex: 1;
+  min-width: 34px;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--drs-ink-100);
+  overflow: hidden;
+}
+
+.conf-fill {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--drs-primary);
+}
+
+.conf-txt {
+  font-size: 12px;
+  color: var(--drs-ink-600);
+  font-variant-numeric: tabular-nums;
+  min-width: 44px;
+  text-align: right;
+}
+
+@media (max-width: 900px) {
+  .filter-actions {
+    padding-bottom: 0;
+    padding-top: 4px;
+  }
 }
 </style>

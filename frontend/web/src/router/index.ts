@@ -18,31 +18,31 @@ const routes: RouteRecordRaw[] = [
         path: 'dashboard',
         name: 'Dashboard',
         component: () => import('@/views/dashboard/index.vue'),
-        meta: { permission: 'biz:screening:view', title: '筛查看板' }
+        meta: { permission: 'biz:screening:view', title: '筛查看板', group: '综合看板', crumb: '筛查看板' }
       },
       {
         path: 'screening/upload',
         name: 'ScreeningUpload',
         component: () => import('@/views/screening/upload.vue'),
-        meta: { permission: 'biz:screening:create', title: '筛查上传' }
+        meta: { permission: 'biz:screening:create', title: '筛查上传', group: '筛查业务', crumb: '筛查上传' }
       },
       {
         path: 'screening/records',
         name: 'ScreeningRecords',
         component: () => import('@/views/screening/record-list.vue'),
-        meta: { permission: 'biz:screening:view', title: '筛查记录' }
+        meta: { permission: 'biz:screening:view', title: '筛查记录', group: '筛查业务', crumb: '筛查记录' }
       },
       {
         path: 'screening/statistics',
         name: 'ScreeningStatistics',
         component: () => import('@/views/screening/statistics.vue'),
-        meta: { permission: 'biz:screening:view', title: '统计分析' }
+        meta: { permission: 'biz:screening:view', title: '统计分析', group: '筛查业务', crumb: '统计分析' }
       },
       {
         path: 'profile',
         name: 'Profile',
         component: () => import('@/views/profile/index.vue'),
-        meta: { title: '个人中心' }
+        meta: { title: '个人中心', group: '账户', crumb: '个人中心' }
       }
     ]
   },

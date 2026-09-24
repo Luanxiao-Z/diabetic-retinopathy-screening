@@ -1,52 +1,67 @@
 <template>
-  <div class="result-card drs-card">
+  <article class="result-card drs-card">
+    <!-- ============ 影像区 ============ -->
     <div class="rc-image">
-      <div class="rc-image-box">
-        <el-image
-          v-if="record.imageUrl"
-          :src="record.imageUrl"
-          fit="contain"
-          :preview-src-list="previewList"
-          :initial-index="0"
-          class="rc-img"
-        >
-          <template #error>
-            <div class="rc-img-fallback">图像不可用</div>
-          </template>
-        </el-image>
-        <img
-          v-if="showCam && record.gradCamUrl"
-          :src="record.gradCamUrl"
-          class="rc-cam"
-          alt="热力图"
-        />
+      <el-image
+        v-if="record.imageUrl"
+        :src="record.imageUrl"
+        fit="contain"
+        :preview-src-list="previewList"
+        :initial-index="0"
+        class="rc-img"
+        alt="眼底影像"
+      >
+        <template #error>
+          <div class="rc-img-fallback">
+            <AppIcon name="image" :size="22" />
+            <span>影像不可用</span>
+          </div>
+        </template>
+      </el-image>
+      <div v-else class="rc-img-fallback">
+        <AppIcon name="image" :size="22" />
+        <span>无影像</span>
       </div>
-      <div v-if="record.gradCamUrl" class="rc-cam-switch">
+
+      <img
+        v-if="showCam && record.gradCamUrl"
+        :src="record.gradCamUrl"
+        class="rc-cam"
+        alt="Grad-CAM 热力图叠加"
+      />
+
+      <span class="rc-level-chip" :style="levelChipStyle">{{ record.levelName || '未分级' }}</span>
+
+      <label v-if="record.gradCamUrl" class="rc-cam-toggle">
         <el-switch v-model="showCam" size="small" />
         <span>热力图叠加</span>
-      </div>
-      <el-tag v-if="record.levelName" :color="levelColor" class="rc-level" effect="dark">
-        {{ record.levelName }}
-      </el-tag>
+      </label>
     </div>
 
+    <!-- ============ 信息区 ============ -->
     <div class="rc-body">
       <div class="rc-head">
         <span class="rc-patient">{{ record.patientName || '未登记患者' }}</span>
-        <el-tag v-if="record.suggestionName" :color="suggestionColor" effect="dark" class="rc-suggest">
-          {{ record.suggestionName }}
-        </el-tag>
+        <span class="rc-meta">
+          <span v-if="record.patientGender">{{ genderLabel }}</span>
+          <span v-if="record.patientAge != null">{{ record.patientAge }} 岁</span>
+        </span>
       </div>
 
-      <div class="rc-meta">
-        <span v-if="record.patientGender">{{ genderLabel }}</span>
-        <span v-if="record.patientAge != null">{{ record.patientAge }} 岁</span>
+      <!-- 转诊建议 -->
+      <div class="rc-suggest" :style="suggestStyle">
+        <AppIcon name="hospital" :size="15" />
+        <span class="rc-suggest-text">
+          <b>{{ record.suggestionName || '暂无建议' }}</b>
+          <em>{{ suggestionHint }}</em>
+        </span>
       </div>
 
-      <div class="rc-confidence">
-        <div class="rc-confidence-label">
-          <span>置信度</span>
-          <strong>{{ confidenceText }}</strong>
+      <!-- 置信度 -->
+      <div class="rc-block">
+        <div class="rc-block-head">
+          <span>模型置信度</span>
+          <b>{{ confidenceText }}</b>
         </div>
         <el-progress
           :percentage="confidencePercent"
@@ -56,38 +71,54 @@
         />
       </div>
 
-      <div class="rc-probs">
-        <div v-for="lv in levelOrder" :key="lv" class="rc-prob-row">
-          <span class="rc-prob-name">{{ levelLabel[lv] }}</span>
-          <div class="rc-prob-bar">
-            <div
-              class="rc-prob-fill"
-              :style="{ width: probPercent(lv) + '%', background: levelColorMap[lv] }"
-            ></div>
+      <!-- 各级概率 -->
+      <div class="rc-block">
+        <div class="rc-block-head">
+          <span>各分级概率</span>
+        </div>
+        <div class="rc-probs">
+          <div v-for="lv in levelOrder" :key="lv" class="rc-prob-row">
+            <span class="rc-prob-name" :class="{ 'is-hit': lv === record.resultLevel }">
+              {{ levelLabel[lv] }}
+            </span>
+            <span class="rc-prob-bar">
+              <span
+                class="rc-prob-fill"
+                :style="{ width: probPercent(lv) + '%', background: levelColorMap[lv] }"
+              ></span>
+            </span>
+            <span class="rc-prob-val">{{ probPercent(lv) }}%</span>
           </div>
-          <span class="rc-prob-val">{{ probPercent(lv) }}%</span>
         </div>
       </div>
 
+      <p v-if="record.remark" class="rc-remark">备注：{{ record.remark }}</p>
+
       <div class="rc-foot">
-        <span v-if="record.modelVersion">模型 {{ record.modelVersion }}</span>
+        <span v-if="record.modelVersion" class="rc-version" :title="record.modelVersion">
+          {{ record.modelVersion }}
+        </span>
         <span v-if="record.createTime">{{ record.createTime }}</span>
       </div>
-      <div v-if="record.remark" class="rc-remark">备注：{{ record.remark }}</div>
+
+      <p class="rc-disclaimer">
+        <AppIcon name="info" :size="12" />
+        AI 辅助筛查结果，仅供临床参考，最终诊断请以眼科医师意见为准。
+      </p>
     </div>
-  </div>
+  </article>
 </template>
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import AppIcon from '@/components/AppIcon.vue'
 import type { ScreeningRecordVO } from '@/types/screening'
 import {
   GENDER_OPTIONS,
   LEVEL_COLOR,
   LEVEL_LABEL,
   LEVEL_ORDER,
-  SUGGESTION_COLOR,
-  SUGGESTION_LABEL
+  SUGGESTION_COLOR
 } from '@/types/screening'
 
 const props = defineProps<{ record: ScreeningRecordVO }>()
@@ -101,13 +132,40 @@ const previewList = computed(() => {
   return list
 })
 
-const levelColor = computed(() => LEVEL_COLOR[props.record.resultLevel || ''] || '#0891B2')
-const suggestionColor = computed(
-  () => SUGGESTION_COLOR[props.record.suggestion || ''] || '#64748B'
-)
+const levelColor = computed(() => LEVEL_COLOR[props.record.resultLevel || ''] || '#0891b2')
 const levelColorMap = LEVEL_COLOR
 const levelOrder = LEVEL_ORDER
 const levelLabel = LEVEL_LABEL
+
+const levelChipStyle = computed(() => {
+  const hex = levelColor.value
+  return {
+    color: hex,
+    background: hexToRgba(hex, 0.92)
+  }
+})
+
+const suggestStyle = computed(() => {
+  const hex = SUGGESTION_COLOR[props.record.suggestion || ''] || '#64748b'
+  return {
+    color: hex,
+    background: hexToRgba(hex, 0.08),
+    borderColor: hexToRgba(hex, 0.22)
+  }
+})
+
+const suggestionHint = computed(() => {
+  switch (props.record.suggestion) {
+    case 'REVIEW':
+      return '定期复查，暂无需临床干预'
+    case 'CLINIC':
+      return '建议眼科门诊就诊评估'
+    case 'REFERRAL':
+      return '建议尽快转诊至上级医院'
+    default:
+      return '请结合临床判断'
+  }
+})
 
 const genderLabel = computed(() => {
   const g = GENDER_OPTIONS.find((o) => o.value === props.record.patientGender)
@@ -115,7 +173,7 @@ const genderLabel = computed(() => {
 })
 
 const confidencePercent = computed(() => Math.round((props.record.confidence ?? 0) * 100))
-const confidenceText = computed(() => `${(props.record.confidence ?? 0) * 100}%`)
+const confidenceText = computed(() => `${((props.record.confidence ?? 0) * 100).toFixed(1)}%`)
 
 function probPercent(lv: string): number {
   const v = props.record.probabilities?.[lv]
@@ -123,6 +181,15 @@ function probPercent(lv: string): number {
   // 后端概率可能为 0~1 或已为百分比，统一归一
   const p = v > 1 ? v / 100 : v
   return Math.round(p * 100)
+}
+
+function hexToRgba(hex: string, alpha: number) {
+  const h = hex.replace('#', '')
+  const full = h.length === 3 ? h.split('').map((c) => c + c).join('') : h
+  const r = parseInt(full.slice(0, 2), 16)
+  const g = parseInt(full.slice(2, 4), 16)
+  const b = parseInt(full.slice(4, 6), 16)
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
 </script>
 
@@ -133,16 +200,11 @@ function probPercent(lv: string): number {
   overflow: hidden;
 }
 
+/* ===================== 影像区 ===================== */
 .rc-image {
   position: relative;
-  background: #0f172a;
   height: 200px;
-}
-
-.rc-image-box {
-  position: relative;
-  width: 100%;
-  height: 100%;
+  background: #0f172a;
 }
 
 .rc-img,
@@ -161,83 +223,119 @@ function probPercent(lv: string): number {
 }
 
 .rc-img-fallback {
-  color: #94a3b8;
-  font-size: 12px;
   display: flex;
-  height: 100%;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 6px;
+  height: 100%;
+  color: #94a3b8;
+  font-size: 12px;
 }
 
-.rc-cam-switch {
+.rc-level-chip {
   position: absolute;
-  left: 8px;
-  bottom: 8px;
-  display: flex;
+  top: 10px;
+  right: 10px;
+  padding: 3px 11px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.6;
+}
+
+.rc-cam-toggle {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: rgba(15, 23, 42, 0.55);
-  color: #fff;
-  font-size: 12px;
-  padding: 3px 8px;
-  border-radius: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.62);
+  color: #e2e8f0;
+  font-size: 11.5px;
+  cursor: pointer;
 }
 
-.rc-level {
-  position: absolute;
-  right: 8px;
-  top: 8px;
-  border: none;
-  font-weight: 600;
-}
-
+/* ===================== 信息区 ===================== */
 .rc-body {
-  padding: 14px 16px;
+  padding: 14px 16px 16px;
 }
 
 .rc-head {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
-  gap: 8px;
+  gap: 10px;
 }
 
 .rc-patient {
   font-size: 15px;
   font-weight: 600;
-}
-
-.rc-suggest {
-  border: none;
-  font-weight: 600;
+  color: var(--drs-ink-900);
 }
 
 .rc-meta {
   display: flex;
-  gap: 12px;
-  color: var(--drs-text-soft);
+  gap: 10px;
   font-size: 12px;
-  margin-top: 4px;
+  color: var(--drs-ink-500);
 }
 
-.rc-confidence {
-  margin-top: 12px;
-}
-
-.rc-confidence-label {
+.rc-suggest {
   display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 9px 12px;
+  border: 1px solid transparent;
+  border-radius: var(--drs-radius-sm);
+}
+
+.rc-suggest :deep(svg) {
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.rc-suggest-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.5;
+}
+
+.rc-suggest-text b {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.rc-suggest-text em {
+  font-style: normal;
+  font-size: 11.5px;
+  opacity: 0.85;
+}
+
+.rc-block {
+  margin-top: 14px;
+}
+
+.rc-block-head {
+  display: flex;
+  align-items: baseline;
   justify-content: space-between;
   font-size: 12px;
-  color: var(--drs-text-soft);
-  margin-bottom: 4px;
+  color: var(--drs-ink-500);
+  margin-bottom: 6px;
 }
 
-.rc-confidence-label strong {
-  color: var(--drs-text);
+.rc-block-head b {
+  color: var(--drs-ink-900);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
 }
 
 .rc-probs {
-  margin-top: 12px;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -251,42 +349,79 @@ function probPercent(lv: string): number {
 }
 
 .rc-prob-name {
-  width: 48px;
-  color: var(--drs-text-soft);
+  width: 62px;
   flex-shrink: 0;
+  color: var(--drs-ink-500);
+}
+
+.rc-prob-name.is-hit {
+  color: var(--drs-ink-900);
+  font-weight: 600;
 }
 
 .rc-prob-bar {
   flex: 1;
-  height: 8px;
-  background: #eef2f7;
+  height: 7px;
   border-radius: 4px;
+  background: var(--drs-ink-100);
   overflow: hidden;
 }
 
 .rc-prob-fill {
+  display: block;
   height: 100%;
   border-radius: 4px;
   transition: width 0.4s ease;
 }
 
 .rc-prob-val {
-  width: 38px;
+  width: 40px;
   text-align: right;
-  color: var(--drs-text);
-}
-
-.rc-foot {
-  margin-top: 12px;
-  display: flex;
-  justify-content: space-between;
-  font-size: 11px;
-  color: var(--drs-text-soft);
+  color: var(--drs-ink-600);
+  font-variant-numeric: tabular-nums;
 }
 
 .rc-remark {
-  margin-top: 6px;
+  margin: 12px 0 0;
   font-size: 12px;
-  color: var(--drs-text-soft);
+  line-height: 1.6;
+  color: var(--drs-ink-600);
+  padding: 8px 10px;
+  border-radius: var(--drs-radius-xs);
+  background: var(--drs-surface-2);
+}
+
+.rc-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--drs-border);
+  font-size: 11px;
+  color: var(--drs-ink-400);
+}
+
+.rc-version {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 60%;
+}
+
+.rc-disclaimer {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  margin: 10px 0 0;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--drs-ink-400);
+}
+
+.rc-disclaimer :deep(svg) {
+  margin-top: 3px;
+  flex-shrink: 0;
 }
 </style>

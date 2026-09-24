@@ -3,6 +3,7 @@ export interface LoginResult {
   role: string
   username: string
   permissions: string[]
+  dataScope?: string
 }
 
 export interface ProfileResult {
@@ -10,4 +11,5 @@ export interface ProfileResult {
   username: string
   role: string
   permissions: string[]
+  dataScope?: string
 }

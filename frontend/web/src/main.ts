@@ -21,7 +21,12 @@ const token = localStorage.getItem('token')
 const bootstrap = token
   ? fetchProfile()
       .then((p) => {
-        userStore.setProfile({ role: p.role, username: p.username, permissions: p.permissions })
+        userStore.setProfile({
+          role: p.role,
+          username: p.username,
+          permissions: p.permissions,
+          dataScope: p.dataScope
+        })
       })
       .catch(() => {
         localStorage.removeItem('token')

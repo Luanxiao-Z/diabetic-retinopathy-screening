@@ -1,31 +1,122 @@
-:root {
-  /* DR 智能筛查系统设计令牌（医疗蓝绿主色 / 健康绿 CTA） */
-  --drs-primary: #0891B2;
-  --drs-primary-dark: #06748E;
-  --drs-cta: #22C55E;
-  --drs-cta-dark: #16A34A;
-  --drs-bg: #F0FDFA;
-  --drs-surface: #FFFFFF;
-  --drs-text: #0F172A;
-  --drs-text-soft: #64748B;
-  --drs-border: #E2E8F0;
-  --drs-danger: #EF4444;
-  --drs-warn: #F59E0B;
+/* ============================================================================
+   DR 智能筛查系统 · 设计令牌与全局主题
+   ----------------------------------------------------------------------------
+   视觉身份：医疗青绿（primary #0891B2）+ 健康绿 CTA，浅色、克制、可及性优先。
+   布局语言参考「政务侧工作台」原型：顶栏 + 分组侧栏 + 面包屑 + 页头 + 卡片。
+   本文件仅定义令牌与全局覆盖，不含业务样式。
+   ========================================================================== */
 
-  /* Element Plus 主色系（覆盖为医疗蓝绿） */
-  --el-color-primary: #0891B2;
-  --el-color-primary-light-3: #52B2C9;
-  --el-color-primary-light-5: #84C8D9;
-  --el-color-primary-light-7: #B5DEE8;
-  --el-color-primary-light-8: #CEE9F0;
-  --el-color-primary-light-9: #E6F4F7;
-  --el-color-primary-dark-2: #06748E;
-  --el-color-success: #22C55E;
-  --el-color-warning: #F59E0B;
-  --el-color-danger: #EF4444;
+:root {
+  /* ---------- 品牌色阶（医疗青） ---------- */
+  --drs-primary: #0891b2;
+  --drs-primary-hover: #0e7490;
+  --drs-primary-active: #155e75;
+  --drs-primary-50: #ecfeff;
+  --drs-primary-100: #cffafe;
+  --drs-primary-200: #a5f3fc;
+  --drs-primary-300: #67e8f9;
+  --drs-primary-600: #0891b2;
+  --drs-primary-700: #0e7490;
+  --drs-primary-800: #155e75;
+  --drs-primary-900: #164e63;
+
+  /* ---------- CTA（健康绿） ---------- */
+  --drs-cta: #16a34a;
+  --drs-cta-hover: #15803d;
+  --drs-cta-50: #f0fdf4;
+  --drs-cta-100: #dcfce7;
+
+  /* ---------- 中性墨色阶（正文对比度 ≥ 4.5:1） ---------- */
+  --drs-ink-900: #0f172a;
+  --drs-ink-800: #1e293b;
+  --drs-ink-700: #334155;
+  --drs-ink-600: #475569;
+  --drs-ink-500: #64748b;
+  --drs-ink-400: #94a3b8;
+  --drs-ink-300: #cbd5e1;
+  --drs-ink-200: #e2e8f0;
+  --drs-ink-100: #f1f5f9;
+  --drs-ink-50: #f8fafc;
+
+  /* ---------- 语义色 ---------- */
+  --drs-ok: #16a34a;
+  --drs-ok-bg: #ecfdf5;
+  --drs-warn: #d97706;
+  --drs-warn-bg: #fffbeb;
+  --drs-danger: #dc2626;
+  --drs-danger-bg: #fef2f2;
+  --drs-info: #2563eb;
+  --drs-info-bg: #eff6ff;
+  --drs-violet: #7c3aed;
+  --drs-violet-bg: #f5f3ff;
+
+  /* ---------- 表面与描边 ---------- */
+  --drs-bg: #f4f6f8;
+  --drs-bg-soft: #fafbfc;
+  --drs-surface: #ffffff;
+  --drs-surface-2: #f8fafc;
+  --drs-border: #e4e8ee;
+  --drs-border-strong: #d3dae3;
+
+  /* ---------- 圆角 ---------- */
+  --drs-radius-xs: 6px;
+  --drs-radius-sm: 8px;
+  --drs-radius: 12px;
+  --drs-radius-lg: 16px;
+
+  /* ---------- 阴影（分层、低饱和） ---------- */
+  --drs-shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --drs-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04), 0 2px 8px rgba(15, 23, 42, 0.05);
+  --drs-shadow: 0 1px 3px rgba(15, 23, 42, 0.05), 0 8px 24px rgba(15, 23, 42, 0.06);
+  --drs-shadow-lg: 0 12px 40px rgba(15, 23, 42, 0.12);
+  --drs-ring: 0 0 0 3px rgba(8, 145, 178, 0.22);
+
+  /* ---------- 间距节奏 ---------- */
+  --drs-gap-xs: 8px;
+  --drs-gap-sm: 12px;
+  --drs-gap: 16px;
+  --drs-gap-lg: 20px;
+  --drs-gap-xl: 24px;
+
+  /* ---------- 布局尺寸 ---------- */
+  --drs-header-h: 60px;
+  --drs-sider-w: 236px;
+  --drs-sider-w-icon: 68px;
+  --drs-content-max: 1600px;
+
+  /* ---------- 兼容旧令牌（避免既有页面失效） ---------- */
+  --drs-primary-dark: var(--drs-primary-hover);
+  --drs-cta-dark: var(--drs-cta-hover);
+  --drs-text: var(--drs-ink-900);
+  --drs-text-soft: var(--drs-ink-500);
+  --drs-surface-soft: var(--drs-surface-2);
+
+  /* ---------- Element Plus 主题对齐 ---------- */
+  --el-color-primary: #0891b2;
+  --el-color-primary-light-3: #52b2c9;
+  --el-color-primary-light-5: #84c8d9;
+  --el-color-primary-light-7: #b5dee8;
+  --el-color-primary-light-8: #cee9f0;
+  --el-color-primary-light-9: #eaf6f9;
+  --el-color-primary-dark-2: #0e7490;
+  --el-color-success: #16a34a;
+  --el-color-warning: #d97706;
+  --el-color-danger: #dc2626;
+  --el-color-info: #64748b;
+  --el-text-color-primary: #0f172a;
+  --el-text-color-regular: #334155;
+  --el-text-color-secondary: #64748b;
+  --el-border-color: #e4e8ee;
+  --el-border-color-light: #eef1f5;
+  --el-border-radius-base: 8px;
+  --el-font-size-base: 14px;
 }
 
-* {
+/* ============================ 基础 ============================ */
+
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
@@ -39,11 +130,13 @@ body,
 
 body {
   background: var(--drs-bg);
-  color: var(--drs-text);
-  font-family: 'Figtree', 'Noto Sans SC', 'Segoe UI', system-ui, -apple-system, 'PingFang SC',
-    'Microsoft YaHei', sans-serif;
+  color: var(--drs-ink-900);
+  font-family: 'Figtree', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', system-ui, -apple-system,
+    'Segoe UI', sans-serif;
   font-size: 14px;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 a {
@@ -51,27 +144,192 @@ a {
   text-decoration: none;
 }
 
-/* 通用卡片阴影（轻量化、医疗风格） */
+a:hover {
+  color: var(--drs-primary-hover);
+}
+
+/* 键盘可达性：仅键盘聚焦时显示焦点环，鼠标点击不显示 */
+:focus-visible {
+  outline: 2px solid var(--drs-primary);
+  outline-offset: 2px;
+  border-radius: var(--drs-radius-xs);
+}
+
+/* 尊重系统的「减少动态效果」设置 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ============================ 通用原子类 ============================ */
+
 .drs-card {
   background: var(--drs-surface);
   border: 1px solid var(--drs-border);
-  border-radius: 12px;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 16px rgba(8, 145, 178, 0.06);
+  border-radius: var(--drs-radius);
+  box-shadow: var(--drs-shadow-sm);
 }
 
 .drs-page {
-  padding: 20px 24px;
+  padding: var(--drs-gap-lg) var(--drs-gap-xl) var(--drs-gap-xl);
+  max-width: var(--drs-content-max);
 }
 
 .drs-page-title {
   font-size: 20px;
   font-weight: 600;
+  letter-spacing: -0.2px;
   margin: 0 0 4px;
-  color: var(--drs-text);
+  color: var(--drs-ink-900);
 }
 
 .drs-page-subtitle {
   font-size: 13px;
-  color: var(--drs-text-soft);
-  margin: 0 0 18px;
+  color: var(--drs-ink-500);
+  margin: 0 0 var(--drs-gap-lg);
+}
+
+/* 统一卡片头：标题 + 右侧辅助信息（对齐参考项目的 .card-head） */
+.drs-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--drs-gap-sm);
+  padding: 14px var(--drs-gap-lg);
+  border-bottom: 1px solid var(--drs-border);
+}
+
+.drs-card-head h3 {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--drs-ink-800);
+}
+
+.drs-card-head .drs-card-meta {
+  font-size: 12px;
+  color: var(--drs-ink-500);
+}
+
+.drs-card-body {
+  padding: var(--drs-gap-lg);
+}
+
+/* 数据范围提示条（SELF / ALL） */
+.drs-scope-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: var(--drs-primary-50);
+  border: 1px solid var(--drs-primary-100);
+  color: var(--drs-primary-800);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.drs-scope-bar b {
+  font-weight: 600;
+}
+
+/* 网格工具 */
+.drs-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--drs-gap);
+}
+
+.drs-grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--drs-gap);
+}
+
+/* ============================ Element Plus 细节统一 ============================ */
+
+.el-button {
+  font-weight: 500;
+  transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+}
+
+.el-button--primary {
+  --el-button-bg-color: var(--drs-primary);
+  --el-button-border-color: var(--drs-primary);
+  --el-button-hover-bg-color: var(--drs-primary-hover);
+  --el-button-hover-border-color: var(--drs-primary-hover);
+  --el-button-active-bg-color: var(--drs-primary-active);
+  --el-button-active-border-color: var(--drs-primary-active);
+}
+
+.el-card {
+  border-radius: var(--drs-radius);
+  border-color: var(--drs-border);
+}
+
+.el-table {
+  --el-table-border-color: var(--drs-border);
+  --el-table-header-bg-color: var(--drs-surface-2);
+  --el-table-header-text-color: var(--drs-ink-600);
+  --el-table-row-hover-bg-color: var(--drs-primary-50);
+  font-size: 13px;
+}
+
+.el-table th.el-table__cell {
+  font-weight: 600;
+}
+
+/* 表格在窄屏下允许横向滚动，避免撑破布局 */
+.el-table {
+  width: 100%;
+}
+
+.el-tag {
+  border-radius: var(--drs-radius-xs);
+  font-weight: 500;
+}
+
+.el-dialog {
+  border-radius: var(--drs-radius-lg);
+  overflow: hidden;
+}
+
+.el-dialog__header {
+  margin-right: 0;
+  padding: 18px var(--drs-gap-xl) 14px;
+  border-bottom: 1px solid var(--drs-border);
+}
+
+.el-dialog__body {
+  padding: var(--drs-gap-xl);
+}
+
+.el-empty__description p {
+  color: var(--drs-ink-500);
+  font-size: 13px;
+}
+
+/* ============================ 响应式 ============================ */
+
+@media (max-width: 1280px) {
+  .drs-grid-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .drs-page {
+    padding: var(--drs-gap) var(--drs-gap) var(--drs-gap-lg);
+  }
+
+  .drs-grid-2,
+  .drs-grid-4 {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }

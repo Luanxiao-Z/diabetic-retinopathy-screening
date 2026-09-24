@@ -1,12 +1,14 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { login as loginApi, logout as logoutApi, type LoginParams, type LoginResult } from '@/api/auth'
+import { login as loginApi, logout as logoutApi, type LoginParams } from '@/api/auth'
 
 export const useUserStore = defineStore('user', () => {
   const token = ref(localStorage.getItem('token') || '')
   const role = ref('')
   const username = ref('')
   const permissions = ref<string[]>([])
+  /** 数据权限范围：ALL（全量）/ SELF（仅本人），由后端下发 */
+  const dataScope = ref('')
 
   async function login(params: LoginParams) {
     const data = await loginApi(params)
@@ -14,14 +16,21 @@ export const useUserStore = defineStore('user', () => {
     role.value = data.role
     username.value = data.username
     permissions.value = data.permissions
+    dataScope.value = data.dataScope || ''
     localStorage.setItem('token', data.token)
     return data
   }
 
-  function setProfile(p: { role: string; username: string; permissions: string[] }) {
+  function setProfile(p: {
+    role: string
+    username: string
+    permissions: string[]
+    dataScope?: string
+  }) {
     role.value = p.role
     username.value = p.username
     permissions.value = p.permissions
+    dataScope.value = p.dataScope || ''
   }
 
   async function logout() {
@@ -34,8 +43,9 @@ export const useUserStore = defineStore('user', () => {
     role.value = ''
     username.value = ''
     permissions.value = []
+    dataScope.value = ''
     localStorage.removeItem('token')
   }
 
-  return { token, role, username, permissions, login, setProfile, logout }
+  return { token, role, username, permissions, dataScope, login, setProfile, logout }
 })

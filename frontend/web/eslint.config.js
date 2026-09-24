@@ -4,6 +4,10 @@ import pluginVue from 'eslint-plugin-vue'
 import prettier from 'eslint-config-prettier'
 
 export default [
+  // 全局忽略：构建产物与依赖不应参与源码检查
+  {
+    ignores: ['dist/**', 'node_modules/**', 'public/**', '**/*.min.js']
+  },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   ...pluginVue.configs['flat/recommended'],
