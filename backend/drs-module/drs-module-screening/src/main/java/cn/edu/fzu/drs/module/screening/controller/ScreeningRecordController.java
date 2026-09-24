@@ -17,6 +17,7 @@ import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -101,5 +102,16 @@ public class ScreeningRecordController {
     @RequirePermission(PermissionConstants.BIZ_SCREENING_VIEW)
     public Result<PageResult<PatientFollowUpVO>> pagePatients(@ModelAttribute ScreeningPageQuery query) {
         return Result.ok(screeningRecordService.pagePatients(query));
+    }
+
+    @Operation(summary = "人工复核确认",
+            description = "将置信度低于阈值的记录标记为已复核，记录复核人、时间与意见；已复核或无需复核的记录会被拒绝。")
+    @PatchMapping("/{id}/review")
+    @RequirePermission(PermissionConstants.BIZ_SCREENING_REVIEW)
+    public Result<ScreeningRecordVO> review(
+            @Parameter(description = "记录 id") @PathVariable("id") String id,
+            @Parameter(description = "复核意见（选填）")
+            @RequestParam(value = "remark", required = false) String remark) {
+        return Result.ok(screeningRecordService.review(id, remark));
     }
 }

@@ -221,6 +221,7 @@ public class ScreeningRecordServiceImpl implements ScreeningRecordService {
         vo.setTrend(buildTrend(all));
         vo.setNeedReviewCount(all.stream()
                 .filter(e -> BizScreeningRecordConvert.needReview(e.getConfidence()))
+                .filter(e -> !"CONFIRMED".equals(e.getReviewStatus()))
                 .count());
         vo.setReviewThreshold(BizScreeningRecordConvert.REVIEW_CONFIDENCE_THRESHOLD);
         return vo;
@@ -251,10 +252,10 @@ public class ScreeningRecordServiceImpl implements ScreeningRecordService {
                 setCell(row, 1, e.getPatientGender());
                 setCell(row, 2, e.getPatientAge() == null ? "" : e.getPatientAge().toString());
                 setCell(row, 3, e.getResultLevel());
-                setCell(row, 4, BizScreeningRecordConvert.LEVEL_NAMES.get(e.getResultLevel()));
+                setCell(row, 4, BizScreeningRecordConvert.nameOf(BizScreeningRecordConvert.LEVEL_NAMES, e.getResultLevel()));
                 setCell(row, 5, e.getConfidence() == null ? "" : e.getConfidence().toString());
                 setCell(row, 6, e.getSuggestion());
-                setCell(row, 7, BizScreeningRecordConvert.SUGGESTION_NAMES.get(e.getSuggestion()));
+                setCell(row, 7, BizScreeningRecordConvert.nameOf(BizScreeningRecordConvert.SUGGESTION_NAMES, e.getSuggestion()));
                 setCell(row, 8, e.getModelVersion());
                 setCell(row, 9, e.getCreateTime() == null ? "" : e.getCreateTime().format(DATE_TIME_FMT));
                 setCell(row, 10, presignSafe(e.getImageKey()));
@@ -314,8 +315,37 @@ public class ScreeningRecordServiceImpl implements ScreeningRecordService {
         return result;
     }
 
-    /** 单患者聚合：最近/上次分级、变化方向、复核需求 */
-    private PatientFollowUpVO toFollowUp(String patientName, List<BizScreeningRecordEntity> records) {
+    @Override
+    public ScreeningRecordVO review(String id, String remark) {
+        LambdaQueryWrapper<BizScreeningRecordEntity> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(BizScreeningRecordEntity::getId, id);
+        applyDataScope(wrapper);
+        BizScreeningRecordEntity entity = mapper.selectOne(wrapper);
+        if (entity == null) {
+            throw new BusinessException(404, "记录不存在或无权限访问");
+        }
+        if (!BizScreeningRecordConvert.needReview(entity.getConfidence())) {
+            throw new BusinessException(400, "该记录置信度已达阈值，无需人工复核");
+        }
+        if ("CONFIRMED".equals(entity.getReviewStatus())) {
+            throw new BusinessException(400, "该记录已完成人工复核");
+        }
+        AuthPrincipal principal = requirePrincipal();
+        entity.setReviewStatus("CONFIRMED");
+        entity.setReviewer(principal.getUsername());
+        entity.setReviewTime(LocalDateTime.now());
+        entity.setReviewRemark(remark);
+        mapper.updateById(entity);
+
+        audit.record(OperationLogRecorder.MODULE_SCREENING, OperationLogRecorder.ACTION_REVIEW,
+                (entity.getPatientName() == null || entity.getPatientName().isBlank()
+                        ? "未登记患者" : entity.getPatientName())
+                        + " · " + entity.getResultLevel() + " · 置信度 " + entity.getConfidence(),
+                true, null, 0L);
+        return toVoSafe(entity);
+    }
+
+    /** 单患者聚合：最近/上次分级、变化方向、复核需求 */    private PatientFollowUpVO toFollowUp(String patientName, List<BizScreeningRecordEntity> records) {
         PatientFollowUpVO vo = new PatientFollowUpVO();
         vo.setPatientName(patientName);
         vo.setTotalCount((long) records.size());
@@ -326,19 +356,20 @@ public class ScreeningRecordServiceImpl implements ScreeningRecordService {
         vo.setPatientGender(latest.getPatientGender());
         vo.setPatientAge(latest.getPatientAge());
         vo.setLatestLevel(latest.getResultLevel());
-        vo.setLatestLevelName(BizScreeningRecordConvert.LEVEL_NAMES.get(latest.getResultLevel()));
+        vo.setLatestLevelName(BizScreeningRecordConvert.nameOf(BizScreeningRecordConvert.LEVEL_NAMES, latest.getResultLevel()));
         vo.setLatestConfidence(latest.getConfidence());
         vo.setLatestSuggestion(latest.getSuggestion());
-        vo.setLatestSuggestionName(BizScreeningRecordConvert.SUGGESTION_NAMES.get(latest.getSuggestion()));
+        vo.setLatestSuggestionName(BizScreeningRecordConvert.nameOf(BizScreeningRecordConvert.SUGGESTION_NAMES, latest.getSuggestion()));
 
         vo.setNeedReviewCount(records.stream()
                 .filter(r -> BizScreeningRecordConvert.needReview(r.getConfidence()))
+                .filter(r -> !"CONFIRMED".equals(r.getReviewStatus()))
                 .count());
 
         if (records.size() >= 2) {
             BizScreeningRecordEntity previous = records.get(records.size() - 2);
             vo.setPreviousLevel(previous.getResultLevel());
-            vo.setPreviousLevelName(BizScreeningRecordConvert.LEVEL_NAMES.get(previous.getResultLevel()));
+            vo.setPreviousLevelName(BizScreeningRecordConvert.nameOf(BizScreeningRecordConvert.LEVEL_NAMES, previous.getResultLevel()));
             int latestIdx = levelIndex(latest.getResultLevel());
             int prevIdx = levelIndex(previous.getResultLevel());
             if (latestIdx < 0 || prevIdx < 0) {
@@ -384,12 +415,13 @@ public class ScreeningRecordServiceImpl implements ScreeningRecordService {
         if (query.getEndDate() != null && !query.getEndDate().isBlank()) {
             wrapper.le(BizScreeningRecordEntity::getCreateTime, parseDateTime(query.getEndDate()));
         }
-        // 人工复核过滤：true → 置信度低于阈值（含缺失）；false → 置信度达标
+        // 人工复核过滤：true → 低置信度且尚未确认复核；false → 置信度达标
         if (query.getNeedReview() != null) {
             if (query.getNeedReview()) {
-                wrapper.and(w -> w.lt(BizScreeningRecordEntity::getConfidence,
+                wrapper.lt(BizScreeningRecordEntity::getConfidence,
                                 BizScreeningRecordConvert.REVIEW_CONFIDENCE_THRESHOLD)
-                        .or().isNull(BizScreeningRecordEntity::getConfidence));
+                        .and(w -> w.isNull(BizScreeningRecordEntity::getReviewStatus)
+                                .or().eq(BizScreeningRecordEntity::getReviewStatus, "PENDING"));
             } else {
                 wrapper.ge(BizScreeningRecordEntity::getConfidence,
                         BizScreeningRecordConvert.REVIEW_CONFIDENCE_THRESHOLD);

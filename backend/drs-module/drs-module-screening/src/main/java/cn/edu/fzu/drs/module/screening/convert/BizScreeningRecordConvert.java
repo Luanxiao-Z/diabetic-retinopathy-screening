@@ -45,7 +45,22 @@ public final class BizScreeningRecordConvert {
         return confidence == null || confidence.compareTo(REVIEW_CONFIDENCE_THRESHOLD) < 0;
     }
 
+    /** 人工复核状态中文说明 */
+    public static final Map<String, String> REVIEW_STATUS_NAMES = Map.of(
+            "PENDING", "待复核",
+            "CONFIRMED", "已复核"
+    );
+
     private BizScreeningRecordConvert() {
+    }
+
+    /**
+     * 空安全的名称映射查询。
+     * <p><b>注意</b>：{@code Map.of(...)} 返回的不可变 Map 在 {@code get(null)} 时会抛
+     * {@link NullPointerException}（与 HashMap 行为不同），故所有名称映射查询必须经此方法。</p>
+     */
+    public static String nameOf(Map<String, String> names, String key) {
+        return key == null ? null : names.get(key);
     }
 
     public static ScreeningRecordVO toVO(BizScreeningRecordEntity entity, String imageUrl, String gradCamUrl) {
@@ -62,16 +77,26 @@ public final class BizScreeningRecordConvert {
         vo.setGradCamKey(entity.getGradCamKey());
         vo.setGradCamUrl(gradCamUrl);
         vo.setResultLevel(entity.getResultLevel());
-        vo.setLevelName(LEVEL_NAMES.get(entity.getResultLevel()));
+        vo.setLevelName(nameOf(LEVEL_NAMES, entity.getResultLevel()));
         vo.setConfidence(entity.getConfidence());
         vo.setNeedReview(needReview(entity.getConfidence()));
         vo.setReviewThreshold(REVIEW_CONFIDENCE_THRESHOLD);
         vo.setProbabilities(parseProbabilities(entity.getProbabilities()));
         vo.setSuggestion(entity.getSuggestion());
-        vo.setSuggestionName(SUGGESTION_NAMES.get(entity.getSuggestion()));
+        vo.setSuggestionName(nameOf(SUGGESTION_NAMES, entity.getSuggestion()));
         vo.setModelVersion(entity.getModelVersion());
         vo.setRemark(entity.getRemark());
         vo.setCreateTime(entity.getCreateTime());
+        // 复核状态：未落库时按阈值推导为「待复核」，便于前端统一展示
+        String reviewStatus = entity.getReviewStatus();
+        if (reviewStatus == null && needReview(entity.getConfidence())) {
+            reviewStatus = "PENDING";
+        }
+        vo.setReviewStatus(reviewStatus);
+        vo.setReviewStatusName(nameOf(REVIEW_STATUS_NAMES, reviewStatus));
+        vo.setReviewer(entity.getReviewer());
+        vo.setReviewTime(entity.getReviewTime());
+        vo.setReviewRemark(entity.getReviewRemark());
         return vo;
     }
 

@@ -24,6 +24,7 @@ public interface OperationLogRecorder {
     String ACTION_CREATE = "CREATE";
     String ACTION_UPDATE = "UPDATE";
     String ACTION_CHANGE_STATE = "CHANGE_STATE";
+    String ACTION_REVIEW = "REVIEW";
 
     /**
      * 记录一次操作（操作人取当前登录主体）。

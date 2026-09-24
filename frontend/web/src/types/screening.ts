@@ -31,6 +31,12 @@ export interface ScreeningRecordVO {
   needReview?: boolean
   /** 人工复核阈值 */
   reviewThreshold?: number
+  /** 人工复核状态：PENDING 待复核 / CONFIRMED 已复核 */
+  reviewStatus?: string
+  reviewStatusName?: string
+  reviewer?: string
+  reviewTime?: string
+  reviewRemark?: string
 }
 
 export interface DailyCountVO {

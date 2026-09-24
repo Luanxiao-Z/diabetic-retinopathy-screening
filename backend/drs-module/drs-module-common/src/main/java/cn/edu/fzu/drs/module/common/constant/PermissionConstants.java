@@ -20,6 +20,8 @@ public final class PermissionConstants {
     public static final String BIZ_SCREENING_EXPORT = "biz:screening:export";
     public static final String BIZ_SCREENING_DELETE = "biz:screening:delete";
 
+    public static final String BIZ_SCREENING_REVIEW = "biz:screening:review";
+
     private PermissionConstants() {
     }
 }

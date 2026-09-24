@@ -70,4 +70,19 @@ public class ScreeningRecordVO {
 
     @Schema(description = "创建时间")
     private LocalDateTime createTime;
+
+    @Schema(description = "人工复核状态：PENDING/CONFIRMED；为空表示无需复核")
+    private String reviewStatus;
+
+    @Schema(description = "人工复核状态中文说明")
+    private String reviewStatusName;
+
+    @Schema(description = "复核人")
+    private String reviewer;
+
+    @Schema(description = "复核时间")
+    private LocalDateTime reviewTime;
+
+    @Schema(description = "复核意见")
+    private String reviewRemark;
 }

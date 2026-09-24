@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 /**
  * 筛查记录实体（对应表 biz_screening_record）。阶段 1 仅落地数据层，业务接口在阶段 4 实现。
@@ -54,6 +55,18 @@ public class BizScreeningRecordEntity extends BaseEntity {
 
     /** 备注 */
     private String remark;
+
+    /** 人工复核状态：PENDING（待复核）/ CONFIRMED（已复核）；null 表示无需复核 */
+    private String reviewStatus;
+
+    /** 复核人 username */
+    private String reviewer;
+
+    /** 复核时间 */
+    private LocalDateTime reviewTime;
+
+    /** 复核意见 */
+    private String reviewRemark;
 
     public String getId() {
         return id;
@@ -165,5 +178,37 @@ public class BizScreeningRecordEntity extends BaseEntity {
 
     public void setRemark(String remark) {
         this.remark = remark;
+    }
+
+    public String getReviewStatus() {
+        return reviewStatus;
+    }
+
+    public void setReviewStatus(String reviewStatus) {
+        this.reviewStatus = reviewStatus;
+    }
+
+    public String getReviewer() {
+        return reviewer;
+    }
+
+    public void setReviewer(String reviewer) {
+        this.reviewer = reviewer;
+    }
+
+    public LocalDateTime getReviewTime() {
+        return reviewTime;
+    }
+
+    public void setReviewTime(LocalDateTime reviewTime) {
+        this.reviewTime = reviewTime;
+    }
+
+    public String getReviewRemark() {
+        return reviewRemark;
+    }
+
+    public void setReviewRemark(String reviewRemark) {
+        this.reviewRemark = reviewRemark;
     }
 }

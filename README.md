@@ -263,6 +263,20 @@ python -m training.train --data-root ../datasets/aptos2019_224x224 \
 
 > 审计写入**失败不阻断主流程**（实现内部吞掉异常并降级为告警日志）。当前记录成功路径，登录失败亦留痕。
 
+### 功能拓展（第二批，2026-09-24）
+
+| 功能 | 说明 | 位置 |
+| --- | --- | --- |
+| **人工复核确认闭环** | 上批只做到「标记待复核」，本批补上医师**确认复核**：记录复核人、时间与意见，重复复核被拒；已确认的记录不再计入待复核统计 | 筛查记录 |
+| **诊断报告（可打印/导出 PDF）** | 独立 A4 报告页：受检者信息、眼底原图与 Grad-CAM 热力图、分级结论与各分级概率表、医师复核、免责声明；配 `@media print` 样式，一键打印或另存为 PDF | 筛查记录 → 报告 |
+| **批量删除** | 列表多选后批量删除（逐条执行并汇总成功/失败，二次确认提示将清理对象存储） | 筛查记录 |
+
+**新增接口**：`PATCH /biz/screening-records/{id}/review`（权限 `biz:screening:review`，新增，DOCTOR 与 ADMIN 均具备）。
+
+**新增字段**（`biz_screening_record`）：`review_status` / `reviewer` / `review_time` / `review_remark`；建表与**幂等增量迁移**（基于 `information_schema` 判断）均已并入 `sql/init/01_init_dr_screening.sql`。
+
+> **本轮修复的一个真实缺陷**：`BizScreeningRecordConvert` 使用 `Map.of(...)` 构建的名称映射，在 `get(null)` 时**会抛 NPE**（`Map.of` 生成的不可变 Map 与 HashMap 行为不同），导致列表接口 500。已统一改为空安全查询 `nameOf(...)`，并同步修复导出与随访中的同类隐患（`LEVEL_NAMES` / `SUGGESTION_NAMES` 亦有此潜在问题）。
+
 ## 端到端联调结论（2026-09-14）
 
 本期（阶段 5 完成后）在不实现阶段 6（H5）的前提下，对本地运行的完整链路做了一次端到端联调。基础设施 MinIO（9000/9001）、Redis（26379）、MySQL（3306）已就绪并在物理机后台监听；后端（8080）、模型服务（8000）、前端 dev（5173）依次启动后逐项验证。

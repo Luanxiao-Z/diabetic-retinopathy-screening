@@ -79,6 +79,10 @@ CREATE TABLE IF NOT EXISTS biz_screening_record (
   grad_cam_key  VARCHAR(255) DEFAULT NULL COMMENT '热力图 MinIO object key',
   model_version VARCHAR(64)  DEFAULT NULL,
   remark        VARCHAR(512) DEFAULT NULL,
+  review_status VARCHAR(20)  DEFAULT NULL COLLATE utf8mb4_0900_as_cs COMMENT '人工复核状态 PENDING/CONFIRMED，NULL 表示无需复核',
+  reviewer      VARCHAR(64)  DEFAULT NULL COMMENT '复核人 username',
+  review_time   DATETIME     DEFAULT NULL COMMENT '复核时间',
+  review_remark VARCHAR(512) DEFAULT NULL COMMENT '复核意见',
   create_by     VARCHAR(64)  DEFAULT NULL,
   create_time   DATETIME     DEFAULT CURRENT_TIMESTAMP,
   update_by     VARCHAR(64)  DEFAULT NULL,
@@ -147,3 +151,24 @@ CREATE TABLE IF NOT EXISTS sys_operation_log (
   KEY idx_module (module),
   KEY idx_create_time (create_time)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
+
+-- ============================================================================
+-- 增量迁移：筛查记录的人工复核确认字段（幂等，兼容已建库的环境）
+-- 背景：低置信度样本需医师复核后闭环，故记录复核状态、复核人、时间与意见。
+-- ============================================================================
+SET @col_exists := (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME = 'biz_screening_record'
+    AND COLUMN_NAME = 'review_status'
+);
+SET @ddl := IF(@col_exists = 0,
+  'ALTER TABLE biz_screening_record
+     ADD COLUMN review_status VARCHAR(20) DEFAULT NULL COLLATE utf8mb4_0900_as_cs COMMENT ''人工复核状态 PENDING/CONFIRMED'',
+     ADD COLUMN reviewer VARCHAR(64) DEFAULT NULL COMMENT ''复核人 username'',
+     ADD COLUMN review_time DATETIME DEFAULT NULL COMMENT ''复核时间'',
+     ADD COLUMN review_remark VARCHAR(512) DEFAULT NULL COMMENT ''复核意见''',
+  'SELECT 1');
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;

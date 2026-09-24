@@ -21,6 +21,7 @@ public class PermissionResolver {
             PermissionConstants.BIZ_SCREENING_VIEW,
             PermissionConstants.BIZ_SCREENING_EXPORT,
             PermissionConstants.BIZ_SCREENING_DELETE,
+            PermissionConstants.BIZ_SCREENING_REVIEW,
             PermissionConstants.COMMON_DICT_VIEW
     );
 
@@ -34,7 +35,8 @@ public class PermissionResolver {
             PermissionConstants.BIZ_SCREENING_CREATE,
             PermissionConstants.BIZ_SCREENING_VIEW,
             PermissionConstants.BIZ_SCREENING_EXPORT,
-            PermissionConstants.BIZ_SCREENING_DELETE
+            PermissionConstants.BIZ_SCREENING_DELETE,
+            PermissionConstants.BIZ_SCREENING_REVIEW
     );
 
     public Set<String> resolve(String role) {

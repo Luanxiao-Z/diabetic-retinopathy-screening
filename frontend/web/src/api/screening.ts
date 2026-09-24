@@ -44,6 +44,28 @@ export function removeScreening(id: string) {
   return request.delete(`/biz/screening-records/${id}`) as unknown as Promise<void>
 }
 
+/** 人工复核确认：将低置信度记录标记为已复核。 */
+export function reviewScreening(id: string, remark?: string) {
+  return request.patch(`/biz/screening-records/${id}/review`, null, {
+    params: remark ? { remark } : {}
+  }) as unknown as Promise<ScreeningRecordVO>
+}
+
+/** 批量删除筛查记录（逐条调用删除接口，返回成功/失败统计）。 */
+export async function removeScreeningBatch(ids: string[]) {
+  const failed: { id: string; reason: string }[] = []
+  let success = 0
+  for (const id of ids) {
+    try {
+      await removeScreening(id)
+      success += 1
+    } catch (e) {
+      failed.push({ id, reason: (e as Error).message || '删除失败' })
+    }
+  }
+  return { success, failed }
+}
+
 /** 筛查统计（分级/建议分布、转诊率、近 30 天趋势、待复核数量）。 */
 export function statisticsScreening(query: ScreeningPageQuery) {
   return request.get('/biz/screening-records/statistics', {

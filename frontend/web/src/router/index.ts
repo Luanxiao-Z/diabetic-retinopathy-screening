@@ -71,6 +71,13 @@ const routes: RouteRecordRaw[] = [
     ]
   },
   {
+    // 诊断报告为独立整页（不套用后台布局），便于打印与另存为 PDF
+    path: '/screening/records/:id/report',
+    name: 'ScreeningReport',
+    component: () => import('@/views/screening/report.vue'),
+    meta: { permission: 'biz:screening:view', title: '诊断报告' }
+  },
+  {
     path: '/403',
     name: 'Forbidden',
     component: () => import('@/views/error/403.vue'),

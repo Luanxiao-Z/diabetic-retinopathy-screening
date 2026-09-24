@@ -7,6 +7,15 @@
     >
       <template #actions>
         <el-button
+          v-permission="'biz:screening:delete'"
+          type="danger"
+          plain
+          :disabled="!selectedIds.length || loading"
+          @click="handleBatchDelete"
+        >
+          <AppIcon name="trash" :size="15" class="btn-ico" />批量删除{{ selectedIds.length ? `（${selectedIds.length}）` : '' }}
+        </el-button>
+        <el-button
           v-permission="'biz:screening:export'"
           type="primary"
           :disabled="loading"
@@ -121,9 +130,28 @@
             </template>
           </el-table-column>
           <el-table-column prop="createTime" label="筛查时间" min-width="164" />
-          <el-table-column label="操作" width="130" fixed="right">
+          <el-table-column label="复核状态" width="132">
+            <template #default="{ row }">
+              <span v-if="row.reviewStatus === 'CONFIRMED'" class="rv rv-done" :title="`${row.reviewer || ''} ${row.reviewTime || ''} ${row.reviewRemark || ''}`">
+                <AppIcon name="check" :size="12" />已复核
+              </span>
+              <span v-else-if="row.needReview" class="rv rv-pending">待复核</span>
+              <span v-else class="muted">—</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="220" fixed="right">
             <template #default="{ row }">
               <el-button link type="primary" @click="openDetail(row as ScreeningRecordVO)">详情</el-button>
+              <el-button
+                v-permission="'biz:screening:review'"
+                link
+                type="warning"
+                :disabled="!row.needReview || row.reviewStatus === 'CONFIRMED'"
+                @click="handleReview(row as ScreeningRecordVO)"
+              >
+                复核
+              </el-button>
+              <el-button link type="primary" @click="openReport(row as ScreeningRecordVO)">报告</el-button>
               <el-button
                 v-permission="'biz:screening:delete'"
                 link
@@ -162,18 +190,26 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import AppIcon from '@/components/AppIcon.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import ResultCard from '@/components/ResultCard.vue'
-import { detailScreening, exportScreening, pageScreening, removeScreening } from '@/api/screening'
+import {
+  detailScreening,
+  exportScreening,
+  pageScreening,
+  removeScreening,
+  removeScreeningBatch,
+  reviewScreening
+} from '@/api/screening'
 import { useUserStore } from '@/stores/user'
 import { GENDER_OPTIONS, LEVEL_COLOR, LEVEL_OPTIONS, SUGGESTION_COLOR } from '@/types/screening'
 import type { ScreeningRecordVO } from '@/types/screening'
 
 const userStore = useUserStore()
 const route = useRoute()
+const router = useRouter()
 const levelOptions = LEVEL_OPTIONS
 const genderOptions = GENDER_OPTIONS
 
@@ -314,6 +350,68 @@ function handleExport() {
   exportScreening(ids, buildQuery())
 }
 
+/** 人工复核确认（可填写复核意见） */
+async function handleReview(row: ScreeningRecordVO) {
+  let remark = ''
+  try {
+    const res = await ElMessageBox.prompt(
+      `记录「${row.patientName || '未登记患者'}」置信度 ${confidenceText(row.confidence)}，低于阈值，请核对影像后确认。`,
+      '人工复核确认',
+      {
+        confirmButtonText: '确认复核',
+        cancelButtonText: '取消',
+        inputPlaceholder: '复核意见（选填）',
+        inputValue: '',
+        type: 'warning'
+      }
+    )
+    remark = res.value || ''
+  } catch {
+    return
+  }
+  try {
+    await reviewScreening(row.id, remark || undefined)
+    ElMessage.success('已完成复核')
+    loadData()
+  } catch (e) {
+    ElMessage.error((e as Error).message || '复核失败')
+  }
+}
+
+/** 打开诊断报告（新窗口，便于打印/另存为 PDF） */
+function openReport(row: ScreeningRecordVO) {
+  const url = router.resolve({ path: `/screening/records/${row.id}/report` }).href
+  window.open(url, '_blank')
+}
+
+/** 批量删除：逐条执行并汇总结果 */
+async function handleBatchDelete() {
+  const ids = [...selectedIds.value]
+  if (!ids.length) return
+  try {
+    await ElMessageBox.confirm(
+      `确认删除所选 ${ids.length} 条筛查记录？将同时清理对象存储中的影像与热力图，且不可恢复。`,
+      '高风险操作',
+      { type: 'warning', confirmButtonText: '确认删除' }
+    )
+  } catch {
+    return
+  }
+  loading.value = true
+  try {
+    const { success, failed } = await removeScreeningBatch(ids)
+    if (failed.length) {
+      ElMessage.warning(`删除完成：成功 ${success} 条，失败 ${failed.length} 条（${failed[0].reason}）`)
+    } else {
+      ElMessage.success(`已删除 ${success} 条记录`)
+    }
+    selectedIds.value = []
+    loadData()
+  } finally {
+    loading.value = false
+  }
+}
+
 onMounted(() => {
   // 支持从看板「待人工复核」卡片带入筛选
   if (route.query.needReview === 'true') query.needReview = 'true'
@@ -422,6 +520,32 @@ onMounted(() => {
   color: var(--drs-warn);
   font-size: 11px;
   font-weight: 600;
+}
+
+/* 复核状态 */
+.rv {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.rv-pending {
+  color: var(--drs-warn);
+  background: var(--drs-warn-bg);
+}
+
+.rv-done {
+  color: var(--drs-ok);
+  background: var(--drs-ok-bg);
+}
+
+.muted {
+  color: var(--drs-ink-400);
 }
 
 .conf-txt {

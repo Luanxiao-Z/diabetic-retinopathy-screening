@@ -101,6 +101,16 @@
         <span v-if="record.createTime">{{ record.createTime }}</span>
       </div>
 
+      <p v-if="record.reviewStatus === 'CONFIRMED'" class="rc-review rc-review-done">
+        <AppIcon name="check" :size="12" />
+        已由 {{ record.reviewer || '—' }} 于 {{ record.reviewTime || '—' }} 完成人工复核
+        <template v-if="record.reviewRemark">：{{ record.reviewRemark }}</template>
+      </p>
+      <p v-else-if="record.needReview" class="rc-review rc-review-pending">
+        <AppIcon name="clock" :size="12" />
+        置信度低于 {{ record.reviewThreshold ?? 0.7 }}，建议人工复核后再出具结论
+      </p>
+
       <p class="rc-disclaimer">
         <AppIcon name="info" :size="12" />
         AI 辅助筛查结果，仅供临床参考，最终诊断请以眼科医师意见为准。
@@ -418,6 +428,32 @@ function hexToRgba(hex: string, alpha: number) {
   font-size: 11px;
   line-height: 1.6;
   color: var(--drs-ink-400);
+}
+
+.rc-review {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  margin: 10px 0 0;
+  padding: 7px 10px;
+  border-radius: var(--drs-radius-xs);
+  font-size: 11.5px;
+  line-height: 1.6;
+}
+
+.rc-review :deep(svg) {
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.rc-review-pending {
+  background: var(--drs-warn-bg);
+  color: var(--drs-warn);
+}
+
+.rc-review-done {
+  background: var(--drs-ok-bg);
+  color: var(--drs-ok);
 }
 
 .rc-disclaimer :deep(svg) {

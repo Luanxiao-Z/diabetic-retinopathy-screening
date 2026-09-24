@@ -55,4 +55,10 @@ public interface ScreeningRecordService {
      * <p>仅统计填写了患者姓名的记录（随访须有患者标识），受数据权限约束。</p>
      */
     PageResult<PatientFollowUpVO> pagePatients(ScreeningPageQuery query);
+
+    /**
+     * 人工复核确认：将低置信度记录标记为已复核，记录复核人、时间与意见。
+     * <p>仅允许对置信度低于阈值且尚未复核的记录操作，受数据权限约束。</p>
+     */
+    ScreeningRecordVO review(String id, String remark);
 }
