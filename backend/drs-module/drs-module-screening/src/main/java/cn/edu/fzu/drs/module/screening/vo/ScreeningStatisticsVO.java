@@ -28,4 +28,10 @@ public class ScreeningStatisticsVO {
 
     @Schema(description = "近 30 天每日筛查趋势（升序）")
     private List<DailyCountVO> trend;
+
+    @Schema(description = "需人工复核数量（置信度低于阈值）")
+    private Long needReviewCount;
+
+    @Schema(description = "人工复核阈值")
+    private BigDecimal reviewThreshold;
 }

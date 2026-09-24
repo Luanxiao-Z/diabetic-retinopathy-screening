@@ -30,6 +30,7 @@ public class PermissionResolver {
             PermissionConstants.ADMIN_USER_EDIT,
             PermissionConstants.ADMIN_DICT_VIEW,
             PermissionConstants.ADMIN_DICT_EDIT,
+            PermissionConstants.ADMIN_LOG_VIEW,
             PermissionConstants.BIZ_SCREENING_CREATE,
             PermissionConstants.BIZ_SCREENING_VIEW,
             PermissionConstants.BIZ_SCREENING_EXPORT,

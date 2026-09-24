@@ -27,6 +27,10 @@ export interface ScreeningRecordVO {
   modelVersion?: string
   remark?: string
   createTime?: string
+  /** 是否需人工复核（置信度低于阈值） */
+  needReview?: boolean
+  /** 人工复核阈值 */
+  reviewThreshold?: number
 }
 
 export interface DailyCountVO {
@@ -41,6 +45,10 @@ export interface ScreeningStatisticsVO {
   /** 转诊率 0~1 */
   referralRate: number
   trend: DailyCountVO[]
+  /** 需人工复核数量（置信度低于阈值） */
+  needReviewCount?: number
+  /** 人工复核阈值 */
+  reviewThreshold?: number
 }
 
 export interface ScreeningPageQuery {
@@ -50,6 +58,31 @@ export interface ScreeningPageQuery {
   endDate?: string
   current?: number
   pageSize?: number
+  /** true 仅看待复核；false 仅看达标；省略不限制 */
+  needReview?: boolean
+  /** 随访时间线：按患者精确匹配 */
+  exactPatientName?: string
+}
+
+/** 患者随访聚合（对齐后端 PatientFollowUpVO；后端 null 字段不下发） */
+export interface PatientFollowUpVO {
+  patientName: string
+  patientGender?: string
+  patientAge?: number
+  totalCount: number
+  latestTime?: string
+  firstTime?: string
+  latestLevel?: string
+  latestLevelName?: string
+  latestConfidence?: number
+  latestSuggestion?: string
+  latestSuggestionName?: string
+  previousLevel?: string
+  previousLevelName?: string
+  levelChanged?: boolean
+  /** UP 进展 / DOWN 好转 / SAME 持平 / FIRST 首次 / UNKNOWN */
+  trendDirection?: string
+  needReviewCount?: number
 }
 
 export interface PageResult<T> {

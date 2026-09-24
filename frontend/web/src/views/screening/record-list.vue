@@ -35,6 +35,12 @@
                 <el-option v-for="o in levelOptions" :key="o.value" :label="o.label" :value="o.value" />
               </el-select>
             </el-form-item>
+            <el-form-item label="复核状态">
+              <el-select v-model="query.needReview" placeholder="全部" clearable>
+                <el-option label="待人工复核" value="true" />
+                <el-option label="置信度达标" value="false" />
+              </el-select>
+            </el-form-item>
             <el-form-item label="筛查时间">
               <el-date-picker
                 v-model="dateRange"
@@ -90,13 +96,20 @@
               </span>
             </template>
           </el-table-column>
-          <el-table-column label="置信度" width="112">
+          <el-table-column label="置信度" width="140">
             <template #default="{ row }">
               <span class="conf">
                 <span class="conf-bar" aria-hidden="true">
-                  <span class="conf-fill" :style="{ width: confPercent(row.confidence) }"></span>
+                  <span
+                    class="conf-fill"
+                    :class="{ 'is-low': row.needReview }"
+                    :style="{ width: confPercent(row.confidence) }"
+                  ></span>
                 </span>
                 <span class="conf-txt">{{ confidenceText(row.confidence) }}</span>
+              </span>
+              <span v-if="row.needReview" class="review-tag" :title="`置信度低于阈值 ${row.reviewThreshold ?? ''}，建议人工复核`">
+                待复核
               </span>
             </template>
           </el-table-column>
@@ -149,6 +162,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import AppIcon from '@/components/AppIcon.vue'
 import PageHeader from '@/components/PageHeader.vue'
@@ -159,6 +173,7 @@ import { GENDER_OPTIONS, LEVEL_COLOR, LEVEL_OPTIONS, SUGGESTION_COLOR } from '@/
 import type { ScreeningRecordVO } from '@/types/screening'
 
 const userStore = useUserStore()
+const route = useRoute()
 const levelOptions = LEVEL_OPTIONS
 const genderOptions = GENDER_OPTIONS
 
@@ -171,6 +186,7 @@ const selectedIds = ref<string[]>([])
 const query = reactive({
   patientName: '',
   level: '',
+  needReview: '',
   startDate: '',
   endDate: '',
   current: 1,
@@ -218,7 +234,9 @@ function confPercent(c?: number) {
 }
 
 function buildQuery() {
-  const q = { ...query }
+  const q = { ...query, needReview: undefined as boolean | undefined }
+  if (query.needReview === 'true') q.needReview = true
+  else if (query.needReview === 'false') q.needReview = false
   if (dateRange.value) {
     q.startDate = `${dateRange.value[0]} 00:00:00`
     q.endDate = `${dateRange.value[1]} 23:59:59`
@@ -250,6 +268,7 @@ function handleQuery() {
 function handleReset() {
   query.patientName = ''
   query.level = ''
+  query.needReview = ''
   dateRange.value = null
   query.current = 1
   loadData()
@@ -295,7 +314,12 @@ function handleExport() {
   exportScreening(ids, buildQuery())
 }
 
-onMounted(loadData)
+onMounted(() => {
+  // 支持从看板「待人工复核」卡片带入筛选
+  if (route.query.needReview === 'true') query.needReview = 'true'
+  if (route.query.level) query.level = String(route.query.level)
+  loadData()
+})
 </script>
 
 <style scoped>
@@ -383,6 +407,21 @@ onMounted(loadData)
   height: 100%;
   border-radius: 3px;
   background: var(--drs-primary);
+}
+
+.conf-fill.is-low {
+  background: var(--drs-warn);
+}
+
+.review-tag {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--drs-warn-bg);
+  color: var(--drs-warn);
+  font-size: 11px;
+  font-weight: 600;
 }
 
 .conf-txt {

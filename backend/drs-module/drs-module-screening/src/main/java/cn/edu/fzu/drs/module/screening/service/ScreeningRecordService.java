@@ -2,6 +2,7 @@ package cn.edu.fzu.drs.module.screening.service;
 
 import cn.edu.fzu.drs.module.common.result.PageResult;
 import cn.edu.fzu.drs.module.screening.dto.ScreeningPageQuery;
+import cn.edu.fzu.drs.module.screening.vo.PatientFollowUpVO;
 import cn.edu.fzu.drs.module.screening.vo.ScreeningRecordVO;
 import cn.edu.fzu.drs.module.screening.vo.ScreeningStatisticsVO;
 import jakarta.servlet.http.HttpServletResponse;
@@ -48,4 +49,10 @@ public interface ScreeningRecordService {
      * 导出 Excel（依据筛选范围与可选 id 列表，受数据权限约束）。
      */
     void export(List<String> ids, ScreeningPageQuery query, HttpServletResponse response);
+
+    /**
+     * 患者随访分页：按患者归并历次筛查，给出最近分级、分级变化方向与复核需求。
+     * <p>仅统计填写了患者姓名的记录（随访须有患者标识），受数据权限约束。</p>
+     */
+    PageResult<PatientFollowUpVO> pagePatients(ScreeningPageQuery query);
 }

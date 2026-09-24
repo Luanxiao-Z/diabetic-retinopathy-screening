@@ -1,5 +1,6 @@
 package cn.edu.fzu.drs.module.system.service.impl;
 
+import cn.edu.fzu.drs.module.common.audit.OperationLogRecorder;
 import cn.edu.fzu.drs.module.common.exception.BusinessException;
 import cn.edu.fzu.drs.module.common.util.PasswordUtil;
 import cn.edu.fzu.drs.module.security.model.AuthPrincipal;
@@ -24,24 +25,38 @@ public class AuthServiceImpl implements AuthService {
 
     private final SysUserMapper userMapper;
     private final TokenService tokenService;
+    private final OperationLogRecorder audit;
 
-    public AuthServiceImpl(SysUserMapper userMapper, TokenService tokenService) {
+    public AuthServiceImpl(SysUserMapper userMapper, TokenService tokenService,
+                           OperationLogRecorder audit) {
         this.userMapper = userMapper;
         this.tokenService = tokenService;
+        this.audit = audit;
     }
 
     @Override
     public LoginVO login(LoginDTO dto) {
+        long startedAt = System.currentTimeMillis();
         SysUserEntity user = userMapper.selectOne(
                 new LambdaQueryWrapper<SysUserEntity>().eq(SysUserEntity::getUsername, dto.getUsername()));
         if (user == null || !PasswordUtil.matches(dto.getPassword(), user.getPassword())) {
+            // 登录失败同样留痕（安全审计关注点）
+            audit.record(OperationLogRecorder.MODULE_AUTH, OperationLogRecorder.ACTION_LOGIN,
+                    dto.getUsername(), false, "用户名或密码错误",
+                    System.currentTimeMillis() - startedAt, dto.getUsername());
             throw new BusinessException(401, "用户名或密码错误");
         }
         if (!STATUS_ENABLED.equals(user.getStatus())) {
+            audit.record(OperationLogRecorder.MODULE_AUTH, OperationLogRecorder.ACTION_LOGIN,
+                    dto.getUsername(), false, "账号已被停用",
+                    System.currentTimeMillis() - startedAt, dto.getUsername());
             throw new BusinessException(401, "账号已被停用");
         }
         String token = tokenService.createToken(user.getId(), user.getUsername(), user.getRole());
         AuthPrincipal principal = tokenService.getPrincipal(token);
+        audit.record(OperationLogRecorder.MODULE_AUTH, OperationLogRecorder.ACTION_LOGIN,
+                user.getUsername(), true, null,
+                System.currentTimeMillis() - startedAt, user.getUsername());
         return new LoginVO(token, user.getId(), user.getUsername(), user.getRealName(), user.getRole(),
                 new ArrayList<>(principal.getPermissions()), principal.getDataScope());
     }
@@ -51,5 +66,7 @@ public class AuthServiceImpl implements AuthService {
         if (token != null && !token.isEmpty()) {
             tokenService.remove(token);
         }
+        audit.record(OperationLogRecorder.MODULE_AUTH, OperationLogRecorder.ACTION_LOGOUT,
+                null, true, null, 0L);
     }
 }

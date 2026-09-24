@@ -13,6 +13,8 @@ public final class PermissionConstants {
     public static final String ADMIN_DICT_VIEW = "admin:dict:view";
     public static final String ADMIN_DICT_EDIT = "admin:dict:edit";
 
+    public static final String ADMIN_LOG_VIEW = "admin:log:view";
+
     public static final String BIZ_SCREENING_CREATE = "biz:screening:create";
     public static final String BIZ_SCREENING_VIEW = "biz:screening:view";
     public static final String BIZ_SCREENING_EXPORT = "biz:screening:export";

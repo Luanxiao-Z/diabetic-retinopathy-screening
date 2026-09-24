@@ -5,6 +5,7 @@ import cn.edu.fzu.drs.module.screening.vo.ScreeningRecordVO;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -33,6 +34,17 @@ public final class BizScreeningRecordConvert {
             "REFERRAL", "建议尽快转诊上级医院"
     );
 
+    /**
+     * 人工复核阈值：置信度低于该值的筛查结果视为「需人工复核」。
+     * <p>医学 AI 场景下，模型低置信输出不应直接采信，须由医师复核后再出具结论。</p>
+     */
+    public static final BigDecimal REVIEW_CONFIDENCE_THRESHOLD = new BigDecimal("0.70");
+
+    /** 置信度缺失或低于阈值 → 需人工复核 */
+    public static boolean needReview(BigDecimal confidence) {
+        return confidence == null || confidence.compareTo(REVIEW_CONFIDENCE_THRESHOLD) < 0;
+    }
+
     private BizScreeningRecordConvert() {
     }
 
@@ -52,6 +64,8 @@ public final class BizScreeningRecordConvert {
         vo.setResultLevel(entity.getResultLevel());
         vo.setLevelName(LEVEL_NAMES.get(entity.getResultLevel()));
         vo.setConfidence(entity.getConfidence());
+        vo.setNeedReview(needReview(entity.getConfidence()));
+        vo.setReviewThreshold(REVIEW_CONFIDENCE_THRESHOLD);
         vo.setProbabilities(parseProbabilities(entity.getProbabilities()));
         vo.setSuggestion(entity.getSuggestion());
         vo.setSuggestionName(SUGGESTION_NAMES.get(entity.getSuggestion()));

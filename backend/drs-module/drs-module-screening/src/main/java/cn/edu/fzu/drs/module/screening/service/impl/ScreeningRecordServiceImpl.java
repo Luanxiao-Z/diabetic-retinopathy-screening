@@ -1,5 +1,6 @@
 package cn.edu.fzu.drs.module.screening.service.impl;
 
+import cn.edu.fzu.drs.module.common.audit.OperationLogRecorder;
 import cn.edu.fzu.drs.module.common.exception.BusinessException;
 import cn.edu.fzu.drs.module.common.result.PageResult;
 import cn.edu.fzu.drs.module.common.util.IdGenerator;
@@ -12,6 +13,7 @@ import cn.edu.fzu.drs.module.screening.mapper.BizScreeningRecordMapper;
 import cn.edu.fzu.drs.module.screening.service.ObjectStorageService;
 import cn.edu.fzu.drs.module.screening.service.ScreeningRecordService;
 import cn.edu.fzu.drs.module.screening.vo.DailyCountVO;
+import cn.edu.fzu.drs.module.screening.vo.PatientFollowUpVO;
 import cn.edu.fzu.drs.module.screening.vo.ScreeningRecordVO;
 import cn.edu.fzu.drs.module.screening.vo.ScreeningStatisticsVO;
 import cn.edu.fzu.drs.module.security.context.AuthContext;
@@ -36,6 +38,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -56,13 +59,16 @@ public class ScreeningRecordServiceImpl implements ScreeningRecordService {
     private final BizScreeningRecordMapper mapper;
     private final ObjectStorageService objectStorage;
     private final ModelInferenceClient inferenceClient;
+    private final OperationLogRecorder audit;
 
     public ScreeningRecordServiceImpl(BizScreeningRecordMapper mapper,
                                      ObjectStorageService objectStorage,
-                                     ModelInferenceClient inferenceClient) {
+                                     ModelInferenceClient inferenceClient,
+                                     OperationLogRecorder audit) {
         this.mapper = mapper;
         this.objectStorage = objectStorage;
         this.inferenceClient = inferenceClient;
+        this.audit = audit;
     }
 
     @Override
@@ -74,6 +80,7 @@ public class ScreeningRecordServiceImpl implements ScreeningRecordService {
         AuthPrincipal principal = requirePrincipal();
         List<ScreeningRecordVO> result = new ArrayList<>();
         String datePath = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy/MM/dd"));
+        long startedAt = System.currentTimeMillis();
 
         for (MultipartFile file : files) {
             if (file == null || file.isEmpty()) {
@@ -122,6 +129,10 @@ public class ScreeningRecordServiceImpl implements ScreeningRecordService {
 
             result.add(toVoSafe(entity));
         }
+        audit.record(OperationLogRecorder.MODULE_SCREENING, OperationLogRecorder.ACTION_UPLOAD,
+                (patientName == null || patientName.isBlank() ? "未登记患者" : patientName)
+                        + " · " + result.size() + " 张",
+                true, null, System.currentTimeMillis() - startedAt);
         return result;
     }
 
@@ -178,6 +189,10 @@ public class ScreeningRecordServiceImpl implements ScreeningRecordService {
         } catch (Exception e) {
             log.warn("删除记录关联存储对象失败（已逻辑删除记录）：{}", e.getMessage());
         }
+        audit.record(OperationLogRecorder.MODULE_SCREENING, OperationLogRecorder.ACTION_DELETE,
+                (entity.getPatientName() == null || entity.getPatientName().isBlank()
+                        ? "未登记患者" : entity.getPatientName()) + " · " + id,
+                true, null, 0L);
     }
 
     @Override
@@ -204,6 +219,10 @@ public class ScreeningRecordServiceImpl implements ScreeningRecordService {
         vo.setSuggestionDistribution(suggestionDistribution);
         vo.setReferralRate(referralRate);
         vo.setTrend(buildTrend(all));
+        vo.setNeedReviewCount(all.stream()
+                .filter(e -> BizScreeningRecordConvert.needReview(e.getConfidence()))
+                .count());
+        vo.setReviewThreshold(BizScreeningRecordConvert.REVIEW_CONFIDENCE_THRESHOLD);
         return vo;
     }
 
@@ -254,6 +273,98 @@ public class ScreeningRecordServiceImpl implements ScreeningRecordService {
             log.error("导出 Excel 失败：{}", e.getMessage());
             throw new BusinessException(500, "导出 Excel 失败");
         }
+        audit.record(OperationLogRecorder.MODULE_SCREENING, OperationLogRecorder.ACTION_EXPORT,
+                "导出 " + list.size() + " 条记录", true, null, 0L);
+    }
+
+    @Override
+    public PageResult<PatientFollowUpVO> pagePatients(ScreeningPageQuery query) {
+        // 随访只针对有患者标识的记录；数据权限与姓名模糊过滤在此生效
+        LambdaQueryWrapper<BizScreeningRecordEntity> wrapper = new LambdaQueryWrapper<>();
+        applyDataScope(wrapper);
+        wrapper.isNotNull(BizScreeningRecordEntity::getPatientName)
+                .ne(BizScreeningRecordEntity::getPatientName, "");
+        if (query.getPatientName() != null && !query.getPatientName().isBlank()) {
+            wrapper.like(BizScreeningRecordEntity::getPatientName, query.getPatientName());
+        }
+        wrapper.orderByAsc(BizScreeningRecordEntity::getCreateTime);
+
+        List<BizScreeningRecordEntity> all = mapper.selectList(wrapper);
+
+        Map<String, List<BizScreeningRecordEntity>> grouped = all.stream()
+                .collect(Collectors.groupingBy(BizScreeningRecordEntity::getPatientName,
+                        LinkedHashMap::new, Collectors.toList()));
+
+        List<PatientFollowUpVO> patients = grouped.entrySet().stream()
+                .map(e -> toFollowUp(e.getKey(), e.getValue()))
+                .sorted(Comparator.comparing(PatientFollowUpVO::getLatestTime,
+                        Comparator.nullsLast(Comparator.reverseOrder())))
+                .collect(Collectors.toList());
+
+        long current = query.getCurrent() == null ? 1L : Math.max(1L, query.getCurrent());
+        long size = query.getPageSize() == null ? 10L : Math.max(1L, query.getPageSize());
+        int from = (int) Math.min((current - 1) * size, patients.size());
+        int to = (int) Math.min(from + size, patients.size());
+
+        PageResult<PatientFollowUpVO> result = new PageResult<>();
+        result.setTotal(patients.size());
+        result.setCurrent(current);
+        result.setPageSize(size);
+        result.setList(new ArrayList<>(patients.subList(from, to)));
+        return result;
+    }
+
+    /** 单患者聚合：最近/上次分级、变化方向、复核需求 */
+    private PatientFollowUpVO toFollowUp(String patientName, List<BizScreeningRecordEntity> records) {
+        PatientFollowUpVO vo = new PatientFollowUpVO();
+        vo.setPatientName(patientName);
+        vo.setTotalCount((long) records.size());
+        vo.setFirstTime(records.get(0).getCreateTime());
+
+        BizScreeningRecordEntity latest = records.get(records.size() - 1);
+        vo.setLatestTime(latest.getCreateTime());
+        vo.setPatientGender(latest.getPatientGender());
+        vo.setPatientAge(latest.getPatientAge());
+        vo.setLatestLevel(latest.getResultLevel());
+        vo.setLatestLevelName(BizScreeningRecordConvert.LEVEL_NAMES.get(latest.getResultLevel()));
+        vo.setLatestConfidence(latest.getConfidence());
+        vo.setLatestSuggestion(latest.getSuggestion());
+        vo.setLatestSuggestionName(BizScreeningRecordConvert.SUGGESTION_NAMES.get(latest.getSuggestion()));
+
+        vo.setNeedReviewCount(records.stream()
+                .filter(r -> BizScreeningRecordConvert.needReview(r.getConfidence()))
+                .count());
+
+        if (records.size() >= 2) {
+            BizScreeningRecordEntity previous = records.get(records.size() - 2);
+            vo.setPreviousLevel(previous.getResultLevel());
+            vo.setPreviousLevelName(BizScreeningRecordConvert.LEVEL_NAMES.get(previous.getResultLevel()));
+            int latestIdx = levelIndex(latest.getResultLevel());
+            int prevIdx = levelIndex(previous.getResultLevel());
+            if (latestIdx < 0 || prevIdx < 0) {
+                vo.setLevelChanged(null);
+                vo.setTrendDirection("UNKNOWN");
+            } else {
+                vo.setLevelChanged(latestIdx != prevIdx);
+                vo.setTrendDirection(latestIdx > prevIdx ? "UP" : latestIdx < prevIdx ? "DOWN" : "SAME");
+            }
+        } else {
+            vo.setLevelChanged(null);
+            vo.setTrendDirection("FIRST");
+        }
+        return vo;
+    }
+
+    /** LEVEL_n → n；无法识别返回 -1 */
+    private static int levelIndex(String level) {
+        if (level == null || !level.startsWith("LEVEL_")) {
+            return -1;
+        }
+        try {
+            return Integer.parseInt(level.substring("LEVEL_".length()));
+        } catch (NumberFormatException e) {
+            return -1;
+        }
     }
 
     // ------------------------- 内部工具 -------------------------
@@ -272,6 +383,21 @@ public class ScreeningRecordServiceImpl implements ScreeningRecordService {
         }
         if (query.getEndDate() != null && !query.getEndDate().isBlank()) {
             wrapper.le(BizScreeningRecordEntity::getCreateTime, parseDateTime(query.getEndDate()));
+        }
+        // 人工复核过滤：true → 置信度低于阈值（含缺失）；false → 置信度达标
+        if (query.getNeedReview() != null) {
+            if (query.getNeedReview()) {
+                wrapper.and(w -> w.lt(BizScreeningRecordEntity::getConfidence,
+                                BizScreeningRecordConvert.REVIEW_CONFIDENCE_THRESHOLD)
+                        .or().isNull(BizScreeningRecordEntity::getConfidence));
+            } else {
+                wrapper.ge(BizScreeningRecordEntity::getConfidence,
+                        BizScreeningRecordConvert.REVIEW_CONFIDENCE_THRESHOLD);
+            }
+        }
+        // 随访时间线：按患者精确匹配（与模糊匹配的 patientName 区分）
+        if (query.getExactPatientName() != null && !query.getExactPatientName().isBlank()) {
+            wrapper.eq(BizScreeningRecordEntity::getPatientName, query.getExactPatientName());
         }
         return wrapper;
     }

@@ -1,6 +1,7 @@
 import request from '@/utils/request'
 import type {
   PageResult,
+  PatientFollowUpVO,
   ScreeningPageQuery,
   ScreeningRecordVO,
   ScreeningStatisticsVO
@@ -43,11 +44,23 @@ export function removeScreening(id: string) {
   return request.delete(`/biz/screening-records/${id}`) as unknown as Promise<void>
 }
 
-/** 筛查统计（分级/建议分布、转诊率、近 30 天趋势）。 */
+/** 筛查统计（分级/建议分布、转诊率、近 30 天趋势、待复核数量）。 */
 export function statisticsScreening(query: ScreeningPageQuery) {
   return request.get('/biz/screening-records/statistics', {
     params: query
   }) as unknown as Promise<ScreeningStatisticsVO>
+}
+
+/** 患者随访分页：按患者归并历次筛查，含分级变化方向与复核需求。 */
+export function pagePatients(query: ScreeningPageQuery) {
+  return request.get('/biz/screening-records/patients', { params: query }) as unknown as Promise<
+    PageResult<PatientFollowUpVO>
+  >
+}
+
+/** 指定患者的历次筛查（随访时间线），按时间倒序。 */
+export function patientTimeline(patientName: string, pageSize = 100) {
+  return pageScreening({ exactPatientName: patientName, current: 1, pageSize })
 }
 
 /** 导出筛查记录 Excel（二进制下载，不经统一响应体解包）。 */

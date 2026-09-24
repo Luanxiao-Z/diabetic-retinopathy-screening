@@ -50,15 +50,15 @@
         @click="go('/screening/statistics')"
       />
       <StatCard
-        icon="check"
-        label="定期复查"
-        :value="reviewCount"
+        icon="clock"
+        label="待人工复核"
+        :value="needReviewCount"
         unit="例"
-        tone="ok"
+        tone="warn"
         clickable
-        foot="轻度及以下，定期复查"
-        aria-label="定期复查人数，点击查看转诊建议分布"
-        @click="go('/screening/statistics')"
+        foot="置信度低于阈值"
+        aria-label="待人工复核数量，点击进入筛查记录并筛选待复核"
+        @click="goReviewList()"
       />
     </div>
 
@@ -162,7 +162,7 @@ const roleText = computed(() => (userStore.role === 'ADMIN' ? '管理员视角 �
 
 const levelDist = computed(() => stats.value?.levelDistribution || {})
 const referralCount = computed(() => stats.value?.suggestionDistribution?.['REFERRAL'] || 0)
-const reviewCount = computed(() => stats.value?.suggestionDistribution?.['REVIEW'] || 0)
+const needReviewCount = computed(() => stats.value?.needReviewCount || 0)
 const total = computed(() => stats.value?.total || 0)
 
 const referralRate = computed(() => {
@@ -187,6 +187,13 @@ const quickActions = computed(() =>
       title: '查看筛查记录',
       desc: '检索、查看详情与导出',
       icon: 'list',
+      permission: 'biz:screening:view'
+    },
+    {
+      path: '/screening/patients',
+      title: '患者随访',
+      desc: '纵向对比分级变化',
+      icon: 'activity',
       permission: 'biz:screening:view'
     },
     {
@@ -249,6 +256,11 @@ function distPercent(lv: string): number {
 
 function go(path: string) {
   router.push(path)
+}
+
+/** 跳转筛查记录并预置「待复核」筛选 */
+function goReviewList() {
+  router.push({ path: '/screening/records', query: { needReview: 'true' } })
 }
 
 async function load() {

@@ -39,10 +39,34 @@ const routes: RouteRecordRaw[] = [
         meta: { permission: 'biz:screening:view', title: '统计分析', group: '筛查业务', crumb: '统计分析' }
       },
       {
+        path: 'screening/patients',
+        name: 'PatientFollowUp',
+        component: () => import('@/views/screening/patient-followup.vue'),
+        meta: { permission: 'biz:screening:view', title: '患者随访', group: '筛查业务', crumb: '患者随访' }
+      },
+      {
         path: 'profile',
         name: 'Profile',
         component: () => import('@/views/profile/index.vue'),
         meta: { title: '个人中心', group: '账户', crumb: '个人中心' }
+      },
+      {
+        path: 'admin/users',
+        name: 'AdminUsers',
+        component: () => import('@/views/admin/user-list.vue'),
+        meta: { permission: 'admin:user:view', title: '用户管理', group: '系统管理', crumb: '用户管理' }
+      },
+      {
+        path: 'admin/dicts',
+        name: 'AdminDicts',
+        component: () => import('@/views/admin/dict-manage.vue'),
+        meta: { permission: 'admin:dict:view', title: '字典管理', group: '系统管理', crumb: '字典管理' }
+      },
+      {
+        path: 'admin/logs',
+        name: 'AdminLogs',
+        component: () => import('@/views/admin/operation-log.vue'),
+        meta: { permission: 'admin:log:view', title: '操作日志', group: '系统管理', crumb: '操作日志' }
       }
     ]
   },

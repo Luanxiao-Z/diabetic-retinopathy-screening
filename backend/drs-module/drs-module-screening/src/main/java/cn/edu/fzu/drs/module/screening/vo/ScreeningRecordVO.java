@@ -47,6 +47,12 @@ public class ScreeningRecordVO {
     @Schema(description = "最高概率置信度")
     private BigDecimal confidence;
 
+    @Schema(description = "是否需人工复核（置信度低于阈值时为 true）")
+    private Boolean needReview;
+
+    @Schema(description = "人工复核阈值（低于该值需复核）")
+    private BigDecimal reviewThreshold;
+
     @Schema(description = "各类别概率（LEVEL_0..LEVEL_4）")
     private Map<String, Double> probabilities;
 

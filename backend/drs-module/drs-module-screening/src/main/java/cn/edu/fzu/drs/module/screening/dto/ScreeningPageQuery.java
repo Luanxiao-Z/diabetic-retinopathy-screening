@@ -23,6 +23,12 @@ public class ScreeningPageQuery {
     @Schema(description = "结束时间 yyyy-MM-dd HH:mm:ss")
     private String endDate;
 
+    @Schema(description = "是否只看需人工复核的记录（置信度低于阈值）；为空表示不限制")
+    private Boolean needReview;
+
+    @Schema(description = "仅查询指定患者（用于随访时间线）")
+    private String exactPatientName;
+
     @Schema(description = "当前页（从 1 开始）", example = "1")
     private Long current = 1L;
 

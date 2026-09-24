@@ -5,6 +5,7 @@ import cn.edu.fzu.drs.module.common.result.PageResult;
 import cn.edu.fzu.drs.module.common.result.Result;
 import cn.edu.fzu.drs.module.screening.dto.ScreeningPageQuery;
 import cn.edu.fzu.drs.module.screening.service.ScreeningRecordService;
+import cn.edu.fzu.drs.module.screening.vo.PatientFollowUpVO;
 import cn.edu.fzu.drs.module.screening.vo.ScreeningRecordVO;
 import cn.edu.fzu.drs.module.screening.vo.ScreeningStatisticsVO;
 import cn.edu.fzu.drs.module.security.annotation.RequirePermission;
@@ -92,5 +93,13 @@ public class ScreeningRecordController {
             @ModelAttribute ScreeningPageQuery query,
             HttpServletResponse response) {
         screeningRecordService.export(ids, query, response);
+    }
+
+    @Operation(summary = "患者随访分页",
+            description = "按患者归并历次筛查，返回最近分级、分级变化方向（进展/好转/持平）与复核需求；仅统计填写了患者姓名的记录。")
+    @GetMapping("/patients")
+    @RequirePermission(PermissionConstants.BIZ_SCREENING_VIEW)
+    public Result<PageResult<PatientFollowUpVO>> pagePatients(@ModelAttribute ScreeningPageQuery query) {
+        return Result.ok(screeningRecordService.pagePatients(query));
     }
 }

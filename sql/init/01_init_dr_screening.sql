@@ -123,3 +123,27 @@ VALUES
   ('d0i00000000000000000000000000071', 'C_GENDER',        'MALE',   '男', NULL, 1),
   ('d0i00000000000000000000000000072', 'C_GENDER',        'FEMALE', '女', NULL, 2)
 ON DUPLICATE KEY UPDATE item_name = VALUES(item_name);
+
+-- ============================================================================
+-- 操作审计日志（关键业务动作留痕：登录、筛查上传/删除/导出、用户与字典变更）
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS sys_operation_log (
+  id          CHAR(32)     NOT NULL,
+  username    VARCHAR(64)  DEFAULT NULL COLLATE utf8mb4_0900_as_cs COMMENT '操作人用户名，登录失败时可为空',
+  module      VARCHAR(20)  NOT NULL COLLATE utf8mb4_0900_as_cs COMMENT '模块 AUTH/SCREENING/USER/DICT',
+  action      VARCHAR(20)  NOT NULL COLLATE utf8mb4_0900_as_cs COMMENT '动作 LOGIN/LOGOUT/UPLOAD/DELETE/EXPORT/CREATE/UPDATE/CHANGE_STATE',
+  target      VARCHAR(255) DEFAULT NULL COMMENT '操作对象描述',
+  result      VARCHAR(10)  NOT NULL COLLATE utf8mb4_0900_as_cs COMMENT '结果 SUCCESS/FAIL',
+  error_msg   VARCHAR(500) DEFAULT NULL COMMENT '失败原因',
+  ip          VARCHAR(64)  DEFAULT NULL COMMENT '客户端 IP',
+  cost_ms     BIGINT       DEFAULT NULL COMMENT '耗时(毫秒)',
+  create_by   VARCHAR(64)  DEFAULT NULL,
+  create_time DATETIME     DEFAULT CURRENT_TIMESTAMP,
+  update_by   VARCHAR(64)  DEFAULT NULL,
+  update_time DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  delete_flag VARCHAR(1)   NOT NULL DEFAULT 'N' COLLATE utf8mb4_0900_as_cs,
+  PRIMARY KEY (id),
+  KEY idx_username (username),
+  KEY idx_module (module),
+  KEY idx_create_time (create_time)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;

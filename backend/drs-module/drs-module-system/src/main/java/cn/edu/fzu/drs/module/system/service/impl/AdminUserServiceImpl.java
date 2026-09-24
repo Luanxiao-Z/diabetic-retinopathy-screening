@@ -1,5 +1,6 @@
 package cn.edu.fzu.drs.module.system.service.impl;
 
+import cn.edu.fzu.drs.module.common.audit.OperationLogRecorder;
 import cn.edu.fzu.drs.module.common.exception.BusinessException;
 import cn.edu.fzu.drs.module.common.exception.UnauthorizedException;
 import cn.edu.fzu.drs.module.common.result.PageResult;
@@ -29,9 +30,11 @@ public class AdminUserServiceImpl implements AdminUserService {
     private static final String STATUS_DISABLED = "DISABLED";
 
     private final SysUserMapper userMapper;
+    private final OperationLogRecorder audit;
 
-    public AdminUserServiceImpl(SysUserMapper userMapper) {
+    public AdminUserServiceImpl(SysUserMapper userMapper, OperationLogRecorder audit) {
         this.userMapper = userMapper;
+        this.audit = audit;
     }
 
     @Override
@@ -87,6 +90,8 @@ public class AdminUserServiceImpl implements AdminUserService {
         entity.setPassword(PasswordUtil.encode(dto.getPassword()));
         // id / deleteFlag / createBy / updateBy 由 AuditMetaHandler 自动填充
         userMapper.insert(entity);
+        audit.record(OperationLogRecorder.MODULE_USER, OperationLogRecorder.ACTION_CREATE,
+                entity.getUsername() + "（" + entity.getRole() + "）", true, null, 0L);
         return entity.getId();
     }
 
@@ -121,6 +126,8 @@ public class AdminUserServiceImpl implements AdminUserService {
             entity.setPassword(PasswordUtil.encode(dto.getPassword()));
         }
         userMapper.updateById(entity);
+        audit.record(OperationLogRecorder.MODULE_USER, OperationLogRecorder.ACTION_UPDATE,
+                entity.getUsername() + "（" + entity.getRole() + "）", true, null, 0L);
     }
 
     @Override
@@ -135,6 +142,8 @@ public class AdminUserServiceImpl implements AdminUserService {
         }
         // 全局逻辑删除配置：deleteById 自动置 deleteFlag=Y
         userMapper.deleteById(id);
+        audit.record(OperationLogRecorder.MODULE_USER, OperationLogRecorder.ACTION_DELETE,
+                entity.getUsername(), true, null, 0L);
     }
 
     @Override
@@ -152,6 +161,8 @@ public class AdminUserServiceImpl implements AdminUserService {
         }
         entity.setStatus(status);
         userMapper.updateById(entity);
+        audit.record(OperationLogRecorder.MODULE_USER, OperationLogRecorder.ACTION_CHANGE_STATE,
+                entity.getUsername() + " → " + status, true, null, 0L);
     }
 
     private UserVO toVO(SysUserEntity entity) {
