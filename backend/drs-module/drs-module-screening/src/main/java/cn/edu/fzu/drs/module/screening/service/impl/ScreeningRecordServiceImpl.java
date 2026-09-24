@@ -256,7 +256,8 @@ public class ScreeningRecordServiceImpl implements ScreeningRecordService {
         try (XSSFWorkbook workbook = new XSSFWorkbook()) {
             Sheet sheet = workbook.createSheet("筛查记录");
             String[] headers = {"患者姓名", "性别", "年龄", "DR分级", "分级说明", "置信度",
-                    "转诊建议", "建议说明", "模型版本", "创建时间", "图片链接", "热力图链接"};
+                    "转诊建议", "建议说明", "复核状态", "复核人", "复核时间", "复核意见",
+                    "模型版本", "创建时间", "图片链接", "热力图链接"};
             Row headerRow = sheet.createRow(0);
             for (int i = 0; i < headers.length; i++) {
                 Cell cell = headerRow.createCell(i);
@@ -273,10 +274,19 @@ public class ScreeningRecordServiceImpl implements ScreeningRecordService {
                 setCell(row, 5, e.getConfidence() == null ? "" : e.getConfidence().toString());
                 setCell(row, 6, e.getSuggestion());
                 setCell(row, 7, BizScreeningRecordConvert.nameOf(BizScreeningRecordConvert.SUGGESTION_NAMES, e.getSuggestion()));
-                setCell(row, 8, e.getModelVersion());
-                setCell(row, 9, e.getCreateTime() == null ? "" : e.getCreateTime().format(DATE_TIME_FMT));
-                setCell(row, 10, presignSafe(e.getImageKey()));
-                setCell(row, 11, presignSafe(e.getGradCamKey()));
+                // 复核状态：未落库但置信度不达标时按「待复核」导出，与页面展示口径一致
+                String reviewStatus = e.getReviewStatus();
+                if (reviewStatus == null && BizScreeningRecordConvert.needReview(e.getConfidence())) {
+                    reviewStatus = "PENDING";
+                }
+                setCell(row, 8, BizScreeningRecordConvert.nameOf(BizScreeningRecordConvert.REVIEW_STATUS_NAMES, reviewStatus));
+                setCell(row, 9, e.getReviewer());
+                setCell(row, 10, e.getReviewTime() == null ? "" : e.getReviewTime().format(DATE_TIME_FMT));
+                setCell(row, 11, e.getReviewRemark());
+                setCell(row, 12, e.getModelVersion());
+                setCell(row, 13, e.getCreateTime() == null ? "" : e.getCreateTime().format(DATE_TIME_FMT));
+                setCell(row, 14, presignSafe(e.getImageKey()));
+                setCell(row, 15, presignSafe(e.getGradCamKey()));
             }
             for (int i = 0; i < headers.length; i++) {
                 sheet.autoSizeColumn(i);

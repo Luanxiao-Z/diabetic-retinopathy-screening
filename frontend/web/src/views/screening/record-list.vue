@@ -184,6 +184,16 @@
 
     <el-dialog v-model="detailVisible" title="筛查记录详情" width="620px" destroy-on-close>
       <ResultCard v-if="currentRecord" :record="currentRecord" />
+      <template #footer>
+        <el-button @click="detailVisible = false">关闭</el-button>
+        <el-button
+          v-if="currentRecord"
+          type="primary"
+          @click="openReport(currentRecord)"
+        >
+          <AppIcon name="download" :size="15" class="btn-ico" />打印诊断报告
+        </el-button>
+      </template>
     </el-dialog>
   </div>
 </template>

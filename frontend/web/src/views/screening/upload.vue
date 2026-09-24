@@ -117,23 +117,26 @@
 
       <!-- ============ 右：结果 ============ -->
       <div class="col-right">
-        <div class="result-head">
-          <h3>筛查结果</h3>
-          <span v-if="results.length" class="drs-card-meta">本次共 {{ results.length }} 条</span>
-        </div>
+        <section class="drs-card">
+          <div class="drs-card-head">
+            <h3>筛查结果</h3>
+            <span class="drs-card-meta">{{ results.length ? `本次共 ${results.length} 条` : '等待筛查' }}</span>
+          </div>
+          <div class="drs-card-body">
+            <div v-if="!results.length" class="result-empty">
+              <el-empty :image-size="96" description="上传并筛查后，结果将在此展示" />
+              <ol class="flow">
+                <li><b>1</b> 填写患者信息（可留空）</li>
+                <li><b>2</b> 选择一张或多张眼底影像</li>
+                <li><b>3</b> 点击「开始筛查」逐张获取分级与热力图</li>
+              </ol>
+            </div>
 
-        <div v-if="!results.length" class="drs-card result-empty">
-          <el-empty :image-size="96" description="上传并筛查后，结果将在此展示" />
-          <ol class="flow">
-            <li><b>1</b> 填写患者信息（可留空）</li>
-            <li><b>2</b> 选择一张或多张眼底影像</li>
-            <li><b>3</b> 点击「开始筛查」逐张获取分级与热力图</li>
-          </ol>
-        </div>
-
-        <div v-else class="result-grid">
-          <ResultCard v-for="r in results" :key="r.id" :record="r" />
-        </div>
+            <div v-else class="result-grid">
+              <ResultCard v-for="r in results" :key="r.id" :record="r" />
+            </div>
+          </div>
+        </section>
       </div>
     </div>
   </div>
@@ -451,23 +454,8 @@ function resetAll() {
 }
 
 /* ---------- 结果区 ---------- */
-.result-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
-  margin-bottom: var(--drs-gap-sm);
-}
-
-.result-head h3 {
-  font-size: 15px;
-  font-weight: 600;
-  margin: 0;
-  color: var(--drs-ink-800);
-}
-
 .result-empty {
-  padding: 24px;
+  padding: 20px 0 8px;
 }
 
 .flow {
