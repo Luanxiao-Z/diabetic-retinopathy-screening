@@ -147,7 +147,7 @@
           </div>
           <div class="drs-card-body">
             <div v-if="!results.length" class="result-empty">
-              <el-empty :image-size="96" description="选择眼底图后会自动开始筛查，结果将在此展示" />
+              <el-empty :image-size="96" description="选择眼底图并点击「开始筛查」后，结果将在此展示" />
               <ol class="flow">
                 <li><b>1</b> 填写患者信息（可留空）</li>
                 <li><b>2</b> 选择一张或多张眼底影像</li>
