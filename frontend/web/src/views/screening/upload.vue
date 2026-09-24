@@ -78,19 +78,28 @@
               accept="image/*"
               :auto-upload="false"
               :show-file-list="false"
+              :disabled="submitting"
               :on-change="onFileChange"
             >
               <div class="upload-inner">
                 <AppIcon name="image" :size="30" />
                 <span class="upload-text">拖拽眼底图到此处，或<em>点击选择</em></span>
-                <span class="upload-hint">可一次上传多张，逐张独立推理</span>
+                <span class="upload-hint">
+                  可一次选择多张（单次最多 {{ MAX_FILES }} 张），逐张独立推理
+                </span>
               </div>
             </el-upload>
 
             <!-- 逐张状态列表 -->
             <div v-if="items.length" class="queue">
               <div class="queue-head">
-                <span>待处理队列（{{ items.length }} 张）</span>
+                <span class="queue-title">
+                  <span v-if="submitting" class="spinner" aria-hidden="true"></span>
+                  待处理队列（{{ items.length }} 张）
+                  <template v-if="submitting">
+                    · 正在筛查第 {{ Math.min(doneCount + failedCount + 1, items.length) }} 张…
+                  </template>
+                </span>
                 <span class="queue-progress">已完成 {{ doneCount }} / {{ items.length }}</span>
               </div>
               <el-progress
@@ -216,6 +225,9 @@ import type { ScreeningRecordVO } from '@/types/screening'
 
 type ItemStatus = 'pending' | 'uploading' | 'done' | 'error'
 
+/** 单次上传上限（防止一次选入过多影像导致长时间占用） */
+const MAX_FILES = 100
+
 interface QueueItem {
   key: string
   name: string
@@ -255,6 +267,10 @@ const previewList = computed(() =>
 /* ---------------- 文件入队 ---------------- */
 function onFileChange(file: UploadFile) {
   if (!file.raw) return
+  if (items.value.length >= MAX_FILES) {
+    ElMessage.warning(`单次最多上传 ${MAX_FILES} 张影像，请先完成或清空当前队列`)
+    return
+  }
   const item: QueueItem = {
     key: `${file.uid}-${Date.now()}`,
     name: file.name,
@@ -265,7 +281,11 @@ function onFileChange(file: UploadFile) {
   items.value.push(item)
   // 仅入队，不自动开始筛查：先让用户预览确认，再手动点击「开始筛查」
   const n = items.value.filter((i) => i.status === 'pending').length
-  ElMessage.info(`已添加 ${file.name}，当前待筛查 ${n} 张。请确认影像无误后点击右上角「开始筛查」`)
+  if (n >= MAX_FILES) {
+    ElMessage.warning(`已达单次上限 ${MAX_FILES} 张，请先开始筛查或清空后再添加`)
+  } else {
+    ElMessage.info(`已添加 ${file.name}，当前待筛查 ${n} 张。请确认影像无误后点击右上角「开始筛查」`)
+  }
   // 展示由队列接管（show-file-list=false），此处不清理 el-upload 内部列表，
   // 避免在 on-change 中触发 clearFiles 造成递归。
 }
@@ -525,9 +545,45 @@ async function loadDemoSample() {
   margin-bottom: 8px;
 }
 
+.queue-title {
+  display: inline-flex;
+  align-items: center;
+}
+
 .queue-progress {
   color: var(--drs-ink-500);
   font-variant-numeric: tabular-nums;
+}
+
+/* 上传中：旋转加载动画 */
+.spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-right: 6px;
+  vertical-align: -1px;
+  border: 2px solid var(--drs-primary-200);
+  border-top-color: var(--drs-primary);
+  border-radius: 50%;
+  animation: drs-spin 0.7s linear infinite;
+}
+
+@keyframes drs-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 推理中的状态图标同步旋转 */
+.qi-uploading :deep(svg) {
+  animation: drs-spin 0.9s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner,
+  .qi-uploading :deep(svg) {
+    animation-duration: 1.6s;
+  }
 }
 
 .queue-list {
