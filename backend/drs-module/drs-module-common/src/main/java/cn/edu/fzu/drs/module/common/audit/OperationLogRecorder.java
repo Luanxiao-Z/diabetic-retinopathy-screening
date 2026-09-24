@@ -18,6 +18,7 @@ public interface OperationLogRecorder {
     /** 动作编码常量 */
     String ACTION_LOGIN = "LOGIN";
     String ACTION_LOGOUT = "LOGOUT";
+    String ACTION_REGISTER = "REGISTER";
     String ACTION_UPLOAD = "UPLOAD";
     String ACTION_DELETE = "DELETE";
     String ACTION_EXPORT = "EXPORT";

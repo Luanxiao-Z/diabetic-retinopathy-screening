@@ -3,11 +3,12 @@ package cn.edu.fzu.drs.module.system.controller;
 import cn.edu.fzu.drs.module.common.constant.AuthConstants;
 import cn.edu.fzu.drs.module.common.result.Result;
 import cn.edu.fzu.drs.module.system.dto.LoginDTO;
+import cn.edu.fzu.drs.module.system.dto.RegisterDTO;
 import cn.edu.fzu.drs.module.system.service.AuthService;
 import cn.edu.fzu.drs.module.system.vo.LoginVO;
+import cn.edu.fzu.drs.module.system.vo.RegisterVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -17,9 +18,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 认证接口：登录（匿名）、登出。
+ * 认证接口：登录（匿名）、登出、自助注册（匿名）。
+ * <p>本控制器全部路径位于 {@link AuthConstants#ANONYMOUS_PREFIX} 之下，由认证过滤器直接放行。</p>
  */
-@Tag(name = "认证管理", description = "登录会话的创建与销毁")
+@Tag(name = "认证管理", description = "登录会话的创建与销毁、账号自助注册")
 @RestController
 @RequestMapping("/api/v1/auth")
 public class AuthController {
@@ -41,5 +43,11 @@ public class AuthController {
     public Result<Void> logout(@RequestHeader(value = AuthConstants.TOKEN_HEADER, required = false) String token) {
         authService.logout(token);
         return Result.ok();
+    }
+
+    @Operation(summary = "注册", description = "自助注册普通医生账号（DOCTOR / 仅本人数据），注册后需登录")
+    @PostMapping("/users")
+    public Result<RegisterVO> register(@Valid @RequestBody RegisterDTO dto) {
+        return Result.ok(authService.register(dto));
     }
 }

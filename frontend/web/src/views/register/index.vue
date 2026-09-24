@@ -11,9 +11,9 @@
       </div>
 
       <div class="brand-body">
-        <h1>眼底一张图<br />完成 DR 分级与转诊建议</h1>
+        <h1>注册筛查账号<br />即刻开始眼底筛查</h1>
         <ul class="feature-list">
-          <li v-for="f in features" :key="f.title">
+          <li v-for="f in notices" :key="f.title">
             <span class="feature-ico" aria-hidden="true"><AppIcon :name="f.icon" :size="16" /></span>
             <span>
               <b>{{ f.title }}</b>
@@ -24,28 +24,53 @@
       </div>
 
       <div class="brand-foot">
-        <AppIcon name="lock" :size="13" />
-        会话令牌由服务端 Redis 管理，30 分钟无操作自动失效
+        <AppIcon name="shield" :size="13" />
+        注册即表示同意账号仅用于本单位眼底筛查业务
       </div>
     </aside>
 
-    <!-- ============ 右：登录表单 ============ -->
+    <!-- ============ 右：注册表单 ============ -->
     <main class="form-panel">
       <div class="form-card">
-        <h2>账号登录</h2>
-        <p class="form-sub">使用已有账号登录，或注册新账号</p>
+        <h2>注册账号</h2>
+        <p class="form-sub">注册后获得医生角色，仅可查看本人上传的筛查记录</p>
 
-        <el-form ref="formRef" :model="form" :rules="rules" label-position="top" @submit.prevent="onSubmit">
+        <el-form
+          ref="formRef"
+          :model="form"
+          :rules="rules"
+          label-position="top"
+          @submit.prevent="onSubmit"
+        >
           <el-form-item label="用户名" prop="username">
             <el-input
               v-model="form.username"
               size="large"
-              placeholder="请输入用户名"
+              placeholder="4-20 位，字母开头"
               autocomplete="username"
-              @keyup.enter="onSubmit"
             >
               <template #prefix><AppIcon name="user" :size="16" /></template>
             </el-input>
+          </el-form-item>
+
+          <el-form-item label="真实姓名" prop="realName">
+            <el-input
+              v-model="form.realName"
+              size="large"
+              maxlength="20"
+              placeholder="用于筛查记录与诊断报告署名"
+              autocomplete="name"
+            />
+          </el-form-item>
+
+          <el-form-item label="手机号（选填）" prop="phone">
+            <el-input
+              v-model="form.phone"
+              size="large"
+              maxlength="11"
+              placeholder="用于联系与账号找回"
+              autocomplete="tel"
+            />
           </el-form-item>
 
           <el-form-item label="密码" prop="password">
@@ -54,8 +79,21 @@
               type="password"
               size="large"
               show-password
-              placeholder="请输入密码"
-              autocomplete="current-password"
+              placeholder="8-64 位，需含字母与数字"
+              autocomplete="new-password"
+            >
+              <template #prefix><AppIcon name="lock" :size="16" /></template>
+            </el-input>
+          </el-form-item>
+
+          <el-form-item label="确认密码" prop="confirmPassword">
+            <el-input
+              v-model="form.confirmPassword"
+              type="password"
+              size="large"
+              show-password
+              placeholder="请再次输入密码"
+              autocomplete="new-password"
               @keyup.enter="onSubmit"
             >
               <template #prefix><AppIcon name="lock" :size="16" /></template>
@@ -70,33 +108,13 @@
             native-type="submit"
             @click="onSubmit"
           >
-            {{ loading ? '登录中…' : '登录' }}
+            {{ loading ? '注册中…' : '注册' }}
           </el-button>
         </el-form>
 
         <div class="alt-entry">
-          还没有账号？
-          <router-link to="/register">立即注册</router-link>
-        </div>
-
-        <div class="demo-box">
-          <div class="demo-title">
-            <AppIcon name="info" :size="13" />
-            演示账号（点击自动填入）
-          </div>
-          <div class="demo-list">
-            <button
-              v-for="d in demoAccounts"
-              :key="d.username"
-              type="button"
-              class="demo-item"
-              @click="fill(d)"
-            >
-              <span class="demo-role">{{ d.role }}</span>
-              <span class="demo-user">{{ d.username }}</span>
-              <span class="demo-scope">{{ d.scope }}</span>
-            </button>
-          </div>
+          已有账号？
+          <router-link to="/login">返回登录</router-link>
         </div>
       </div>
     </main>
@@ -105,45 +123,73 @@
 
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
+import { useRouter } from 'vue-router'
+import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import AppIcon from '@/components/AppIcon.vue'
-import { useUserStore } from '@/stores/user'
+import { register } from '@/api/auth'
 
-const route = useRoute()
 const router = useRouter()
-const userStore = useUserStore()
 
 const formRef = ref<FormInstance>()
 const loading = ref(false)
-const form = reactive({ username: '', password: '' })
 
-// 注册成功后跳回登录页会带上用户名，直接回填避免重复输入
-const presetUsername = route.query.username
-if (typeof presetUsername === 'string' && presetUsername) {
-  form.username = presetUsername
-}
+const form = reactive({
+  username: '',
+  realName: '',
+  phone: '',
+  password: '',
+  confirmPassword: ''
+})
 
+/** 与后端 RegisterDTO 的校验规则保持一致，避免提交后才报错 */
 const rules: FormRules = {
-  username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
-  password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
+  username: [
+    { required: true, message: '请输入用户名', trigger: 'blur' },
+    {
+      pattern: /^[a-zA-Z][a-zA-Z0-9_]{3,19}$/,
+      message: '需为 4-20 位，以字母开头，仅可含字母、数字与下划线',
+      trigger: 'blur'
+    }
+  ],
+  realName: [
+    { required: true, message: '请输入真实姓名', trigger: 'blur' },
+    { max: 20, message: '最长 20 个字符', trigger: 'blur' }
+  ],
+  phone: [
+    {
+      validator: (_rule, value: string, callback) => {
+        if (!value) return callback()
+        if (/^1[3-9]\d{9}$/.test(value)) return callback()
+        callback(new Error('请输入正确的手机号'))
+      },
+      trigger: 'blur'
+    }
+  ],
+  password: [
+    { required: true, message: '请输入密码', trigger: 'blur' },
+    {
+      pattern: /^(?=.*[A-Za-z])(?=.*\d)\S{8,64}$/,
+      message: '需为 8-64 位，且同时包含字母与数字',
+      trigger: 'blur'
+    }
+  ],
+  confirmPassword: [
+    { required: true, message: '请再次输入密码', trigger: 'blur' },
+    {
+      validator: (_rule, value: string, callback) => {
+        if (value === form.password) return callback()
+        callback(new Error('两次输入的密码不一致'))
+      },
+      trigger: 'blur'
+    }
+  ]
 }
 
-const features = [
-  { icon: 'scan', title: 'AI 自动分级', desc: 'MobileNetV3 五分类，输出各分级概率' },
-  { icon: 'eye', title: '可解释热力图', desc: 'Grad-CAM 标注模型关注区域' },
-  { icon: 'shield', title: '数据权限隔离', desc: '医生仅见本人记录，管理员可查全量' }
+const notices = [
+  { icon: 'user', title: '医生角色', desc: '注册即获得医生角色，数据范围仅限本人记录' },
+  { icon: 'lock', title: '密码要求', desc: '8-64 位，需同时包含字母与数字' },
+  { icon: 'check', title: '即时可用', desc: '无需审核，注册完成后即可登录使用' }
 ]
-
-const demoAccounts = [
-  { role: '管理员', username: 'admin', password: 'admin123', scope: '全部数据' },
-  { role: '医生', username: 'doctor', password: 'doctor123', scope: '仅本人数据' }
-]
-
-function fill(d: { username: string; password: string }) {
-  form.username = d.username
-  form.password = d.password
-}
 
 async function onSubmit() {
   if (!formRef.value) return
@@ -152,11 +198,20 @@ async function onSubmit() {
 
   loading.value = true
   try {
-    await userStore.login({ username: form.username, password: form.password })
-    ElMessage.success('登录成功')
-    router.push('/dashboard')
+    const res = await register({
+      username: form.username.trim(),
+      realName: form.realName.trim(),
+      phone: form.phone.trim() || undefined,
+      password: form.password
+    })
+    await ElMessageBox.alert(
+      `账号「${res.username}」注册成功，请使用该账号登录。`,
+      '注册成功',
+      { confirmButtonText: '前往登录', type: 'success' }
+    ).catch(() => undefined)
+    router.push({ path: '/login', query: { username: res.username } })
   } catch (e) {
-    ElMessage.error((e as Error).message || '登录失败')
+    ElMessage.error((e as Error).message || '注册失败，请稍后重试')
   } finally {
     loading.value = false
   }
@@ -300,9 +355,11 @@ async function onSubmit() {
   margin-top: 4px;
 }
 
-/* ---------- 注册入口 ---------- */
+/* ---------- 返回登录 ---------- */
 .alt-entry {
-  margin-top: 18px;
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px dashed var(--drs-border);
   font-size: 13px;
   color: var(--drs-ink-500);
   text-align: center;
@@ -316,70 +373,6 @@ async function onSubmit() {
 
 .alt-entry a:hover {
   text-decoration: underline;
-}
-
-/* ---------- 演示账号 ---------- */
-.demo-box {
-  margin-top: 24px;
-  padding-top: 18px;
-  border-top: 1px dashed var(--drs-border);
-}
-
-.demo-title {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 12px;
-  color: var(--drs-ink-500);
-  margin-bottom: 10px;
-}
-
-.demo-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.demo-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 9px 12px;
-  border: 1px solid var(--drs-border);
-  border-radius: var(--drs-radius-sm);
-  background: var(--drs-surface);
-  cursor: pointer;
-  font: inherit;
-  text-align: left;
-  transition: border-color 0.16s ease, background-color 0.16s ease;
-}
-
-.demo-item:hover {
-  border-color: var(--drs-primary-200);
-  background: var(--drs-primary-50);
-}
-
-.demo-role {
-  flex-shrink: 0;
-  padding: 1px 8px;
-  border-radius: 999px;
-  background: var(--drs-primary-50);
-  color: var(--drs-primary-800);
-  font-size: 11.5px;
-  font-weight: 500;
-}
-
-.demo-user {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--drs-ink-800);
-}
-
-.demo-scope {
-  margin-left: auto;
-  font-size: 11.5px;
-  color: var(--drs-ink-500);
 }
 
 /* ===================== 响应式 ===================== */
