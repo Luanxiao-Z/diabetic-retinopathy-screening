@@ -23,6 +23,11 @@
                 <el-option v-for="o in LOG_MODULE_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
               </el-select>
             </el-form-item>
+            <el-form-item label="操作动作">
+              <el-select v-model="query.action" placeholder="全部动作" clearable>
+                <el-option v-for="o in LOG_ACTION_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
+              </el-select>
+            </el-form-item>
             <el-form-item label="结果">
               <el-select v-model="query.result" placeholder="全部结果" clearable>
                 <el-option v-for="o in LOG_RESULT_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
@@ -123,7 +128,7 @@ import { ElMessage } from 'element-plus'
 import AppIcon from '@/components/AppIcon.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import { pageOperationLogs } from '@/api/admin'
-import { LOG_MODULE_OPTIONS, LOG_RESULT_OPTIONS } from '@/types/admin'
+import { LOG_ACTION_OPTIONS, LOG_MODULE_OPTIONS, LOG_RESULT_OPTIONS } from '@/types/admin'
 import type { OperationLogVO } from '@/types/admin'
 
 const loading = ref(false)
@@ -134,6 +139,7 @@ const dateRange = ref<[string, string] | null>(null)
 const query = reactive({
   username: '',
   module: '',
+  action: '',
   result: '',
   startDate: '',
   endDate: '',
@@ -174,6 +180,7 @@ function handleQuery() {
 function handleReset() {
   query.username = ''
   query.module = ''
+  query.action = ''
   query.result = ''
   dateRange.value = null
   query.current = 1

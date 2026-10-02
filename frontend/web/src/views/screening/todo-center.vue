@@ -16,7 +16,16 @@
           <el-radio-button value="referral">需转诊（{{ referralRows.length }}）</el-radio-button>
           <el-radio-button value="overdue">逾期未复诊（{{ overdueRows.length }}）</el-radio-button>
         </el-radio-group>
-        <span class="drs-card-meta">{{ tabHint }}</span>
+        <div class="head-right">
+          <el-input
+            v-model="keyword"
+            placeholder="按患者姓名筛选"
+            clearable
+            class="kw-input"
+          >
+            <template #prefix><AppIcon name="search" :size="14" /></template>
+          </el-input>
+        </div>
       </div>
 
       <div class="drs-card-body">
@@ -83,17 +92,12 @@ const TYPE_LABEL: Record<TodoType, string> = {
   overdue: '逾期未复诊'
 }
 
-const TAB_HINT: Record<TabKey, string> = {
-  all: '按类型汇总，可切换到单一类型查看',
-  review: '模型不确定性达阈值，建议核对影像后确认复核',
-  referral: '分级为重度及以上，建议尽快转诊上级医院',
-  overdue: `最近一次筛查距今超过 ${OVERDUE_DAYS} 天，且分级为中度及以上`
-}
-
 const router = useRouter()
 const screeningStore = useScreeningStore()
 const loading = ref(false)
 const activeTab = ref<TabKey>('all')
+/** 患者姓名关键字（本地过滤，待办总量有限） */
+const keyword = ref('')
 
 const reviewRows = ref<TodoRow[]>([])
 const referralRows = ref<TodoRow[]>([])
@@ -106,21 +110,26 @@ const totalCount = computed(
   () => reviewRows.value.length + referralRows.value.length + overdueRows.value.length
 )
 
-const tabHint = computed(() => TAB_HINT[activeTab.value])
-
 const emptyText = computed(() => {
+  if (keyword.value.trim()) return `没有匹配「${keyword.value.trim()}」的待办`
   if (activeTab.value === 'all') return '暂无待办事项'
   return `暂无${TYPE_LABEL[activeTab.value as TodoType]}记录`
 })
 
-/** 「全部」模式按类型聚合；单类型模式直接取对应列表 */
+/** 「全部」模式按类型聚合；单类型模式直接取对应列表；再按患者姓名关键字过滤 */
 const currentRows = computed<TodoRow[]>(() => {
+  let rows: TodoRow[]
   if (activeTab.value === 'all') {
-    return [...reviewRows.value, ...referralRows.value, ...overdueRows.value]
+    rows = [...reviewRows.value, ...referralRows.value, ...overdueRows.value]
+  } else if (activeTab.value === 'review') {
+    rows = reviewRows.value
+  } else if (activeTab.value === 'referral') {
+    rows = referralRows.value
+  } else {
+    rows = overdueRows.value
   }
-  if (activeTab.value === 'review') return reviewRows.value
-  if (activeTab.value === 'referral') return referralRows.value
-  return overdueRows.value
+  const kw = keyword.value.trim()
+  return kw ? rows.filter((r) => r.name.includes(kw)) : rows
 })
 
 /** 不确定性（归一化预测熵）格式化 */
@@ -221,6 +230,17 @@ onActivated(() => {
 <style scoped>
 .btn-ico {
   margin-right: 5px;
+}
+
+.head-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.kw-input {
+  width: 200px;
 }
 
 .empty-row {

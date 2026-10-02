@@ -18,6 +18,9 @@
             <el-form-item label="用户名">
               <el-input v-model="query.username" placeholder="支持模糊匹配" clearable @keyup.enter="handleQuery" />
             </el-form-item>
+            <el-form-item label="手机号">
+              <el-input v-model="query.phone" placeholder="支持模糊匹配" clearable @keyup.enter="handleQuery" />
+            </el-form-item>
             <el-form-item label="角色">
               <el-select v-model="query.role" placeholder="全部角色" clearable>
                 <el-option v-for="o in ROLE_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
@@ -198,6 +201,7 @@ const total = ref(0)
 
 const query = reactive({
   username: '',
+  phone: '',
   role: '',
   status: '',
   current: 1,
@@ -267,6 +271,7 @@ function handleQuery() {
 
 function handleReset() {
   query.username = ''
+  query.phone = ''
   query.role = ''
   query.status = ''
   query.current = 1

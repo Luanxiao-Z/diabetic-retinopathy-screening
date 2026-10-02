@@ -35,5 +35,11 @@
             <artifactId>lombok</artifactId>
             <scope>provided</scope>
         </dependency>
+        <!-- 图形验证码：轻量、无额外传递依赖，支持字符与算术两种题型 -->
+        <dependency>
+            <groupId>com.github.whvcse</groupId>
+            <artifactId>easy-captcha</artifactId>
+            <version>1.6.2</version>
+        </dependency>
     </dependencies>
 </project>

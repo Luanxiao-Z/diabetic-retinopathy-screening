@@ -1,9 +1,9 @@
 package cn.edu.fzu.drs.module.system.vo;
 
-import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -11,7 +11,6 @@ import java.util.List;
  */
 @Data
 @NoArgsConstructor
-@AllArgsConstructor
 public class ProfileVO {
 
     private String userId;
@@ -20,4 +19,10 @@ public class ProfileVO {
     private String role;
     private List<String> permissions;
     private String dataScope;
+
+    /** 手机号（可为空） */
+    private String phone;
+
+    /** 账号创建时间 */
+    private LocalDateTime createTime;
 }

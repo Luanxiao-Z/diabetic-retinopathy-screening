@@ -18,6 +18,28 @@
             <el-form-item label="患者姓名">
               <el-input v-model="query.patientName" placeholder="支持模糊匹配" clearable @keyup.enter="handleQuery" />
             </el-form-item>
+            <el-form-item label="最近分级">
+              <el-select v-model="query.latestLevel" placeholder="全部" clearable class="full">
+                <el-option v-for="o in levelOptions" :key="o.value" :label="o.label" :value="o.value" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="复核状态">
+              <el-select v-model="query.hasPendingReview" placeholder="全部" clearable class="full">
+                <el-option label="含待复核" value="true" />
+                <el-option label="无待复核" value="false" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="最近筛查时间">
+              <el-date-picker
+                v-model="latestRange"
+                type="daterange"
+                range-separator="至"
+                start-placeholder="开始日期"
+                end-placeholder="结束日期"
+                value-format="YYYY-MM-DD"
+                class="full"
+              />
+            </el-form-item>
             <div class="filter-actions">
               <el-button type="primary" :loading="loading" @click="handleQuery">
                 <AppIcon name="search" :size="15" class="btn-ico" />查询
@@ -85,7 +107,7 @@
           <el-table-column label="待复核" min-width="96">
             <template #default="{ row }">
               <span v-if="row.needReviewCount" class="review-badge">{{ row.needReviewCount }}</span>
-              <span v-else class="muted">—</span>
+              <span v-else class="review-zero">0</span>
             </template>
           </el-table-column>
           <el-table-column label="最近筛查" min-width="164">
@@ -152,18 +174,26 @@ import AppIcon from '@/components/AppIcon.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import { pagePatients, patientTimeline } from '@/api/screening'
 import { useScreeningStore } from '@/stores/screening'
-import { GENDER_OPTIONS, LEVEL_COLOR } from '@/types/screening'
+import { GENDER_OPTIONS, LEVEL_COLOR, LEVEL_OPTIONS } from '@/types/screening'
 import type { PatientFollowUpVO, ScreeningRecordVO } from '@/types/screening'
 
 const screeningStore = useScreeningStore()
+const levelOptions = LEVEL_OPTIONS
 const loading = ref(false)
 const list = ref<PatientFollowUpVO[]>([])
 const total = ref(0)
 /** 上次加载时的数据版本，用于 KeepAlive 恢复后判断是否需要刷新 */
 const loadedVersion = ref(-1)
 
+/** 最近筛查时间范围（绑定日期选择器，提交时拆成起止参数） */
+const latestRange = ref<[string, string] | null>(null)
+
 const query = reactive({
   patientName: '',
+  latestLevel: '',
+  hasPendingReview: '',
+  latestStartDate: '',
+  latestEndDate: '',
   current: 1,
   pageSize: 10
 })
@@ -219,7 +249,15 @@ function hexToRgba(hex: string, alpha: number) {
 async function loadData() {
   loading.value = true
   try {
-    const res = await pagePatients({ ...query })
+    // 日期选择器只精确到「日」，结束日需补到 23:59:59，否则会漏掉当天记录
+    const [start, end] = latestRange.value || ['', '']
+    const { hasPendingReview, ...rest } = query
+    const res = await pagePatients({
+      ...rest,
+      latestStartDate: start ? `${start} 00:00:00` : '',
+      latestEndDate: end ? `${end} 23:59:59` : '',
+      hasPendingReview: hasPendingReview === '' ? undefined : hasPendingReview === 'true'
+    })
     list.value = res.list
     total.value = res.total
     loadedVersion.value = screeningStore.dataVersion
@@ -237,6 +275,11 @@ function handleQuery() {
 
 function handleReset() {
   query.patientName = ''
+  query.latestLevel = ''
+  query.hasPendingReview = ''
+  query.latestStartDate = ''
+  query.latestEndDate = ''
+  latestRange.value = null
   query.current = 1
   loadData()
 }
@@ -423,6 +466,13 @@ onActivated(() => {
   color: var(--drs-warn);
   font-size: 12px;
   font-weight: 600;
+}
+
+/* 无待复核时显示 0，保证该列始终有值，避免空列造成误读 */
+.review-zero {
+  color: var(--drs-ink-400);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
 }
 
 .muted {

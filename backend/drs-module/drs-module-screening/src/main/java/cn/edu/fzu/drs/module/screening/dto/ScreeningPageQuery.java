@@ -29,6 +29,23 @@ public class ScreeningPageQuery {
     @Schema(description = "仅查询指定患者（用于随访时间线）")
     private String exactPatientName;
 
+    // ---------------- 患者随访专用（作用于聚合后的患者维度） ----------------
+
+    @Schema(description = "最近一次分级（LEVEL_0..LEVEL_4），仅患者随访使用")
+    private String latestLevel;
+
+    @Schema(description = "最少筛查次数，仅患者随访使用")
+    private Integer minCount;
+
+    @Schema(description = "是否存在待复核记录（true 仅返回含待复核的患者），仅患者随访使用")
+    private Boolean hasPendingReview;
+
+    @Schema(description = "最近筛查开始时间 yyyy-MM-dd HH:mm:ss，仅患者随访使用")
+    private String latestStartDate;
+
+    @Schema(description = "最近筛查结束时间 yyyy-MM-dd HH:mm:ss，仅患者随访使用")
+    private String latestEndDate;
+
     @Schema(description = "当前页（从 1 开始）", example = "1")
     private Long current = 1L;
 

@@ -63,7 +63,7 @@
       <section class="drs-card">
         <div class="drs-card-head">
           <h3>待办事项</h3>
-          <el-button link type="primary" @click="go('/screening/todos')">全部待办</el-button>
+          <span class="drs-card-meta">点击查看对应列表</span>
         </div>
         <div class="drs-card-body">
           <button
@@ -170,8 +170,18 @@ const totalFoot = computed(() => {
   return `近 30 天 ${stats.value?.recentTotal ?? 0} 例 ${arrow} 环比 ${Math.abs(Number(pct))}%`
 })
 
-/** 待办摘要：三类数量 + 直达入口（详细列表在「随访待办」页） */
+/** 待办摘要：全部 + 三类数量 + 直达入口（详细列表在「随访待办」页） */
 const todoItems = computed(() => [
+  {
+    key: 'all',
+    title: '全部待办',
+    desc: '三类待办事项的汇总视图',
+    count:
+      pendingReview.value + pendingReferral.value + overduePatients.value.length,
+    icon: 'inbox',
+    tone: 'brand',
+    path: '/screening/todos'
+  },
   {
     key: 'review',
     title: '待人工复核',

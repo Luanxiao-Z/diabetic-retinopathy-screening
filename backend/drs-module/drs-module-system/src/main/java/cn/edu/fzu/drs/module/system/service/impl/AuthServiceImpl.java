@@ -11,6 +11,7 @@ import cn.edu.fzu.drs.module.system.dto.RegisterDTO;
 import cn.edu.fzu.drs.module.system.entity.SysUserEntity;
 import cn.edu.fzu.drs.module.system.mapper.SysUserMapper;
 import cn.edu.fzu.drs.module.system.service.AuthService;
+import cn.edu.fzu.drs.module.system.service.CaptchaService;
 import cn.edu.fzu.drs.module.system.vo.LoginVO;
 import cn.edu.fzu.drs.module.system.vo.RegisterVO;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -35,17 +36,24 @@ public class AuthServiceImpl implements AuthService {
     private final SysUserMapper userMapper;
     private final TokenService tokenService;
     private final OperationLogRecorder audit;
+    private final CaptchaService captchaService;
+    private final RateLimiter rateLimiter;
 
     public AuthServiceImpl(SysUserMapper userMapper, TokenService tokenService,
-                           OperationLogRecorder audit) {
+                           OperationLogRecorder audit, CaptchaService captchaService,
+                           RateLimiter rateLimiter) {
         this.userMapper = userMapper;
         this.tokenService = tokenService;
         this.audit = audit;
+        this.captchaService = captchaService;
+        this.rateLimiter = rateLimiter;
     }
 
     @Override
     public LoginVO login(LoginDTO dto) {
         long startedAt = System.currentTimeMillis();
+        // 先校验验证码：一次性消费，无论后续密码是否正确都不复用
+        captchaService.verify(dto.getCaptchaKey(), dto.getCaptchaCode());
         SysUserEntity user = userMapper.selectOne(
                 new LambdaQueryWrapper<SysUserEntity>().eq(SysUserEntity::getUsername, dto.getUsername()));
         if (user == null || !PasswordUtil.matches(dto.getPassword(), user.getPassword())) {
@@ -80,8 +88,10 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public RegisterVO register(RegisterDTO dto) {
+    public RegisterVO register(RegisterDTO dto, String ip) {
         long startedAt = System.currentTimeMillis();
+        // 双层限流（全局 + IP）：匿名写接口需防止被批量刷号
+        rateLimiter.checkRegister(ip);
         String username = dto.getUsername().trim();
 
         Long count = userMapper.selectCount(

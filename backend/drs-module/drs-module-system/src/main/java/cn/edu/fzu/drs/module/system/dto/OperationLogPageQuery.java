@@ -16,6 +16,9 @@ public class OperationLogPageQuery {
     @Schema(description = "模块编码（AUTH/SCREENING/USER/DICT）")
     private String module;
 
+    @Schema(description = "动作编码（LOGIN/LOGOUT/REGISTER/UPLOAD/DELETE/EXPORT/CREATE/UPDATE/REVIEW 等）")
+    private String action;
+
     @Schema(description = "结果（SUCCESS/FAIL）")
     private String result;
 

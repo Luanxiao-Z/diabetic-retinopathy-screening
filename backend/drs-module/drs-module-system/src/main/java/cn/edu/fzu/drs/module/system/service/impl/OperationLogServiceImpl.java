@@ -102,6 +102,9 @@ public class OperationLogServiceImpl implements OperationLogService {
         if (query.getModule() != null && !query.getModule().isBlank()) {
             wrapper.eq(SysOperationLogEntity::getModule, query.getModule());
         }
+        if (query.getAction() != null && !query.getAction().isBlank()) {
+            wrapper.eq(SysOperationLogEntity::getAction, query.getAction());
+        }
         if (query.getResult() != null && !query.getResult().isBlank()) {
             wrapper.eq(SysOperationLogEntity::getResult, query.getResult());
         }

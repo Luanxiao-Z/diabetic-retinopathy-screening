@@ -1,10 +1,17 @@
 import request from '@/utils/request'
-import type { LoginResult, RegisterParams, RegisterResult } from '@/types/auth'
-export type { LoginResult, RegisterParams, RegisterResult }
+import type { CaptchaResult, LoginResult, RegisterParams, RegisterResult } from '@/types/auth'
+export type { LoginResult, RegisterParams, RegisterResult, CaptchaResult }
 
 export interface LoginParams {
   username: string
   password: string
+  captchaKey: string
+  captchaCode: string
+}
+
+/** 获取图形验证码：GET /auth/captcha（匿名）。 */
+export function fetchCaptcha() {
+  return request.get('/auth/captcha') as unknown as Promise<CaptchaResult>
 }
 
 /** 登录：POST /auth/sessions，后端返回 { token, role, username, permissions, ... }，拦截器已解包为 data。 */

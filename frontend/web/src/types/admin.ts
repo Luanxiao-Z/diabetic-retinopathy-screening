@@ -136,3 +136,18 @@ export const LOG_RESULT_OPTIONS: { value: string; label: string }[] = [
   { value: 'SUCCESS', label: '成功' },
   { value: 'FAIL', label: '失败' }
 ]
+
+/** 日志动作选项（与后端 OperationLogRecorder 的 ACTION_* 常量一致） */
+export const LOG_ACTION_OPTIONS: { value: string; label: string }[] = [
+  { value: 'LOGIN', label: '登录' },
+  { value: 'LOGOUT', label: '登出' },
+  { value: 'REGISTER', label: '注册' },
+  { value: 'CHANGE_PASSWORD', label: '修改密码' },
+  { value: 'UPLOAD', label: '上传筛查' },
+  { value: 'EXPORT', label: '导出' },
+  { value: 'REVIEW', label: '人工复核' },
+  { value: 'CREATE', label: '新增' },
+  { value: 'UPDATE', label: '修改' },
+  { value: 'DELETE', label: '删除' },
+  { value: 'CHANGE_STATE', label: '启用/停用' }
+]

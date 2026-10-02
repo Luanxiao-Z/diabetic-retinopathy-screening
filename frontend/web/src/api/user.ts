@@ -3,9 +3,14 @@ import request from '@/utils/request'
 export interface ProfileResult {
   userId: string
   username: string
+  realName?: string
   role: string
   permissions: string[]
   dataScope?: string
+  /** 手机号（可为空） */
+  phone?: string
+  /** 账号创建时间 */
+  createTime?: string
 }
 
 /** 当前用户档案（含权限集），用于刷新后恢复前端权限状态。 */

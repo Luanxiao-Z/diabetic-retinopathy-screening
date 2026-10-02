@@ -76,6 +76,18 @@ export interface ScreeningPageQuery {
   needReview?: boolean
   /** 随访时间线：按患者精确匹配 */
   exactPatientName?: string
+
+  // -------- 患者随访专用（作用于聚合后的患者维度） --------
+  /** 最近一次分级 */
+  latestLevel?: string
+  /** 最少筛查次数 */
+  minCount?: number
+  /** true 仅返回含待复核记录的患者 */
+  hasPendingReview?: boolean
+  /** 最近筛查开始时间 yyyy-MM-dd HH:mm:ss */
+  latestStartDate?: string
+  /** 最近筛查结束时间 yyyy-MM-dd HH:mm:ss */
+  latestEndDate?: string
 }
 
 /** 患者随访聚合（对齐后端 PatientFollowUpVO；后端 null 字段不下发） */

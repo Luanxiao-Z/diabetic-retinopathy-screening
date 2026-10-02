@@ -29,6 +29,7 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -43,7 +44,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-
 /**
  * 筛查记录业务实现。
  */
@@ -328,6 +328,8 @@ public class ScreeningRecordServiceImpl implements ScreeningRecordService {
 
         List<PatientFollowUpVO> patients = grouped.entrySet().stream()
                 .map(e -> toFollowUp(e.getKey(), e.getValue()))
+                // 患者维度的筛选在聚合后进行（分级/次数/待复核都是聚合结果，无法在 SQL 层过滤）
+                .filter(p -> matchesFollowUpFilter(p, query))
                 .sorted(Comparator.comparing(PatientFollowUpVO::getLatestTime,
                         Comparator.nullsLast(Comparator.reverseOrder())))
                 .collect(Collectors.toList());
@@ -343,6 +345,45 @@ public class ScreeningRecordServiceImpl implements ScreeningRecordService {
         result.setPageSize(size);
         result.setList(new ArrayList<>(patients.subList(from, to)));
         return result;
+    }
+
+    /**
+     * 患者维度的筛选（作用于聚合结果）。
+     * <p>最近分级、筛查次数、待复核数、最近筛查时间都是聚合后的派生值，无法在 SQL 层过滤，
+     * 因此在此处内存过滤。</p>
+     */
+    private boolean matchesFollowUpFilter(PatientFollowUpVO p, ScreeningPageQuery query) {
+        if (StringUtils.hasText(query.getLatestLevel())
+                && !query.getLatestLevel().equals(p.getLatestLevel())) {
+            return false;
+        }
+        if (query.getMinCount() != null) {
+            long count = p.getTotalCount() == null ? 0L : p.getTotalCount();
+            if (count < query.getMinCount()) {
+                return false;
+            }
+        }
+        if (Boolean.TRUE.equals(query.getHasPendingReview())) {
+            long pending = p.getNeedReviewCount() == null ? 0L : p.getNeedReviewCount();
+            if (pending <= 0) {
+                return false;
+            }
+        }
+        boolean hasStart = StringUtils.hasText(query.getLatestStartDate());
+        boolean hasEnd = StringUtils.hasText(query.getLatestEndDate());
+        if (hasStart || hasEnd) {
+            LocalDateTime latest = p.getLatestTime();
+            if (latest == null) {
+                return false;
+            }
+            if (hasStart && latest.isBefore(parseDateTime(query.getLatestStartDate()))) {
+                return false;
+            }
+            if (hasEnd && latest.isAfter(parseDateTime(query.getLatestEndDate()))) {
+                return false;
+            }
+        }
+        return true;
     }
 
     @Override

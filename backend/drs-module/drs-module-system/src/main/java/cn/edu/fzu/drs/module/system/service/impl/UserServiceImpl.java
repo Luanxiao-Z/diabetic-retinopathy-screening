@@ -8,8 +8,11 @@ import cn.edu.fzu.drs.module.common.util.PasswordUtil;
 import cn.edu.fzu.drs.module.system.entity.SysUserEntity;
 import cn.edu.fzu.drs.module.system.mapper.SysUserMapper;
 import cn.edu.fzu.drs.module.system.service.UserService;
+import cn.edu.fzu.drs.module.system.vo.ProfileVO;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import org.springframework.stereotype.Service;
+
+import java.util.ArrayList;
 
 /**
  * 当前登录账号自助操作实现。
@@ -49,5 +52,29 @@ public class UserServiceImpl implements UserService {
 
         audit.record(OperationLogRecorder.MODULE_AUTH, "CHANGE_PASSWORD",
                 principal.getUsername(), true, null, 0L, principal.getUsername());
+    }
+
+    @Override
+    public ProfileVO currentProfile() {
+        AuthPrincipal principal = AuthContext.get();
+        if (principal == null || principal.getUsername() == null) {
+            throw new BusinessException(401, "未登录或登录已过期");
+        }
+        SysUserEntity user = userMapper.selectOne(
+                new LambdaQueryWrapper<SysUserEntity>().eq(SysUserEntity::getUsername, principal.getUsername()));
+
+        ProfileVO vo = new ProfileVO();
+        vo.setUserId(principal.getUserId());
+        vo.setUsername(principal.getUsername());
+        vo.setRole(principal.getRole());
+        // 权限集与数据范围来自登录主体（角色映射结果），无需查库
+        vo.setPermissions(new ArrayList<>(principal.getPermissions()));
+        vo.setDataScope(principal.getDataScope());
+        if (user != null) {
+            vo.setRealName(user.getRealName());
+            vo.setPhone(user.getPhone());
+            vo.setCreateTime(user.getCreateTime());
+        }
+        return vo;
     }
 }

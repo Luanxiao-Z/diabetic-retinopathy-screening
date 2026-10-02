@@ -11,26 +11,8 @@
       </template>
     </PageHeader>
 
-    <!-- 详细统计明细：取代原先与工作台重复的指标卡 -->
-    <section class="drs-card summary-card">
-      <div class="drs-card-head">
-        <h3>统计明细</h3>
-        <span class="drs-card-meta">共 {{ total }} 例</span>
-      </div>
-      <div class="drs-card-body">
-        <el-table :data="summaryRows" size="small" border>
-          <el-table-column prop="label" label="统计项" min-width="150" />
-          <el-table-column prop="value" label="数值" width="130" align="right">
-            <template #default="{ row }">
-              <b :class="row.tone ? `sv-${row.tone}` : ''">{{ row.value }}</b>
-            </template>
-          </el-table-column>
-          <el-table-column prop="desc" label="说明" min-width="240" />
-        </el-table>
-      </div>
-    </section>
-
-    <div v-loading="loading" class="chart-grid mt">
+    <!-- 图表优先展示；明细表作为补充置于其后 -->
+    <div v-loading="loading" class="chart-grid">
       <section class="drs-card">
         <div class="drs-card-head">
           <h3>DR 分级分布</h3>
@@ -66,6 +48,24 @@
         </div>
       </section>
     </div>
+
+    <section class="drs-card summary-card mt">
+      <div class="drs-card-head">
+        <h3>统计明细</h3>
+        <span class="drs-card-meta">共 {{ total }} 例</span>
+      </div>
+      <div class="drs-card-body">
+        <el-table :data="summaryRows" size="small" border>
+          <el-table-column prop="label" label="统计项" min-width="150" />
+          <el-table-column prop="value" label="数值" width="130" align="right">
+            <template #default="{ row }">
+              <b :class="row.tone ? `sv-${row.tone}` : ''">{{ row.value }}</b>
+            </template>
+          </el-table-column>
+          <el-table-column prop="desc" label="说明" min-width="240" />
+        </el-table>
+      </div>
+    </section>
   </div>
 </template>
 

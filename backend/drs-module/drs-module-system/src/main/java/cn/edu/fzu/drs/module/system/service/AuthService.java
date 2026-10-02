@@ -23,7 +23,9 @@ public interface AuthService {
     /**
      * 自助注册普通医生账号（DOCTOR / SELF），不签发令牌。
      *
+     * @param dto 注册入参
+     * @param ip  客户端 IP（用于注册频率限制）
      * @return 新建账号的基本信息
      */
-    RegisterVO register(RegisterDTO dto);
+    RegisterVO register(RegisterDTO dto, String ip);
 }

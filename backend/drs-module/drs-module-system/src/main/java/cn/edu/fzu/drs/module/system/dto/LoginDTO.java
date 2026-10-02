@@ -13,6 +13,14 @@ public class LoginDTO {
     @NotBlank(message = "密码不能为空")
     private String password;
 
+    /** 验证码标识（由 GET /auth/captcha 下发） */
+    @NotBlank(message = "验证码标识不能为空")
+    private String captchaKey;
+
+    /** 用户输入的验证码 */
+    @NotBlank(message = "验证码不能为空")
+    private String captchaCode;
+
     public String getUsername() {
         return username;
     }
@@ -27,5 +35,21 @@ public class LoginDTO {
 
     public void setPassword(String password) {
         this.password = password;
+    }
+
+    public String getCaptchaKey() {
+        return captchaKey;
+    }
+
+    public void setCaptchaKey(String captchaKey) {
+        this.captchaKey = captchaKey;
+    }
+
+    public String getCaptchaCode() {
+        return captchaCode;
+    }
+
+    public void setCaptchaCode(String captchaCode) {
+        this.captchaCode = captchaCode;
     }
 }

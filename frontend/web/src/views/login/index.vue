@@ -62,6 +62,32 @@
             </el-input>
           </el-form-item>
 
+          <el-form-item label="验证码" prop="captchaCode">
+            <div class="captcha-row">
+              <el-input
+                v-model="form.captchaCode"
+                size="large"
+                maxlength="6"
+                placeholder="请输入右侧字符"
+                autocomplete="off"
+                @keyup.enter="onSubmit"
+              >
+                <template #prefix><AppIcon name="shield" :size="16" /></template>
+              </el-input>
+              <button
+                type="button"
+                class="captcha-img"
+                title="点击刷新验证码"
+                aria-label="点击刷新验证码"
+                :disabled="captchaLoading"
+                @click="loadCaptcha"
+              >
+                <img v-if="captchaImage" :src="captchaImage" alt="图形验证码" />
+                <span v-else class="captcha-ph">加载中…</span>
+              </button>
+            </div>
+          </el-form-item>
+
           <el-button
             type="primary"
             size="large"
@@ -104,10 +130,11 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import AppIcon from '@/components/AppIcon.vue'
+import { fetchCaptcha } from '@/api/auth'
 import { useUserStore } from '@/stores/user'
 
 const route = useRoute()
@@ -116,7 +143,27 @@ const userStore = useUserStore()
 
 const formRef = ref<FormInstance>()
 const loading = ref(false)
-const form = reactive({ username: '', password: '' })
+const form = reactive({ username: '', password: '', captchaCode: '' })
+
+/* ---------------- 图形验证码 ---------------- */
+const captchaKey = ref('')
+const captchaImage = ref('')
+const captchaLoading = ref(false)
+
+/** 拉取新验证码。验证码一次性消费，登录失败后必须重新获取。 */
+async function loadCaptcha() {
+  captchaLoading.value = true
+  try {
+    const res = await fetchCaptcha()
+    captchaKey.value = res.captchaKey
+    captchaImage.value = res.image
+    form.captchaCode = ''
+  } catch (e) {
+    ElMessage.error((e as Error).message || '验证码加载失败，请点击图片重试')
+  } finally {
+    captchaLoading.value = false
+  }
+}
 
 // 注册成功后跳回登录页会带上用户名，直接回填避免重复输入
 const presetUsername = route.query.username
@@ -126,7 +173,8 @@ if (typeof presetUsername === 'string' && presetUsername) {
 
 const rules: FormRules = {
   username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
-  password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
+  password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
+  captchaCode: [{ required: true, message: '请输入验证码', trigger: 'blur' }]
 }
 
 const features = [
@@ -152,15 +200,24 @@ async function onSubmit() {
 
   loading.value = true
   try {
-    await userStore.login({ username: form.username, password: form.password })
+    await userStore.login({
+      username: form.username,
+      password: form.password,
+      captchaKey: captchaKey.value,
+      captchaCode: form.captchaCode
+    })
     ElMessage.success('登录成功')
     router.push('/dashboard')
   } catch (e) {
     ElMessage.error((e as Error).message || '登录失败')
+    // 验证码为一次性消费，任何失败后都需重新获取
+    loadCaptcha()
   } finally {
     loading.value = false
   }
 }
+
+onMounted(loadCaptcha)
 </script>
 
 <style scoped>
@@ -293,6 +350,54 @@ async function onSubmit() {
   font-size: 13px;
   color: var(--drs-ink-500);
   margin: 0 0 24px;
+}
+
+/* ---------- 图形验证码 ---------- */
+.captcha-row {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+
+.captcha-row :deep(.el-input) {
+  flex: 1;
+}
+
+.captcha-img {
+  flex-shrink: 0;
+  width: 130px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid var(--drs-border);
+  border-radius: var(--drs-radius-sm);
+  background: var(--drs-surface);
+  cursor: pointer;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.16s ease;
+}
+
+.captcha-img:hover:not(:disabled) {
+  border-color: var(--drs-primary-200);
+}
+
+.captcha-img:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.captcha-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.captcha-ph {
+  font-size: 12px;
+  color: var(--drs-ink-400);
 }
 
 .submit-btn {

@@ -39,16 +39,14 @@ public class UserController {
         return Result.ok(principal == null ? List.of() : new ArrayList<>(principal.getPermissions()));
     }
 
-    @Operation(summary = "当前用户档案", description = "返回登录主体的基本信息与权限集")
+    @Operation(summary = "当前用户档案", description = "返回登录主体的账号信息（含真实姓名、手机号、创建时间）与权限集")
     @GetMapping
     public Result<ProfileVO> profile() {
         AuthPrincipal principal = AuthContext.get();
         if (principal == null) {
             return Result.ok(null);
         }
-        ProfileVO vo = new ProfileVO(principal.getUserId(), principal.getUsername(), null, principal.getRole(),
-                new ArrayList<>(principal.getPermissions()), principal.getDataScope());
-        return Result.ok(vo);
+        return Result.ok(userService.currentProfile());
     }
 
     @Operation(summary = "修改当前账号密码", description = "校验原密码一致后更新为新密码；需重新登录以外的凭据仍然有效。")

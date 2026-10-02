@@ -48,6 +48,9 @@ public class AdminUserServiceImpl implements AdminUserService {
         if (StringUtils.hasText(query.getUsername())) {
             wrapper.like(SysUserEntity::getUsername, query.getUsername());
         }
+        if (StringUtils.hasText(query.getPhone())) {
+            wrapper.like(SysUserEntity::getPhone, query.getPhone());
+        }
         if (StringUtils.hasText(query.getRole())) {
             wrapper.eq(SysUserEntity::getRole, query.getRole());
         }

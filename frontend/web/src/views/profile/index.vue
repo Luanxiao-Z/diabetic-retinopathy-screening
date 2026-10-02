@@ -26,8 +26,20 @@
 
           <dl class="info-list">
             <div class="info-row">
+              <dt>用户名</dt>
+              <dd>{{ userStore.username || '—' }}</dd>
+            </div>
+            <div class="info-row">
+              <dt>真实姓名</dt>
+              <dd>{{ profile.realName || '未填写' }}</dd>
+            </div>
+            <div class="info-row">
+              <dt>手机号</dt>
+              <dd>{{ profile.phone || '未填写' }}</dd>
+            </div>
+            <div class="info-row">
               <dt>角色</dt>
-              <dd>{{ userStore.role || '—' }}</dd>
+              <dd>{{ roleText }}</dd>
             </div>
             <div class="info-row">
               <dt>数据权限</dt>
@@ -39,6 +51,10 @@
             <div class="info-row">
               <dt>功能权限</dt>
               <dd>{{ permissions.length }} 项</dd>
+            </div>
+            <div class="info-row">
+              <dt>账号创建</dt>
+              <dd>{{ profile.createTime || '—' }}</dd>
             </div>
           </dl>
         </div>
@@ -54,7 +70,7 @@
           <div v-for="grp in permissionGroups" :key="grp.title" class="perm-group">
             <div class="perm-group-title">{{ grp.title }}</div>
             <div class="perm-tags">
-              <span v-for="p in grp.items" :key="p.code" class="perm-tag" :title="p.code">
+              <span v-for="p in grp.items" :key="p.code" class="perm-tag">
                 <AppIcon name="check" :size="13" />
                 {{ p.label }}
               </span>
@@ -106,14 +122,27 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import AppIcon from '@/components/AppIcon.vue'
 import PageHeader from '@/components/PageHeader.vue'
-import { changePassword } from '@/api/user'
+import { changePassword, fetchProfile, type ProfileResult } from '@/api/user'
 import { useUserStore } from '@/stores/user'
 
 const userStore = useUserStore()
+
+/** 完整档案（含真实姓名、手机号、创建时间）；登录态只缓存了角色与权限 */
+const profile = ref<Partial<ProfileResult>>({})
+
+async function loadProfile() {
+  try {
+    profile.value = await fetchProfile()
+  } catch {
+    // 静默：档案加载失败不影响页面主体（角色与权限来自 store）
+  }
+}
+
+onMounted(loadProfile)
 
 /* ---------------- 修改密码 ---------------- */
 const pwdDialogVisible = ref(false)
@@ -183,23 +212,30 @@ const scopeHint = computed(() =>
     : '可查询、导出与删除全部筛查记录'
 )
 
+/**
+ * 权限编码 → 中文条目。映射必须覆盖后端全部权限编码，
+ * 缺失时回退为「其他权限」而非展示原始编码，避免向使用者暴露内部实现。
+ */
 const LABELS: Record<string, string> = {
   'biz:screening:create': '上传筛查',
   'biz:screening:view': '查看记录',
   'biz:screening:export': '导出报告',
   'biz:screening:delete': '删除记录',
+  'biz:screening:review': '人工复核',
   'common:dict:view': '字典查看',
   'admin:user:view': '用户管理',
   'admin:user:edit': '用户编辑',
   'admin:dict:view': '字典管理',
-  'admin:dict:edit': '字典编辑'
+  'admin:dict:edit': '字典编辑',
+  'admin:log:view': '操作日志查看'
 }
 
 const GROUP_OF: Record<string, string> = {
   'biz:screening': '筛查业务',
   'common:dict': '公共数据',
   'admin:user': '系统管理 · 用户',
-  'admin:dict': '系统管理 · 字典'
+  'admin:dict': '系统管理 · 字典',
+  'admin:log': '系统管理 · 日志'
 }
 
 const permissionGroups = computed(() => {
@@ -208,7 +244,7 @@ const permissionGroups = computed(() => {
     const prefix = code.split(':').slice(0, 2).join(':')
     const title = GROUP_OF[prefix] || '其他'
     if (!buckets.has(title)) buckets.set(title, [])
-    buckets.get(title)!.push({ code, label: LABELS[code] || code })
+    buckets.get(title)!.push({ code, label: LABELS[code] || '其他权限' })
   }
   return [...buckets.entries()].map(([title, items]) => ({ title, items }))
 })

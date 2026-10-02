@@ -13,6 +13,9 @@ public class UserPageQuery {
     @Schema(description = "用户名模糊匹配")
     private String username;
 
+    @Schema(description = "手机号模糊匹配")
+    private String phone;
+
     @Schema(description = "角色精确匹配 DOCTOR/ADMIN")
     private String role;
 
