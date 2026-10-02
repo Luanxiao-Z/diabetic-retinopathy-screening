@@ -5,6 +5,7 @@ import cn.edu.fzu.drs.module.screening.dto.ScreeningPageQuery;
 import cn.edu.fzu.drs.module.screening.vo.PatientFollowUpVO;
 import cn.edu.fzu.drs.module.screening.vo.ScreeningRecordVO;
 import cn.edu.fzu.drs.module.screening.vo.ScreeningStatisticsVO;
+import cn.edu.fzu.drs.module.screening.vo.TodoItemVO;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -55,6 +56,12 @@ public interface ScreeningRecordService {
      * <p>仅统计填写了患者姓名的记录（随访须有患者标识），受数据权限约束。</p>
      */
     PageResult<PatientFollowUpVO> pagePatients(ScreeningPageQuery query);
+
+    /**
+     * 随访待办分页：按类型（all / review / referral / overdue）聚合三类待办并分页。
+     * <p>三类数据来源不同，统一为 {@link TodoItemVO} 后按时间倒序内存分页。</p>
+     */
+    PageResult<TodoItemVO> pageTodos(ScreeningPageQuery query);
 
     /**
      * 人工复核确认：将低置信度记录标记为已复核，记录复核人、时间与意见。

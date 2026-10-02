@@ -16,6 +16,7 @@ import cn.edu.fzu.drs.module.screening.vo.DailyCountVO;
 import cn.edu.fzu.drs.module.screening.vo.PatientFollowUpVO;
 import cn.edu.fzu.drs.module.screening.vo.ScreeningRecordVO;
 import cn.edu.fzu.drs.module.screening.vo.ScreeningStatisticsVO;
+import cn.edu.fzu.drs.module.screening.vo.TodoItemVO;
 import cn.edu.fzu.drs.module.security.context.AuthContext;
 import cn.edu.fzu.drs.module.security.util.DataScopeUtils;
 import cn.edu.fzu.drs.module.security.model.AuthPrincipal;
@@ -37,6 +38,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.Duration;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -55,6 +57,12 @@ public class ScreeningRecordServiceImpl implements ScreeningRecordService {
     private static final DateTimeFormatter DATE_TIME_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
     private static final int PRESIGN_MINUTES = 30;
+
+    /** 逾期未复诊阈值（天）：超过该天数未复查且分级为中度及以上视为逾期 */
+    private static final int OVERDUE_DAYS = 90;
+
+    /** 待办单类扫描上限：待办是聚合视图，限制上限避免数据量增长后全表加载 */
+    private static final int TODO_SCAN_LIMIT = 1000;
 
     private final BizScreeningRecordMapper mapper;
     private final ObjectStorageService objectStorage;
@@ -347,13 +355,139 @@ public class ScreeningRecordServiceImpl implements ScreeningRecordService {
         return result;
     }
 
+    @Override
+    public PageResult<TodoItemVO> pageTodos(ScreeningPageQuery query) {
+        String type = (query.getTodoType() == null || query.getTodoType().isBlank())
+                ? "all" : query.getTodoType();
+        String keyword = query.getPatientName();
+
+        List<TodoItemVO> items = new ArrayList<>();
+        if ("all".equals(type) || "review".equals(type)) {
+            items.addAll(loadReviewTodos(keyword));
+        }
+        if ("all".equals(type) || "referral".equals(type)) {
+            items.addAll(loadReferralTodos(keyword));
+        }
+        if ("all".equals(type) || "overdue".equals(type)) {
+            items.addAll(loadOverdueTodos(keyword));
+        }
+
+        // 统一按时间倒序；时间缺失的排到最后
+        items.sort(Comparator.comparing(TodoItemVO::getTime,
+                Comparator.nullsLast(Comparator.reverseOrder())));
+
+        long current = query.getCurrent() == null ? 1L : Math.max(1L, query.getCurrent());
+        long size = query.getPageSize() == null ? 10L : Math.max(1L, Math.min(100L, query.getPageSize()));
+        int from = (int) Math.min((current - 1) * size, items.size());
+        int to = (int) Math.min(from + size, items.size());
+
+        PageResult<TodoItemVO> result = new PageResult<>();
+        result.setTotal(items.size());
+        result.setCurrent(current);
+        result.setPageSize(size);
+        result.setList(new ArrayList<>(items.subList(from, to)));
+        return result;
+    }
+
+    /** 待办·待人工复核：不确定性达阈值且尚未确认复核 */
+    private List<TodoItemVO> loadReviewTodos(String keyword) {
+        LambdaQueryWrapper<BizScreeningRecordEntity> wrapper = new LambdaQueryWrapper<>();
+        applyDataScope(wrapper);
+        wrapper.ge(BizScreeningRecordEntity::getUncertainty,
+                        BizScreeningRecordConvert.REVIEW_UNCERTAINTY_THRESHOLD)
+                .and(w -> w.isNull(BizScreeningRecordEntity::getReviewStatus)
+                        .or().eq(BizScreeningRecordEntity::getReviewStatus, "PENDING"));
+        if (StringUtils.hasText(keyword)) {
+            wrapper.like(BizScreeningRecordEntity::getPatientName, keyword);
+        }
+        wrapper.orderByDesc(BizScreeningRecordEntity::getCreateTime);
+        wrapper.last("LIMIT " + TODO_SCAN_LIMIT);
+
+        return mapper.selectList(wrapper).stream().map(e -> {
+            TodoItemVO vo = new TodoItemVO();
+            vo.setId("review-" + e.getId());
+            vo.setType("review");
+            vo.setTypeName("待人工复核");
+            vo.setPatientName(displayPatientName(e.getPatientName()));
+            vo.setLevelName(BizScreeningRecordConvert.nameOf(BizScreeningRecordConvert.LEVEL_NAMES, e.getResultLevel()));
+            vo.setDetail("不确定性 " + (e.getUncertainty() == null ? "—" : e.getUncertainty().toPlainString()));
+            vo.setUncertainty(e.getUncertainty());
+            vo.setTime(e.getCreateTime());
+            vo.setRecordId(e.getId());
+            return vo;
+        }).collect(Collectors.toList());
+    }
+
+    /** 待办·需转诊：分级为重度及以上（LEVEL_3 / LEVEL_4） */
+    private List<TodoItemVO> loadReferralTodos(String keyword) {
+        LambdaQueryWrapper<BizScreeningRecordEntity> wrapper = new LambdaQueryWrapper<>();
+        applyDataScope(wrapper);
+        wrapper.in(BizScreeningRecordEntity::getResultLevel, "LEVEL_3", "LEVEL_4");
+        if (StringUtils.hasText(keyword)) {
+            wrapper.like(BizScreeningRecordEntity::getPatientName, keyword);
+        }
+        wrapper.orderByDesc(BizScreeningRecordEntity::getCreateTime);
+        wrapper.last("LIMIT " + TODO_SCAN_LIMIT);
+
+        return mapper.selectList(wrapper).stream().map(e -> {
+            TodoItemVO vo = new TodoItemVO();
+            vo.setId("referral-" + e.getId());
+            vo.setType("referral");
+            vo.setTypeName("需转诊");
+            vo.setPatientName(displayPatientName(e.getPatientName()));
+            vo.setLevelName(BizScreeningRecordConvert.nameOf(BizScreeningRecordConvert.LEVEL_NAMES, e.getResultLevel()));
+            vo.setDetail(BizScreeningRecordConvert.nameOf(BizScreeningRecordConvert.SUGGESTION_NAMES, e.getSuggestion()));
+            vo.setTime(e.getCreateTime());
+            vo.setRecordId(e.getId());
+            return vo;
+        }).collect(Collectors.toList());
+    }
+
+    /** 待办·逾期未复诊：最近一次筛查距今超过阈值天数，且分级为中度及以上 */
+    private List<TodoItemVO> loadOverdueTodos(String keyword) {
+        LambdaQueryWrapper<BizScreeningRecordEntity> wrapper = new LambdaQueryWrapper<>();
+        applyDataScope(wrapper);
+        wrapper.isNotNull(BizScreeningRecordEntity::getPatientName)
+                .ne(BizScreeningRecordEntity::getPatientName, "");
+        if (StringUtils.hasText(keyword)) {
+            wrapper.like(BizScreeningRecordEntity::getPatientName, keyword);
+        }
+        wrapper.orderByAsc(BizScreeningRecordEntity::getCreateTime);
+
+        Map<String, List<BizScreeningRecordEntity>> grouped = mapper.selectList(wrapper).stream()
+                .collect(Collectors.groupingBy(BizScreeningRecordEntity::getPatientName,
+                        LinkedHashMap::new, Collectors.toList()));
+
+        LocalDateTime deadline = LocalDateTime.now().minusDays(OVERDUE_DAYS);
+        return grouped.entrySet().stream()
+                .map(e -> toFollowUp(e.getKey(), e.getValue()))
+                .filter(p -> levelIndex(p.getLatestLevel()) >= 2)
+                .filter(p -> p.getLatestTime() != null && p.getLatestTime().isBefore(deadline))
+                .map(p -> {
+                    TodoItemVO vo = new TodoItemVO();
+                    vo.setId("overdue-" + p.getPatientName());
+                    vo.setType("overdue");
+                    vo.setTypeName("逾期未复诊");
+                    vo.setPatientName(p.getPatientName());
+                    vo.setLevelName(p.getLatestLevelName());
+                    long days = Duration.between(p.getLatestTime(), LocalDateTime.now()).toDays();
+                    vo.setDetail("已 " + days + " 天未复查");
+                    vo.setTime(p.getLatestTime());
+                    return vo;
+                })
+                .collect(Collectors.toList());
+    }
+
+    private String displayPatientName(String name) {
+        return (name == null || name.isBlank()) ? "未登记患者" : name;
+    }
+
     /**
      * 患者维度的筛选（作用于聚合结果）。
      * <p>最近分级、筛查次数、待复核数、最近筛查时间都是聚合后的派生值，无法在 SQL 层过滤，
      * 因此在此处内存过滤。</p>
      */
-    private boolean matchesFollowUpFilter(PatientFollowUpVO p, ScreeningPageQuery query) {
-        if (StringUtils.hasText(query.getLatestLevel())
+    private boolean matchesFollowUpFilter(PatientFollowUpVO p, ScreeningPageQuery query) {        if (StringUtils.hasText(query.getLatestLevel())
                 && !query.getLatestLevel().equals(p.getLatestLevel())) {
             return false;
         }

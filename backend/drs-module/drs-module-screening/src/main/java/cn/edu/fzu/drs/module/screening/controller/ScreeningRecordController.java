@@ -8,6 +8,7 @@ import cn.edu.fzu.drs.module.screening.service.ScreeningRecordService;
 import cn.edu.fzu.drs.module.screening.vo.PatientFollowUpVO;
 import cn.edu.fzu.drs.module.screening.vo.ScreeningRecordVO;
 import cn.edu.fzu.drs.module.screening.vo.ScreeningStatisticsVO;
+import cn.edu.fzu.drs.module.screening.vo.TodoItemVO;
 import cn.edu.fzu.drs.module.security.annotation.RequirePermission;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -102,6 +103,14 @@ public class ScreeningRecordController {
     @RequirePermission(PermissionConstants.BIZ_SCREENING_VIEW)
     public Result<PageResult<PatientFollowUpVO>> pagePatients(@ModelAttribute ScreeningPageQuery query) {
         return Result.ok(screeningRecordService.pagePatients(query));
+    }
+
+    @Operation(summary = "随访待办分页",
+            description = "按类型（all / review / referral / overdue）聚合待人工复核、需转诊、逾期未复诊三类待办；支持患者姓名筛选与分页。")
+    @GetMapping("/todos")
+    @RequirePermission(PermissionConstants.BIZ_SCREENING_VIEW)
+    public Result<PageResult<TodoItemVO>> pageTodos(@ModelAttribute ScreeningPageQuery query) {
+        return Result.ok(screeningRecordService.pageTodos(query));
     }
 
     @Operation(summary = "人工复核确认",

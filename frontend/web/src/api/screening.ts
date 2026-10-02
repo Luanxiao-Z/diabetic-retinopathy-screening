@@ -5,7 +5,8 @@ import type {
   PatientFollowUpVO,
   ScreeningPageQuery,
   ScreeningRecordVO,
-  ScreeningStatisticsVO
+  ScreeningStatisticsVO,
+  TodoItemVO
 } from '@/types/screening'
 import { downloadBlob } from '@/utils/download'
 
@@ -78,6 +79,13 @@ export function statisticsScreening(query: ScreeningPageQuery) {
 export function pagePatients(query: ScreeningPageQuery) {
   return request.get('/biz/screening-records/patients', { params: query }) as unknown as Promise<
     PageResult<PatientFollowUpVO>
+  >
+}
+
+/** 随访待办分页（按类型聚合三类待办）。 */
+export function pageTodos(query: ScreeningPageQuery) {
+  return request.get('/biz/screening-records/todos', { params: query }) as unknown as Promise<
+    PageResult<TodoItemVO>
   >
 }
 

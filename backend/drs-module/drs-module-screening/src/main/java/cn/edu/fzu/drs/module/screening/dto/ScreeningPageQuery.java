@@ -46,6 +46,9 @@ public class ScreeningPageQuery {
     @Schema(description = "最近筛查结束时间 yyyy-MM-dd HH:mm:ss，仅患者随访使用")
     private String latestEndDate;
 
+    @Schema(description = "待办类型：all / review / referral / overdue，仅随访待办使用")
+    private String todoType;
+
     @Schema(description = "当前页（从 1 开始）", example = "1")
     private Long current = 1L;
 

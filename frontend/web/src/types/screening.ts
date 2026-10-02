@@ -88,6 +88,27 @@ export interface ScreeningPageQuery {
   latestStartDate?: string
   /** 最近筛查结束时间 yyyy-MM-dd HH:mm:ss */
   latestEndDate?: string
+
+  // -------- 随访待办专用 --------
+  /** 待办类型：all / review / referral / overdue */
+  todoType?: string
+}
+
+/** 待办类型 */
+export type TodoType = 'review' | 'referral' | 'overdue'
+
+/** 随访待办条目（对齐后端 TodoItemVO；后端 null 字段不下发） */
+export interface TodoItemVO {
+  id: string
+  type: TodoType
+  typeName: string
+  patientName: string
+  levelName?: string
+  detail?: string
+  uncertainty?: number
+  time?: string
+  /** 关联筛查记录 id（待复核、需转诊可跳诊断报告） */
+  recordId?: string
 }
 
 /** 患者随访聚合（对齐后端 PatientFollowUpVO；后端 null 字段不下发） */

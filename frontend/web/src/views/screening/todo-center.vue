@@ -2,7 +2,7 @@
   <div class="drs-page">
     <PageHeader title="随访待办" :crumbs="['筛查业务', '随访待办']">
       <template #actions>
-        <el-button :loading="loading" @click="loadAll">
+        <el-button :loading="loading" @click="loadData">
           <AppIcon name="refresh" :size="15" class="btn-ico" />刷新
         </el-button>
       </template>
@@ -11,80 +11,102 @@
     <section class="drs-card">
       <div class="drs-card-head">
         <el-radio-group v-model="activeTab" :disabled="loading">
-          <el-radio-button value="all">全部（{{ totalCount }}）</el-radio-button>
-          <el-radio-button value="review">待人工复核（{{ reviewRows.length }}）</el-radio-button>
-          <el-radio-button value="referral">需转诊（{{ referralRows.length }}）</el-radio-button>
-          <el-radio-button value="overdue">逾期未复诊（{{ overdueRows.length }}）</el-radio-button>
+          <el-radio-button value="all">全部</el-radio-button>
+          <el-radio-button value="review">待人工复核</el-radio-button>
+          <el-radio-button value="referral">需转诊</el-radio-button>
+          <el-radio-button value="overdue">逾期未复诊</el-radio-button>
         </el-radio-group>
+
         <div class="head-right">
           <el-input
             v-model="keyword"
             placeholder="按患者姓名筛选"
             clearable
             class="kw-input"
+            @keyup.enter="handleQuery"
           >
             <template #prefix><AppIcon name="search" :size="14" /></template>
           </el-input>
+          <el-button type="primary" :loading="loading" @click="handleQuery">
+            <AppIcon name="search" :size="15" class="btn-ico" />查询
+          </el-button>
+          <el-button @click="handleReset">
+            <AppIcon name="refresh" :size="15" class="btn-ico" />重置
+          </el-button>
         </div>
       </div>
 
-      <div class="drs-card-body">
-        <div v-if="!currentRows.length" class="empty-row">{{ emptyText }}</div>
-
-        <ul v-else class="todo-list">
-          <li v-for="row in currentRows" :key="row.key" class="todo-item">
-            <span class="ti-main">
-              <span class="ti-name">
-                {{ row.name }}
-                <span v-if="activeTab === 'all'" class="ti-type" :class="`tt-${row.type}`">
-                  {{ TYPE_LABEL[row.type] }}
-                </span>
-              </span>
-              <span class="ti-sub">{{ row.desc }}</span>
-            </span>
-            <span class="ti-ops">
+      <div class="table-wrap">
+        <el-table
+          v-loading="loading"
+          :data="list"
+          row-key="id"
+          border
+          @row-dblclick="onRowDblClick"
+        >
+          <el-table-column v-if="activeTab === 'all'" label="类型" min-width="120">
+            <template #default="{ row }">
+              <span class="ti-type" :class="`tt-${row.type}`">{{ row.typeName }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column prop="patientName" label="患者" min-width="150" />
+          <el-table-column prop="levelName" label="分级" min-width="130">
+            <template #default="{ row }">{{ row.levelName || '—' }}</template>
+          </el-table-column>
+          <el-table-column prop="detail" label="说明" min-width="180">
+            <template #default="{ row }">{{ row.detail || '—' }}</template>
+          </el-table-column>
+          <el-table-column prop="time" label="时间" min-width="170">
+            <template #default="{ row }">{{ row.time || '—' }}</template>
+          </el-table-column>
+          <el-table-column label="操作" width="170" fixed="right">
+            <template #default="{ row }">
               <template v-if="row.type === 'overdue'">
-                <el-button link type="primary" @click="go('/screening/patients')">随访时间线</el-button>
+                <el-button link type="primary" @click="go('/screening/patients')">
+                  随访时间线
+                </el-button>
               </template>
               <template v-else>
-                <el-button link type="primary" @click="openReport(row.recordId!)">报告</el-button>
-                <el-button v-if="row.type === 'review'" link type="warning" @click="goReview()">
+                <el-button link type="primary" @click="openReport(row.recordId)">报告</el-button>
+                <el-button v-if="row.type === 'review'" link type="warning" @click="goReview">
                   去复核
                 </el-button>
               </template>
-            </span>
-          </li>
-        </ul>
+            </template>
+          </el-table-column>
+          <template #empty>
+            <el-empty :image-size="80" :description="emptyText" />
+          </template>
+        </el-table>
+      </div>
+
+      <div class="pager">
+        <el-pagination
+          v-model:current-page="query.current"
+          v-model:page-size="query.pageSize"
+          :total="total"
+          :page-sizes="[10, 20, 50]"
+          layout="total, sizes, prev, pager, next, jumper"
+          background
+          @current-change="loadData"
+          @size-change="handleSizeChange"
+        />
       </div>
     </section>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onActivated, onMounted, ref } from 'vue'
+import { computed, onActivated, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import AppIcon from '@/components/AppIcon.vue'
 import PageHeader from '@/components/PageHeader.vue'
-import { pagePatients, pageScreening } from '@/api/screening'
+import { pageTodos } from '@/api/screening'
 import { useScreeningStore } from '@/stores/screening'
-import type { PatientFollowUpVO, ScreeningRecordVO } from '@/types/screening'
+import type { TodoItemVO, TodoType } from '@/types/screening'
 
-/** 逾期阈值（天）：超过该天数未复查且分级 >= LEVEL_2 视为逾期 */
-const OVERDUE_DAYS = 90
-const PAGE_SIZE = 20
-
-type TodoType = 'review' | 'referral' | 'overdue'
 type TabKey = 'all' | TodoType
-
-interface TodoRow {
-  key: string
-  type: TodoType
-  name: string
-  desc: string
-  /** review / referral 指向筛查记录 */
-  recordId?: string
-}
 
 const TYPE_LABEL: Record<TodoType, string> = {
   review: '待人工复核',
@@ -95,114 +117,68 @@ const TYPE_LABEL: Record<TodoType, string> = {
 const router = useRouter()
 const screeningStore = useScreeningStore()
 const loading = ref(false)
+const list = ref<TodoItemVO[]>([])
+const total = ref(0)
 const activeTab = ref<TabKey>('all')
-/** 患者姓名关键字（本地过滤，待办总量有限） */
 const keyword = ref('')
-
-const reviewRows = ref<TodoRow[]>([])
-const referralRows = ref<TodoRow[]>([])
-const overdueRows = ref<TodoRow[]>([])
-
 /** 上次加载时的数据版本，用于 KeepAlive 恢复后判断是否需要刷新 */
 const loadedVersion = ref(-1)
 
-const totalCount = computed(
-  () => reviewRows.value.length + referralRows.value.length + overdueRows.value.length
-)
+const query = reactive({ current: 1, pageSize: 10 })
 
 const emptyText = computed(() => {
-  if (keyword.value.trim()) return `没有匹配「${keyword.value.trim()}」的待办`
-  if (activeTab.value === 'all') return '暂无待办事项'
-  return `暂无${TYPE_LABEL[activeTab.value as TodoType]}记录`
-})
-
-/** 「全部」模式按类型聚合；单类型模式直接取对应列表；再按患者姓名关键字过滤 */
-const currentRows = computed<TodoRow[]>(() => {
-  let rows: TodoRow[]
-  if (activeTab.value === 'all') {
-    rows = [...reviewRows.value, ...referralRows.value, ...overdueRows.value]
-  } else if (activeTab.value === 'review') {
-    rows = reviewRows.value
-  } else if (activeTab.value === 'referral') {
-    rows = referralRows.value
-  } else {
-    rows = overdueRows.value
-  }
   const kw = keyword.value.trim()
-  return kw ? rows.filter((r) => r.name.includes(kw)) : rows
+  if (kw) return `没有匹配「${kw}」的待办`
+  return activeTab.value === 'all' ? '暂无待办事项' : `暂无${TYPE_LABEL[activeTab.value as TodoType]}记录`
 })
 
-/** 不确定性（归一化预测熵）格式化 */
-function unc(u?: number) {
-  return u == null ? '—' : u.toFixed(3)
-}
-
-function daysSince(time?: string): number {
-  if (!time) return 0
-  const t = new Date(time.replace(' ', 'T')).getTime()
-  if (Number.isNaN(t)) return 0
-  return Math.max(0, Math.floor((Date.now() - t) / 86400000))
-}
-
-/** 中度及以上（LEVEL_2..LEVEL_4）视为需要持续随访 */
-function levelIndex(level?: string): number {
-  if (!level || !level.startsWith('LEVEL_')) return -1
-  const n = Number(level.slice(6))
-  return Number.isFinite(n) ? n : -1
-}
-
-function toReviewRow(r: ScreeningRecordVO): TodoRow {
-  return {
-    key: `review-${r.id}`,
-    type: 'review',
-    name: r.patientName || '未登记患者',
-    desc: `${r.levelName || '—'} · 不确定性 ${unc(r.uncertainty)} · ${r.createTime || '—'}`,
-    recordId: r.id
-  }
-}
-
-function toReferralRow(r: ScreeningRecordVO): TodoRow {
-  return {
-    key: `referral-${r.id}`,
-    type: 'referral',
-    name: r.patientName || '未登记患者',
-    desc: `${r.levelName || '—'} · ${r.suggestionName || '—'} · ${r.createTime || '—'}`,
-    recordId: r.id
-  }
-}
-
-function toOverdueRow(p: PatientFollowUpVO): TodoRow {
-  return {
-    key: `overdue-${p.patientName}`,
-    type: 'overdue',
-    name: p.patientName,
-    desc: `最近 ${p.latestLevelName || '—'} · ${p.latestTime || '—'} · 已 ${daysSince(p.latestTime)} 天未复查`
-  }
-}
-
-async function loadAll() {
+async function loadData() {
   loading.value = true
   try {
-    const [review, l3, l4, patients] = await Promise.all([
-      pageScreening({ needReview: true, current: 1, pageSize: PAGE_SIZE }),
-      pageScreening({ level: 'LEVEL_3', current: 1, pageSize: PAGE_SIZE }),
-      pageScreening({ level: 'LEVEL_4', current: 1, pageSize: PAGE_SIZE }),
-      pagePatients({ current: 1, pageSize: 200 })
-    ])
-
-    reviewRows.value = review.list.map(toReviewRow)
-    referralRows.value = [...l4.list, ...l3.list].map(toReferralRow)
-    overdueRows.value = patients.list
-      .filter((p) => levelIndex(p.latestLevel) >= 2 && daysSince(p.latestTime) > OVERDUE_DAYS)
-      .sort((a, b) => daysSince(b.latestTime) - daysSince(a.latestTime))
-      .slice(0, PAGE_SIZE)
-      .map(toOverdueRow)
-
+    const res = await pageTodos({
+      todoType: activeTab.value,
+      patientName: keyword.value.trim() || undefined,
+      current: query.current,
+      pageSize: query.pageSize
+    })
+    list.value = res.list
+    total.value = res.total
     loadedVersion.value = screeningStore.dataVersion
   } catch (e) {
     ElMessage.error((e as Error).message || '待办加载失败')
   } finally {
     loading.value = false
+  }
+}
+
+// 切换待办类型时回到第 1 页重新查询
+watch(activeTab, () => {
+  query.current = 1
+  loadData()
+})
+
+function handleQuery() {
+  query.current = 1
+  loadData()
+}
+
+function handleReset() {
+  keyword.value = ''
+  query.current = 1
+  loadData()
+}
+
+function handleSizeChange() {
+  query.current = 1
+  loadData()
+}
+
+/** 双击行 → 该待办的主要动作（逾期看时间线，其余看诊断报告） */
+function onRowDblClick(row: TodoItemVO) {
+  if (row.type === 'overdue') {
+    go('/screening/patients')
+  } else if (row.recordId) {
+    openReport(row.recordId)
   }
 }
 
@@ -214,16 +190,17 @@ function goReview() {
   router.push('/screening/records?needReview=true')
 }
 
-function openReport(id: string) {
+function openReport(id?: string) {
+  if (!id) return
   // 页内跳转，不新开浏览器标签页
   router.push({ path: `/screening/records/${id}/report` })
 }
 
-onMounted(loadAll)
+onMounted(loadData)
 
-// 数据变更后切回本页时刷新，避免展示过期的待办
+// 完成新的筛查后切回本页时刷新
 onActivated(() => {
-  if (loadedVersion.value !== screeningStore.dataVersion) loadAll()
+  if (loadedVersion.value !== screeningStore.dataVersion) loadData()
 })
 </script>
 
@@ -243,56 +220,25 @@ onActivated(() => {
   width: 200px;
 }
 
-.empty-row {
-  padding: 24px 0;
-  text-align: center;
-  font-size: 13px;
-  color: var(--drs-ink-500);
+.table-wrap {
+  overflow-x: auto;
 }
 
-.todo-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.todo-item {
+.pager {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 11px 0;
-  border-bottom: 1px dashed var(--drs-border);
-}
-
-.todo-item:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
-}
-
-.ti-main {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  line-height: 1.5;
-}
-
-.ti-name {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13.5px;
-  font-weight: 500;
-  color: var(--drs-ink-800);
+  justify-content: flex-end;
+  padding: var(--drs-gap) var(--drs-gap-lg);
+  border-top: 1px solid var(--drs-border);
 }
 
 /* 「全部」模式下用于区分待办类型 */
 .ti-type {
-  flex-shrink: 0;
-  padding: 1px 8px;
+  display: inline-block;
+  padding: 1px 9px;
   border-radius: 999px;
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 500;
+  white-space: nowrap;
 }
 
 .tt-review {
@@ -310,18 +256,6 @@ onActivated(() => {
   color: var(--drs-primary-800);
 }
 
-.ti-sub {
-  font-size: 12px;
-  color: var(--drs-ink-500);
-}
-
-.ti-ops {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  flex-shrink: 0;
-}
-
 @media (max-width: 900px) {
   .drs-card-head {
     flex-direction: column;
@@ -329,9 +263,13 @@ onActivated(() => {
     gap: 8px;
   }
 
-  .todo-item {
-    flex-direction: column;
-    align-items: flex-start;
+  .head-right {
+    width: 100%;
+  }
+
+  .kw-input {
+    flex: 1;
+    width: auto;
   }
 }
 </style>
