@@ -2,7 +2,6 @@
   <div class="drs-page">
     <PageHeader
       title="筛查记录"
-      :subtitle="scopeSubtitle"
       :crumbs="['筛查业务', '筛查记录']"
     >
       <template #actions>
@@ -29,10 +28,6 @@
 
     <!-- ============ 筛选条件 ============ -->
     <section class="drs-card filter-card">
-      <div class="drs-card-head">
-        <h3>筛选条件</h3>
-        <span class="drs-card-meta">按患者、分级与时间范围检索</span>
-      </div>
       <div class="drs-card-body">
         <el-form :model="query" label-position="top" @submit.prevent>
           <div class="filter-grid">
@@ -93,6 +88,7 @@
           border
           @selection-change="onSelectionChange"
           @header-dragend="onHeaderDragend"
+          @row-dblclick="onRowDblClick"
         >
           <el-table-column type="selection" width="46" />
           <el-table-column prop="patientName" label="患者姓名" :min-width="widthOf('patientName', 130)">
@@ -123,9 +119,6 @@
                 </span>
                 <span class="conf-txt">{{ confidenceText(row.confidence) }}</span>
               </span>
-              <span v-if="row.needReview" class="review-tag" :title="`模型不确定性达 ${row.reviewThreshold ?? 0.2}，建议人工复核`">
-                待复核
-              </span>
             </template>
           </el-table-column>
           <el-table-column prop="uncertainty" label="不确定性" :min-width="widthOf('uncertainty', 110)">
@@ -152,7 +145,7 @@
                 <AppIcon name="check" :size="12" />已复核
               </span>
               <span v-else-if="row.needReview" class="rv rv-pending">待复核</span>
-              <span v-else class="muted">—</span>
+              <span v-else class="rv rv-none">无需复核</span>
             </template>
           </el-table-column>
           <el-table-column prop="createTime" label="筛查时间" :min-width="widthOf('createTime', 170)" />
@@ -216,7 +209,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { onActivated, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import AppIcon from '@/components/AppIcon.vue'
@@ -231,11 +224,11 @@ import {
   removeScreeningBatch,
   reviewScreening
 } from '@/api/screening'
-import { useUserStore } from '@/stores/user'
+import { useScreeningStore } from '@/stores/screening'
 import { GENDER_OPTIONS, LEVEL_COLOR, LEVEL_OPTIONS, SUGGESTION_COLOR } from '@/types/screening'
 import type { ScreeningRecordVO } from '@/types/screening'
 
-const userStore = useUserStore()
+const screeningStore = useScreeningStore()
 const route = useRoute()
 const router = useRouter()
 /** 列宽可拖拽调整并按表记忆；初始宽度按内容与容器自适应 */
@@ -245,6 +238,8 @@ const genderOptions = GENDER_OPTIONS
 
 const loading = ref(false)
 const list = ref<ScreeningRecordVO[]>([])
+/** 上次加载时的数据版本，用于 KeepAlive 恢复后判断是否需要刷新 */
+const loadedVersion = ref(-1)
 const total = ref(0)
 const dateRange = ref<[string, string] | null>(null)
 const selectedIds = ref<string[]>([])
@@ -261,12 +256,6 @@ const query = reactive({
 
 const detailVisible = ref(false)
 const currentRecord = ref<ScreeningRecordVO | null>(null)
-
-const scopeSubtitle = computed(() =>
-  userStore.dataScope === 'ALL' || userStore.role === 'ADMIN'
-    ? '查询、查看与导出全部筛查记录（数据权限：全部数据）'
-    : '查询、查看与导出本人创建的筛查记录（数据权限：仅本人数据）'
-)
 
 /** 由等级色生成浅底深字的标签样式，避免大面积实色块 */
 function chipStyle(key: string | undefined, colorMap: Record<string, string>) {
@@ -324,6 +313,7 @@ async function loadData() {
     const res = await pageScreening(buildQuery())
     list.value = res.list
     total.value = res.total
+    loadedVersion.value = screeningStore.dataVersion
   } catch (e) {
     ElMessage.error((e as Error).message || '查询失败')
   } finally {
@@ -363,6 +353,11 @@ async function openDetail(row: ScreeningRecordVO) {
   }
 }
 
+/** 双击行 → 打开详情（本列表的默认操作） */
+function onRowDblClick(row: ScreeningRecordVO) {
+  openDetail(row)
+}
+
 async function handleDelete(row: ScreeningRecordVO) {
   try {
     await ElMessageBox.confirm(`确认删除该筛查记录（患者：${row.patientName || '未登记'}）？`, '提示', {
@@ -374,6 +369,7 @@ async function handleDelete(row: ScreeningRecordVO) {
   try {
     await removeScreening(row.id)
     ElMessage.success('已删除')
+    screeningStore.bumpDataVersion()
     loadData()
   } catch (e) {
     ElMessage.error((e as Error).message || '删除失败')
@@ -407,6 +403,7 @@ async function handleReview(row: ScreeningRecordVO) {
   try {
     await reviewScreening(row.id, remark || undefined)
     ElMessage.success('已完成复核')
+    screeningStore.bumpDataVersion()
     loadData()
   } catch (e) {
     ElMessage.error((e as Error).message || '复核失败')
@@ -441,6 +438,7 @@ async function handleBatchDelete() {
       ElMessage.success(`已删除 ${success} 条记录`)
     }
     selectedIds.value = []
+    screeningStore.bumpDataVersion()
     loadData()
   } finally {
     loading.value = false
@@ -452,6 +450,11 @@ onMounted(() => {
   if (route.query.needReview === 'true') query.needReview = 'true'
   if (route.query.level) query.level = String(route.query.level)
   loadData()
+})
+
+// 完成新的筛查后切回本页时刷新，避免展示过期数据
+onActivated(() => {
+  if (loadedVersion.value !== screeningStore.dataVersion) loadData()
 })
 </script>
 
@@ -577,6 +580,12 @@ onMounted(() => {
 .rv-done {
   color: var(--drs-ok);
   background: var(--drs-ok-bg);
+}
+
+/* 无需复核：中性色，与「待复核」「已复核」形成三级区分 */
+.rv-none {
+  color: var(--drs-ink-500);
+  background: var(--drs-surface-2);
 }
 
 .muted {

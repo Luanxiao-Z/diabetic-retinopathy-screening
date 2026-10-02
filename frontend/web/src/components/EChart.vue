@@ -17,6 +17,7 @@ const props = withDefaults(defineProps<{ option: EChartsOption; height?: string 
 
 const el = ref<HTMLElement>()
 const chart = shallowRef<echarts.ECharts>()
+let observer: ResizeObserver | undefined
 
 function render() {
   if (!el.value) return
@@ -32,6 +33,16 @@ function resize() {
 
 onMounted(() => {
   render()
+  /*
+   * 仅监听 window.resize 不足以覆盖「容器尺寸变化但窗口未变」的场景——
+   * 例如侧栏折叠/展开、标签页切换、父容器从 display:none 恢复，
+   * 这些情况下图表仍按旧宽度渲染，出现留白或溢出。
+   * ResizeObserver 直接观察容器本身，可覆盖上述全部情况。
+   */
+  if (el.value && typeof ResizeObserver !== 'undefined') {
+    observer = new ResizeObserver(() => resize())
+    observer.observe(el.value)
+  }
   window.addEventListener('resize', resize)
 })
 
@@ -47,6 +58,7 @@ watch(
 )
 
 onBeforeUnmount(() => {
+  observer?.disconnect()
   window.removeEventListener('resize', resize)
   chart.value?.dispose()
 })

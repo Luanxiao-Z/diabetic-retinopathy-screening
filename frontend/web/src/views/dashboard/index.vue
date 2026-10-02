@@ -1,10 +1,6 @@
 <template>
   <div class="drs-page">
-    <PageHeader
-      title="工作台"
-      subtitle="糖尿病视网膜病变（DR）智能筛查总览 · 数据实时同步"
-      :crumbs="['综合看板', '工作台']"
-    >
+    <PageHeader title="工作台" :crumbs="['综合看板', '工作台']">
       <template #actions>
         <el-button :loading="loading" @click="load">
           <AppIcon name="refresh" :size="15" class="btn-ico" />刷新
@@ -15,7 +11,7 @@
       </template>
     </PageHeader>
 
-    <!-- ============ 指标卡 ============ -->
+    <!-- ============ 关键指标（概览） ============ -->
     <div class="drs-grid-4 kpi-row">
       <StatCard
         icon="activity"
@@ -24,7 +20,7 @@
         unit="例"
         tone="brand"
         clickable
-        foot="全部筛查记录"
+        :foot="totalFoot"
         aria-label="累计筛查记录数，点击进入筛查记录列表"
         @click="go('/screening/records')"
       />
@@ -62,44 +58,31 @@
       />
     </div>
 
-    <!-- ============ 趋势（整行） ============ -->
-    <section class="drs-card mt">
-      <div class="drs-card-head">
-        <h3>近 30 天筛查趋势</h3>
-        <span class="drs-card-meta">
-          近 30 天 {{ recentTotal }} 例 · 前 30 天 {{ prevTotal }} 例 ·
-          <b :class="growthClass">环比 {{ growthText }}</b>
-        </span>
-      </div>
-      <div class="drs-card-body">
-        <EChart v-if="hasTrend" :option="trendOption" height="240px" />
-        <el-empty v-else :image-size="72" description="暂无趋势数据，完成筛查后自动生成" />
-      </div>
-    </section>
-
-    <!-- ============ 分级分布 / 快捷操作 ============ -->
+    <!-- ============ 待办摘要 / 快捷入口 ============ -->
     <div class="drs-grid-2 mt">
       <section class="drs-card">
         <div class="drs-card-head">
-          <h3>DR 分级分布</h3>
-          <span class="drs-card-meta">共 {{ total }} 例</span>
+          <h3>待办事项</h3>
+          <el-button link type="primary" @click="go('/screening/todos')">全部待办</el-button>
         </div>
         <div class="drs-card-body">
-          <div v-for="lv in levelOrder" :key="lv" class="dist-row">
-            <span class="dist-name">
-              <i class="dist-dot" :style="{ background: levelColor[lv] }" aria-hidden="true"></i>
-              {{ levelLabel[lv] }}
+          <button
+            v-for="t in todoItems"
+            :key="t.key"
+            type="button"
+            class="todo-row"
+            @click="go(t.path)"
+          >
+            <span class="todo-ico" :class="`ti-${t.tone}`" aria-hidden="true">
+              <AppIcon :name="t.icon" :size="16" />
             </span>
-            <span class="dist-bar">
-              <span
-                class="dist-fill"
-                :style="{ width: distPercent(lv) + '%', background: levelColor[lv] }"
-              ></span>
+            <span class="todo-text">
+              <span class="todo-title">{{ t.title }}</span>
+              <span class="todo-desc">{{ t.desc }}</span>
             </span>
-            <span class="dist-val">{{ levelDist[lv] || 0 }}</span>
-            <span class="dist-pct">{{ distPercent(lv) }}%</span>
-          </div>
-          <p v-if="!total" class="panel-empty">暂无筛查数据</p>
+            <span class="todo-count" :class="`tc-${t.tone}`">{{ t.count }}</span>
+            <AppIcon name="chevronRight" :size="16" class="quick-arrow" />
+          </button>
         </div>
       </section>
 
@@ -138,59 +121,85 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onActivated, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import type { EChartsOption } from 'echarts'
 import AppIcon from '@/components/AppIcon.vue'
-import EChart from '@/components/EChart.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import StatCard from '@/components/StatCard.vue'
-import { statisticsScreening } from '@/api/screening'
+import { pagePatients, pageScreening, statisticsScreening } from '@/api/screening'
+import { useScreeningStore } from '@/stores/screening'
 import { useUserStore } from '@/stores/user'
-import { LEVEL_COLOR, LEVEL_LABEL, LEVEL_ORDER } from '@/types/screening'
-import type { ScreeningStatisticsVO } from '@/types/screening'
+import type { PatientFollowUpVO, ScreeningStatisticsVO } from '@/types/screening'
+
+/** 与「随访待办」页保持一致的逾期阈值（天） */
+const OVERDUE_DAYS = 90
 
 const router = useRouter()
 const userStore = useUserStore()
+const screeningStore = useScreeningStore()
 
 const loading = ref(false)
 const stats = ref<ScreeningStatisticsVO | null>(null)
+const pendingReview = ref(0)
+const pendingReferral = ref(0)
+const overduePatients = ref<PatientFollowUpVO[]>([])
 
-const levelOrder = LEVEL_ORDER
-const levelLabel = LEVEL_LABEL
-const levelColor = LEVEL_COLOR
+/** 上次加载时的数据版本，用于 KeepAlive 恢复后判断是否需要刷新 */
+const loadedVersion = ref(-1)
 
 const hasCreate = computed(() => userStore.permissions.includes('biz:screening:create'))
-const roleText = computed(() => (userStore.role === 'ADMIN' ? '管理员视角 · 全量数据' : '医生视角 · 本人数据'))
+const roleText = computed(() =>
+  userStore.role === 'ADMIN' ? '管理员视角 · 全量数据' : '医生视角 · 本人数据'
+)
 
-const levelDist = computed(() => stats.value?.levelDistribution || {})
+const total = computed(() => stats.value?.total || 0)
 const referralCount = computed(() => stats.value?.suggestionDistribution?.['REFERRAL'] || 0)
 const needReviewCount = computed(() => stats.value?.needReviewCount || 0)
-const total = computed(() => stats.value?.total || 0)
 
 const referralRate = computed(() => {
   const r = stats.value?.referralRate
   return r == null ? '0%' : `${(Number(r) * 100).toFixed(1)}%`
 })
 
-const trend = computed(() => stats.value?.trend || [])
-const hasTrend = computed(() => trend.value.some((t) => t.count > 0))
-
-/* 环比：近 30 天 vs 前 30 天 */
-const recentTotal = computed(() => stats.value?.recentTotal ?? 0)
-const prevTotal = computed(() => stats.value?.prevTotal ?? 0)
-const growthRate = computed(() => stats.value?.growthRate)
-const growthText = computed(() => {
-  const r = growthRate.value
-  if (r == null) return '—'
+/** 环比：近 30 天 vs 前 30 天（放在累计筛查卡的脚注，避免单独占一张图） */
+const totalFoot = computed(() => {
+  const r = stats.value?.growthRate
+  if (r == null) return '全部筛查记录'
   const pct = (Number(r) * 100).toFixed(1)
-  return Number(r) > 0 ? `+${pct}%` : `${pct}%`
+  const arrow = Number(r) > 0 ? '↑' : Number(r) < 0 ? '↓' : '→'
+  return `近 30 天 ${stats.value?.recentTotal ?? 0} 例 ${arrow} 环比 ${Math.abs(Number(pct))}%`
 })
-const growthClass = computed(() => {
-  const r = growthRate.value
-  if (r == null || Number(r) === 0) return 'growth-flat'
-  return Number(r) > 0 ? 'growth-up' : 'growth-down'
-})
+
+/** 待办摘要：三类数量 + 直达入口（详细列表在「随访待办」页） */
+const todoItems = computed(() => [
+  {
+    key: 'review',
+    title: '待人工复核',
+    desc: '模型不确定性达阈值，需核对影像',
+    count: pendingReview.value,
+    icon: 'clock',
+    tone: 'warn',
+    path: '/screening/records?needReview=true'
+  },
+  {
+    key: 'referral',
+    title: '需转诊',
+    desc: '分级为重度及以上，建议尽快转诊',
+    count: pendingReferral.value,
+    icon: 'hospital',
+    tone: 'danger',
+    path: '/screening/todos'
+  },
+  {
+    key: 'overdue',
+    title: '逾期未复诊',
+    desc: `超过 ${OVERDUE_DAYS} 天未复查且中度以上`,
+    count: overduePatients.value.length,
+    icon: 'refreshClock',
+    tone: 'brand',
+    path: '/screening/todos'
+  }
+])
 
 const quickActions = computed(() =>
   [
@@ -225,52 +234,17 @@ const quickActions = computed(() =>
   ].filter((a) => !a.permission || userStore.permissions.includes(a.permission))
 )
 
-const trendOption = computed<EChartsOption>(() => ({
-  tooltip: { trigger: 'axis' },
-  grid: { left: 8, right: 16, top: 16, bottom: 8, containLabel: true },
-  xAxis: {
-    type: 'category',
-    boundaryGap: false,
-    data: trend.value.map((t) => t.date.slice(5)),
-    axisLine: { lineStyle: { color: '#e4e8ee' } },
-    axisLabel: { color: '#64748b', fontSize: 11, interval: 4 },
-    axisTick: { show: false }
-  },
-  yAxis: {
-    type: 'value',
-    minInterval: 1,
-    splitLine: { lineStyle: { color: '#f1f5f9' } },
-    axisLabel: { color: '#64748b', fontSize: 11 }
-  },
-  series: [
-    {
-      type: 'line',
-      smooth: true,
-      showSymbol: false,
-      data: trend.value.map((t) => t.count),
-      lineStyle: { color: '#0891b2', width: 2.5 },
-      itemStyle: { color: '#0891b2' },
-      areaStyle: {
-        color: {
-          type: 'linear',
-          x: 0,
-          y: 0,
-          x2: 0,
-          y2: 1,
-          colorStops: [
-            { offset: 0, color: 'rgba(8,145,178,0.24)' },
-            { offset: 1, color: 'rgba(8,145,178,0.02)' }
-          ]
-        }
-      }
-    }
-  ]
-}))
+function daysSince(time?: string): number {
+  if (!time) return 0
+  const t = new Date(time.replace(' ', 'T')).getTime()
+  if (Number.isNaN(t)) return 0
+  return Math.max(0, Math.floor((Date.now() - t) / 86400000))
+}
 
-function distPercent(lv: string): number {
-  const t = total.value
-  if (!t) return 0
-  return Math.round(((levelDist.value[lv] || 0) / t) * 100)
+function levelIndex(level?: string): number {
+  if (!level || !level.startsWith('LEVEL_')) return -1
+  const n = Number(level.slice(6))
+  return Number.isFinite(n) ? n : -1
 }
 
 function go(path: string) {
@@ -285,7 +259,21 @@ function goReviewList() {
 async function load() {
   loading.value = true
   try {
-    stats.value = await statisticsScreening({})
+    // 待办数量只需 total，pageSize 取 1 以减少传输
+    const [s, review, l3, l4, patients] = await Promise.all([
+      statisticsScreening({}),
+      pageScreening({ needReview: true, current: 1, pageSize: 1 }),
+      pageScreening({ level: 'LEVEL_3', current: 1, pageSize: 1 }),
+      pageScreening({ level: 'LEVEL_4', current: 1, pageSize: 1 }),
+      pagePatients({ current: 1, pageSize: 200 })
+    ])
+    stats.value = s
+    pendingReview.value = review.total
+    pendingReferral.value = l3.total + l4.total
+    overduePatients.value = patients.list.filter(
+      (p) => levelIndex(p.latestLevel) >= 2 && daysSince(p.latestTime) > OVERDUE_DAYS
+    )
+    loadedVersion.value = screeningStore.dataVersion
   } catch {
     // 静默：看板数据不可用时不影响导航
   } finally {
@@ -294,11 +282,16 @@ async function load() {
 }
 
 onMounted(load)
+
+// 完成新的筛查后切回工作台时刷新指标
+onActivated(() => {
+  if (loadedVersion.value !== screeningStore.dataVersion) load()
+})
 </script>
 
 <style scoped>
 .kpi-row {
-  margin-bottom: var(--drs-gap);
+  margin-bottom: 0;
 }
 
 .mt {
@@ -309,81 +302,94 @@ onMounted(load)
   margin-right: 5px;
 }
 
-/* 环比涨跌配色：上升用青（业务量增长为正向），下降用中性灰，避免与医疗告警色混淆 */
-.growth-up {
-  color: var(--drs-primary-700);
-  font-weight: 600;
-}
-
-.growth-down {
-  color: var(--drs-ink-600);
-  font-weight: 600;
-}
-
-.growth-flat {
-  color: var(--drs-ink-500);
-}
-
-/* ---------- 分级分布 ---------- */
-.dist-row {
+/* ---------- 待办摘要 ---------- */
+.todo-row {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 7px 0;
-  font-size: 13px;
+  gap: 12px;
+  width: 100%;
+  padding: 11px 12px;
+  margin-bottom: 8px;
+  border: 1px solid var(--drs-border);
+  border-radius: var(--drs-radius-sm);
+  background: var(--drs-surface);
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  transition: border-color 0.16s ease, background-color 0.16s ease;
 }
 
-.dist-name {
+.todo-row:last-of-type {
+  margin-bottom: 0;
+}
+
+.todo-row:hover {
+  border-color: var(--drs-primary-200);
+  background: var(--drs-primary-50);
+}
+
+.todo-ico {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  width: 104px;
-  flex-shrink: 0;
-  color: var(--drs-ink-600);
-}
-
-.dist-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.dist-bar {
-  flex: 1;
-  height: 8px;
-  background: var(--drs-ink-100);
-  border-radius: 4px;
-  overflow: hidden;
-  min-width: 60px;
-}
-
-.dist-fill {
-  display: block;
-  height: 100%;
-  border-radius: 4px;
-  transition: width 0.4s ease;
-}
-
-.dist-val {
+  justify-content: center;
   width: 34px;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: 9px;
+}
+
+.ti-warn {
+  background: var(--drs-warn-bg);
+  color: var(--drs-warn);
+}
+
+.ti-danger {
+  background: var(--drs-danger-bg);
+  color: var(--drs-danger);
+}
+
+.ti-brand {
+  background: var(--drs-primary-50);
+  color: var(--drs-primary-700);
+}
+
+.todo-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.todo-title {
+  font-size: 13.5px;
+  font-weight: 500;
   color: var(--drs-ink-800);
 }
 
-.dist-pct {
-  width: 42px;
-  text-align: right;
+.todo-desc {
   font-size: 12px;
   color: var(--drs-ink-500);
+}
+
+.todo-count {
+  flex-shrink: 0;
+  min-width: 30px;
+  text-align: right;
+  font-size: 17px;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 
-.panel-empty {
-  margin: 12px 0 0;
-  font-size: 13px;
-  color: var(--drs-ink-500);
+.tc-warn {
+  color: var(--drs-warn);
+}
+
+.tc-danger {
+  color: var(--drs-danger);
+}
+
+.tc-brand {
+  color: var(--drs-primary-700);
 }
 
 /* ---------- 快捷操作 ---------- */

@@ -2,7 +2,6 @@
   <div class="drs-page">
     <PageHeader
       title="统计分析"
-      subtitle="分级构成、转诊建议分布与近 30 天筛查趋势"
       :crumbs="['筛查业务', '统计分析']"
     >
       <template #actions>
@@ -12,14 +11,26 @@
       </template>
     </PageHeader>
 
-    <div class="drs-grid-4 kpi-row">
-      <StatCard icon="activity" label="累计筛查" :value="total" unit="例" tone="brand" />
-      <StatCard icon="alert" label="转诊率" :value="referralRate" tone="danger" />
-      <StatCard icon="hospital" label="需转诊" :value="referralCount" unit="例" tone="warn" />
-      <StatCard icon="stethoscope" label="建议就诊" :value="clinicCount" unit="例" tone="info" />
-    </div>
+    <!-- 详细统计明细：取代原先与工作台重复的指标卡 -->
+    <section class="drs-card summary-card">
+      <div class="drs-card-head">
+        <h3>统计明细</h3>
+        <span class="drs-card-meta">共 {{ total }} 例</span>
+      </div>
+      <div class="drs-card-body">
+        <el-table :data="summaryRows" size="small" border>
+          <el-table-column prop="label" label="统计项" min-width="150" />
+          <el-table-column prop="value" label="数值" width="130" align="right">
+            <template #default="{ row }">
+              <b :class="row.tone ? `sv-${row.tone}` : ''">{{ row.value }}</b>
+            </template>
+          </el-table-column>
+          <el-table-column prop="desc" label="说明" min-width="240" />
+        </el-table>
+      </div>
+    </section>
 
-    <div v-loading="loading" class="chart-grid">
+    <div v-loading="loading" class="chart-grid mt">
       <section class="drs-card">
         <div class="drs-card-head">
           <h3>DR 分级分布</h3>
@@ -59,26 +70,69 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onActivated, onMounted, ref } from 'vue'
 import type { EChartsOption } from 'echarts'
 import AppIcon from '@/components/AppIcon.vue'
 import EChart from '@/components/EChart.vue'
 import PageHeader from '@/components/PageHeader.vue'
-import StatCard from '@/components/StatCard.vue'
 import { statisticsScreening } from '@/api/screening'
+import { useScreeningStore } from '@/stores/screening'
 import { LEVEL_COLOR, LEVEL_LABEL, SUGGESTION_COLOR, SUGGESTION_LABEL } from '@/types/screening'
 import type { ScreeningStatisticsVO } from '@/types/screening'
 
+const screeningStore = useScreeningStore()
 const loading = ref(false)
 const stats = ref<ScreeningStatisticsVO | null>(null)
 
+/** 上次加载时的数据版本，用于 KeepAlive 恢复后判断是否需要刷新 */
+const loadedVersion = ref(-1)
+
 const total = computed(() => stats.value?.total || 0)
-const referralRate = computed(() => {
-  const r = stats.value?.referralRate
-  return r == null ? '0%' : `${(Number(r) * 100).toFixed(1)}%`
-})
 const referralCount = computed(() => stats.value?.suggestionDistribution?.['REFERRAL'] || 0)
 const clinicCount = computed(() => stats.value?.suggestionDistribution?.['CLINIC'] || 0)
+const reviewCount = computed(() => stats.value?.suggestionDistribution?.['REVIEW'] || 0)
+const needReviewCount = computed(() => stats.value?.needReviewCount || 0)
+
+/** 统计明细：比指标卡给出更完整的口径说明，避免与工作台概览重复 */
+const summaryRows = computed(() => {
+  const t = total.value
+  const rate = stats.value?.referralRate
+  const r = stats.value?.growthRate
+  const growth = r == null ? '—' : `${Number(r) > 0 ? '+' : ''}${(Number(r) * 100).toFixed(1)}%`
+  const pending = needReviewCount.value
+  return [
+    { label: '累计筛查', value: `${t} 例`, desc: '全部筛查记录（受数据权限约束）', tone: '' },
+    { label: '近 30 天筛查', value: `${recentTotal.value} 例`, desc: '最近 30 天新增记录', tone: '' },
+    { label: '前 30 天筛查', value: `${prevTotal.value} 例`, desc: '再往前 30 天，用于环比对照', tone: '' },
+    {
+      label: '环比',
+      value: growth,
+      desc: '近 30 天相对前 30 天的变化率',
+      tone: Number(r) > 0 ? 'up' : Number(r) < 0 ? 'down' : ''
+    },
+    {
+      label: '转诊率',
+      value: rate == null ? '—' : `${(Number(rate) * 100).toFixed(1)}%`,
+      desc: '建议尽快转诊占比',
+      tone: 'danger'
+    },
+    {
+      label: '需转诊',
+      value: `${referralCount.value} 例`,
+      desc: '转诊建议为 REFERRAL（重度及以上）',
+      tone: 'warn'
+    },
+    { label: '建议就诊', value: `${clinicCount.value} 例`, desc: '转诊建议为 CLINIC（中度）', tone: '' },
+    { label: '定期复查', value: `${reviewCount.value} 例`, desc: '转诊建议为 REVIEW（轻度及以下）', tone: '' },
+    {
+      label: '待人工复核',
+      value: `${pending} 例`,
+      desc: '模型不确定性达阈值且尚未确认复核',
+      tone: 'warn'
+    },
+    { label: '无需复核', value: `${Math.max(0, t - pending)} 例`, desc: '不确定性低于阈值，或已完成复核', tone: '' }
+  ]
+})
 
 const hasLevel = computed(() => Object.keys(stats.value?.levelDistribution || {}).length > 0)
 const hasSuggestion = computed(() => Object.keys(stats.value?.suggestionDistribution || {}).length > 0)
@@ -203,6 +257,7 @@ async function load() {
   loading.value = true
   try {
     stats.value = await statisticsScreening({})
+    loadedVersion.value = screeningStore.dataVersion
   } catch {
     // 静默：图表区已有空态兜底
   } finally {
@@ -211,6 +266,11 @@ async function load() {
 }
 
 onMounted(load)
+
+// 完成新的筛查后切回本页时刷新统计
+onActivated(() => {
+  if (loadedVersion.value !== screeningStore.dataVersion) load()
+})
 </script>
 
 <style scoped>
@@ -218,8 +278,25 @@ onMounted(load)
   margin-right: 5px;
 }
 
-.kpi-row {
-  margin-bottom: var(--drs-gap);
+.mt {
+  margin-top: var(--drs-gap);
+}
+
+/* 明细表数值配色 */
+.sv-up {
+  color: var(--drs-primary-700);
+}
+
+.sv-down {
+  color: var(--drs-ink-600);
+}
+
+.sv-danger {
+  color: var(--drs-danger);
+}
+
+.sv-warn {
+  color: var(--drs-warn);
 }
 
 .chart-grid {

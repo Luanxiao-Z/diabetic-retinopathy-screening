@@ -2,7 +2,6 @@
   <div class="drs-page">
     <PageHeader
       title="字典管理"
-      subtitle="维护系统字典域与字典项（仅管理员可访问）"
       :crumbs="['系统管理', '字典管理']"
     >
       <template #actions>
@@ -75,7 +74,13 @@
           </div>
 
           <div class="table-wrap">
-            <el-table v-loading="loadingItems" :data="items" row-key="itemCode" border>
+            <el-table
+              v-loading="loadingItems"
+              :data="items"
+              row-key="itemCode"
+              border
+              @row-dblclick="openItemEdit"
+            >
               <el-table-column prop="itemCode" label="编码" min-width="140" />
               <el-table-column prop="itemName" label="名称" min-width="150" />
               <el-table-column label="扩展值" min-width="110">

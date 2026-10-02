@@ -2,7 +2,6 @@
   <div class="drs-page">
     <PageHeader
       title="患者随访"
-      subtitle="按患者归并历次筛查，识别分级进展与好转（DR 为进展性疾病，纵向对比才有临床意义）"
       :crumbs="['筛查业务', '患者随访']"
     >
       <template #actions>
@@ -13,10 +12,6 @@
     </PageHeader>
 
     <section class="drs-card filter-card">
-      <div class="drs-card-head">
-        <h3>筛选条件</h3>
-        <span class="drs-card-meta">仅统计已填写患者姓名的记录</span>
-      </div>
       <div class="drs-card-body">
         <el-form :model="query" label-position="top" @submit.prevent>
           <div class="filter-grid">
@@ -43,7 +38,13 @@
       </div>
 
       <div class="table-wrap">
-        <el-table v-loading="loading" :data="list" row-key="patientName" border>
+        <el-table
+          v-loading="loading"
+          :data="list"
+          row-key="patientName"
+          border
+          @row-dblclick="openTimeline"
+        >
           <el-table-column label="患者" min-width="140">
             <template #default="{ row }">
               <span class="patient">
@@ -60,7 +61,7 @@
               <span class="count">{{ row.totalCount }}</span>
             </template>
           </el-table-column>
-          <el-table-column label="分级变化" min-width="230">
+          <el-table-column label="分级变化" min-width="200">
             <template #default="{ row }">
               <span class="change">
                 <template v-if="row.previousLevel">
@@ -68,9 +69,13 @@
                   <AppIcon name="arrowRight" :size="14" class="change-arrow" />
                 </template>
                 <span class="chip" :style="chipStyle(row.latestLevel)">{{ row.latestLevelName || '—' }}</span>
-                <span class="trend" :class="`trend-${(row.trendDirection || '').toLowerCase()}`">
-                  {{ trendLabel(row.trendDirection) }}
-                </span>
+              </span>
+            </template>
+          </el-table-column>
+          <el-table-column label="变化趋势" min-width="96">
+            <template #default="{ row }">
+              <span class="trend" :class="`trend-${(row.trendDirection || '').toLowerCase()}`">
+                {{ trendLabel(row.trendDirection) }}
               </span>
             </template>
           </el-table-column>
@@ -141,17 +146,21 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { onActivated, onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import AppIcon from '@/components/AppIcon.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import { pagePatients, patientTimeline } from '@/api/screening'
+import { useScreeningStore } from '@/stores/screening'
 import { GENDER_OPTIONS, LEVEL_COLOR } from '@/types/screening'
 import type { PatientFollowUpVO, ScreeningRecordVO } from '@/types/screening'
 
+const screeningStore = useScreeningStore()
 const loading = ref(false)
 const list = ref<PatientFollowUpVO[]>([])
 const total = ref(0)
+/** 上次加载时的数据版本，用于 KeepAlive 恢复后判断是否需要刷新 */
+const loadedVersion = ref(-1)
 
 const query = reactive({
   patientName: '',
@@ -213,6 +222,7 @@ async function loadData() {
     const res = await pagePatients({ ...query })
     list.value = res.list
     total.value = res.total
+    loadedVersion.value = screeningStore.dataVersion
   } catch (e) {
     ElMessage.error((e as Error).message || '随访数据加载失败')
   } finally {
@@ -251,6 +261,11 @@ async function openTimeline(row: PatientFollowUpVO) {
 }
 
 onMounted(loadData)
+
+// 完成新的筛查后切回本页时刷新
+onActivated(() => {
+  if (loadedVersion.value !== screeningStore.dataVersion) loadData()
+})
 </script>
 
 <style scoped>

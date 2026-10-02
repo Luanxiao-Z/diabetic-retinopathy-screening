@@ -107,7 +107,7 @@
             <tr v-for="lv in levelOrder" :key="lv" :class="{ 'is-hit': lv === record.resultLevel }">
               <td>{{ lv }}</td>
               <td>{{ levelLabel[lv] }}</td>
-              <td class="num">{{ probPercent(lv) }}%</td>
+              <td class="num">{{ probPercent(lv) }}</td>
             </tr>
           </tbody>
         </table>
@@ -178,7 +178,7 @@ const levelLabel = LEVEL_LABEL
 
 const levelColor = computed(() => LEVEL_COLOR[record.value?.resultLevel || ''] || '#0891b2')
 const confidenceText = computed(() =>
-  record.value?.confidence == null ? '—' : `${(record.value.confidence * 100).toFixed(1)}%`
+  record.value?.confidence == null ? '—' : `${(clamp01(record.value.confidence) * 100).toFixed(1)}%`
 )
 const genderLabel = computed(() => {
   const g = GENDER_OPTIONS.find((o) => o.value === record.value?.patientGender)
@@ -186,11 +186,22 @@ const genderLabel = computed(() => {
 })
 const generatedAt = computed(() => new Date().toLocaleString('zh-CN'))
 
-function probPercent(lv: string): number {
+/** 后端概率契约为 0~1 的 softmax 输出；仅做防御性钳制，不做单位猜测 */
+function clamp01(v: number): number {
+  return Math.min(1, Math.max(0, v))
+}
+
+/**
+ * 概率显示文本。保留一位小数并对极小的非零值显式标注：
+ * 若用 Math.round，99.58% 会显示为 100%、0.41% 会显示为 0%，掩盖真实分布。
+ */
+function probPercent(lv: string): string {
   const v = record.value?.probabilities?.[lv]
-  if (v == null) return 0
-  const p = v > 1 ? v / 100 : v
-  return Math.round(p * 100)
+  if (v == null) return '—'
+  const p = clamp01(v) * 100
+  if (p === 0) return '0%'
+  if (p < 0.1) return '<0.1%'
+  return `${p.toFixed(1)}%`
 }
 
 function print() {

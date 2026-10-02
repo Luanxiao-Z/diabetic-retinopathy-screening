@@ -2,7 +2,6 @@
   <div class="drs-page">
     <PageHeader
       title="使用指南"
-      subtitle="DR 智能筛查系统的角色说明、操作流程与常见问题"
       :crumbs="['帮助', '使用指南']"
     />
 

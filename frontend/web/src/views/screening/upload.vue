@@ -2,7 +2,6 @@
   <div class="drs-page">
     <PageHeader
       title="筛查上传"
-      subtitle="上传眼底照片，系统逐张完成 AI 分级推理并生成可解释热力图"
       :crumbs="['筛查业务', '筛查上传']"
     >
       <template #actions>
@@ -86,6 +85,15 @@
                   已添加 <b>{{ pendingCount }}</b> 张影像，<b>点击缩略图可放大预览</b>；
                   确认无误后点击右上角「开始筛查」。误传的影像可点击行尾
                   <AppIcon name="trash" :size="12" /> 移除。
+                </span>
+              </div>
+
+              <!-- 未填写患者信息提醒：不阻塞流程，但引导补充以便后续检索与随访 -->
+              <div v-if="pendingCount && !hasPatientInfo" class="queue-hint is-warn">
+                <AppIcon name="alert" :size="13" />
+                <span>
+                  尚未填写患者信息，本次筛查将记为「未登记患者」。
+                  <button type="button" class="link-btn" @click="openPatientDialog">填写患者信息</button>
                 </span>
               </div>
 
@@ -259,11 +267,13 @@ import AppIcon from '@/components/AppIcon.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import ResultCard from '@/components/ResultCard.vue'
 import { removeScreening, uploadScreening } from '@/api/screening'
+import { useScreeningStore } from '@/stores/screening'
 import { useUserStore } from '@/stores/user'
 import { GENDER_OPTIONS } from '@/types/screening'
 import type { ScreeningRecordVO } from '@/types/screening'
 
 const userStore = useUserStore()
+const screeningStore = useScreeningStore()
 
 type ItemStatus = 'pending' | 'uploading' | 'done' | 'error'
 
@@ -451,6 +461,8 @@ async function runOne(it: QueueItem): Promise<boolean> {
     it.status = 'done'
     it.costMs = Date.now() - startedAt
     it.recordId = data[0]?.id
+    // 通知列表页数据已变更，切回时自动刷新
+    screeningStore.bumpDataVersion()
     // 新结果插到最前，并自动切到该结果
     results.value = [...data, ...results.value]
     resultIndex.value = 0
@@ -463,10 +475,31 @@ async function runOne(it: QueueItem): Promise<boolean> {
 }
 
 /** 手动触发（用于首次未自动开始或补充提交） */
-function handleSubmit() {
+async function handleSubmit() {
   if (!items.value.some((i) => i.status === 'pending')) {
     ElMessage.warning('请先选择眼底影像')
     return
+  }
+  // 未填写患者信息时二次确认：不阻塞流程，但避免漏填后无法按患者检索与随访
+  if (!hasPatientInfo.value) {
+    try {
+      await ElMessageBox.confirm(
+        '尚未填写患者信息，本次筛查将记为「未登记患者」，后续无法按患者检索与随访。是否现在填写？',
+        '未填写患者信息',
+        {
+          confirmButtonText: '去填写',
+          cancelButtonText: '仍要筛查',
+          distinguishCancelAndClose: true,
+          type: 'warning'
+        }
+      )
+      // 确认 → 打开填写对话框，暂不提交
+      openPatientDialog()
+      return
+    } catch (action) {
+      // 取消（「仍要筛查」）→ 继续提交；关闭（X / ESC）→ 中止
+      if (action !== 'cancel') return
+    }
   }
   drainQueue()
 }
@@ -647,6 +680,17 @@ async function loadDemoSample() {
 }
 
 /* ---------- 上传区 ---------- */
+/*
+ * 统一宽度基准：Element Plus 的 .el-upload 默认 inline-block，
+ * 而「队列为空」态曾改为 display:flex，两种 display 下宽度计算方式不同，
+ * 导致上传前后拖拽区宽度不一致、视觉跳动。此处固定为块级满宽，
+ * 仅让高度在空队列时填充剩余空间。
+ */
+.fundus-upload {
+  display: block;
+  width: 100%;
+}
+
 .fundus-upload :deep(.el-upload-dragger) {
   padding: 20px 16px;
   width: 100%;
@@ -661,9 +705,11 @@ async function loadDemoSample() {
   flex: 1;
   min-height: 200px;
   display: flex;
+  flex-direction: column;
 }
 
 .fundus-upload.is-fill :deep(.el-upload-dragger) {
+  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -939,6 +985,23 @@ async function loadDemoSample() {
 .queue-hint :deep(svg) {
   margin-top: 3px;
   flex-shrink: 0;
+}
+
+/* 未填写患者信息：警示色提示，与常规引导区分 */
+.queue-hint.is-warn {
+  background: var(--drs-warn-bg);
+  color: var(--drs-warn);
+}
+
+.link-btn {
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
 }
 
 /* ---------- 结果轮播（每次只显示一张） ---------- */

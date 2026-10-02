@@ -2,7 +2,6 @@
   <div class="drs-page">
     <PageHeader
       title="操作日志"
-      subtitle="关键业务动作留痕：登录、筛查上传/删除/导出、用户与字典变更（仅管理员可访问）"
       :crumbs="['系统管理', '操作日志']"
     >
       <template #actions>
@@ -13,10 +12,6 @@
     </PageHeader>
 
     <section class="drs-card filter-card">
-      <div class="drs-card-head">
-        <h3>筛选条件</h3>
-        <span class="drs-card-meta">按操作人、模块、结果与时间检索</span>
-      </div>
       <div class="drs-card-body">
         <el-form :model="query" label-position="top" @submit.prevent>
           <div class="filter-grid">

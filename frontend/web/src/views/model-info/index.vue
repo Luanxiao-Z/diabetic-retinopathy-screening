@@ -2,7 +2,6 @@
   <div class="drs-page">
     <PageHeader
       title="模型信息"
-      subtitle="筛查所用 AI 模型的来源、推理环境与训练性能指标"
       :crumbs="['综合看板', '模型信息']"
     >
       <template #actions>

@@ -2,7 +2,6 @@
   <div class="drs-page">
     <PageHeader
       title="用户管理"
-      subtitle="维护系统账号、角色与启用状态（仅管理员可访问）"
       :crumbs="['系统管理', '用户管理']"
     >
       <template #actions>
@@ -13,10 +12,6 @@
     </PageHeader>
 
     <section class="drs-card filter-card">
-      <div class="drs-card-head">
-        <h3>筛选条件</h3>
-        <span class="drs-card-meta">按用户名、角色与状态检索</span>
-      </div>
       <div class="drs-card-body">
         <el-form :model="query" label-position="top" @submit.prevent>
           <div class="filter-grid">
@@ -53,7 +48,13 @@
       </div>
 
       <div class="table-wrap">
-        <el-table v-loading="loading" :data="list" row-key="id" border>
+        <el-table
+          v-loading="loading"
+          :data="list"
+          row-key="id"
+          border
+          @row-dblclick="openEdit"
+        >
           <el-table-column prop="username" label="用户名" min-width="130">
             <template #default="{ row }">
               <span class="uname">

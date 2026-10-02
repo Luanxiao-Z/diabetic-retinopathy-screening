@@ -10,7 +10,6 @@
     <div class="head-row">
       <div class="head-main">
         <h1 class="head-title">{{ title }}</h1>
-        <p v-if="subtitle" class="head-sub">{{ subtitle }}</p>
       </div>
       <div v-if="$slots.actions" class="head-actions">
         <slot name="actions" />
@@ -28,12 +27,11 @@ import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 
 /**
- * 统一页头：面包屑 + 标题 + 副标题 + 右侧操作区。
+ * 统一页头：面包屑 + 标题 + 右侧操作区。
  * 未显式传入 crumbs 时，按路由 meta.crumb 自动推导。
  */
 const props = defineProps<{
   title: string
-  subtitle?: string
   crumbs?: string[]
 }>()
 
@@ -90,12 +88,6 @@ const crumbs = computed<string[]>(() => {
   letter-spacing: -0.2px;
   margin: 0;
   color: var(--drs-ink-900);
-}
-
-.head-sub {
-  font-size: 13px;
-  color: var(--drs-ink-500);
-  margin: 4px 0 0;
 }
 
 .head-actions {

@@ -1,6 +1,6 @@
 <template>
   <div class="drs-page">
-    <PageHeader title="个人中心" subtitle="当前登录账号、数据权限与功能权限" :crumbs="['账户', '个人中心']">
+    <PageHeader title="个人中心" :crumbs="['账户', '个人中心']">
       <template #actions>
         <el-button type="primary" @click="openPwdDialog">
           <AppIcon name="lock" :size="15" class="btn-ico" />修改密码

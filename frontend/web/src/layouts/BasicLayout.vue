@@ -190,8 +190,7 @@ const NAV_GROUPS: NavGroup[] = [
     title: '综合看板',
     items: [
       { path: '/dashboard', title: '工作台', icon: 'dashboard', permission: 'biz:screening:view' },
-      { path: '/screening/statistics', title: '统计分析', icon: 'chart', permission: 'biz:screening:view' },
-      { path: '/model-info', title: '模型信息', icon: 'layers', permission: 'biz:screening:view' }
+      { path: '/screening/statistics', title: '统计分析', icon: 'chart', permission: 'biz:screening:view' }
     ]
   },
   {
@@ -205,11 +204,6 @@ const NAV_GROUPS: NavGroup[] = [
     ]
   },
   {
-    key: 'account',
-    title: '账户',
-    items: [{ path: '/profile', title: '个人中心', icon: 'user' }]
-  },
-  {
     key: 'system',
     title: '系统管理',
     items: [
@@ -219,10 +213,16 @@ const NAV_GROUPS: NavGroup[] = [
     ]
   },
   {
+    key: 'account',
+    title: '账户',
+    items: [{ path: '/profile', title: '个人中心', icon: 'user' }]
+  },
+  {
     key: 'help',
     title: '帮助',
     items: [
       { path: '/guide', title: '使用指南', icon: 'book' },
+      { path: '/model-info', title: '模型信息', icon: 'layers', permission: 'biz:screening:view' },
       { path: '/about', title: '关于系统', icon: 'info' }
     ]
   }

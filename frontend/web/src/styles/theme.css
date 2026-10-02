@@ -333,3 +333,35 @@ a:hover {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* ============================ 打印 ============================ */
+/*
+ * 诊断报告在应用壳层内渲染，若不加处理会把侧栏、顶栏与标签栏一并打印。
+ * 此处全局隐藏壳层元素，仅输出报告正文（report.vue 再隐藏自身工具栏）。
+ */
+@media print {
+  .sider,
+  .topbar,
+  .tabbar {
+    display: none !important;
+  }
+
+  /* 壳层默认是 flex 布局，打印时改为常规流，使内容占满纸宽 */
+  .layout,
+  .body {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  .content {
+    height: auto !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+  }
+}

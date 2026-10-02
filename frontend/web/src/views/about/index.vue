@@ -2,7 +2,6 @@
   <div class="drs-page">
     <PageHeader
       title="关于系统"
-      subtitle="系统定位、技术架构、版本信息与第三方组件说明"
       :crumbs="['帮助', '关于系统']"
     />
 
