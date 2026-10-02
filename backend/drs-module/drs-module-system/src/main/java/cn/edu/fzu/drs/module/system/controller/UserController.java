@@ -4,6 +4,7 @@ import cn.edu.fzu.drs.module.common.result.Result;
 import cn.edu.fzu.drs.module.security.context.AuthContext;
 import cn.edu.fzu.drs.module.security.model.AuthPrincipal;
 import cn.edu.fzu.drs.module.system.dto.PasswordChangeDTO;
+import cn.edu.fzu.drs.module.system.dto.ProfileUpdateDTO;
 import cn.edu.fzu.drs.module.system.service.UserService;
 import cn.edu.fzu.drs.module.system.vo.ProfileVO;
 import io.swagger.v3.oas.annotations.Operation;
@@ -47,6 +48,12 @@ public class UserController {
             return Result.ok(null);
         }
         return Result.ok(userService.currentProfile());
+    }
+
+    @Operation(summary = "修改当前用户资料", description = "仅允许修改真实姓名与手机号；角色与数据范围等权限相关字段不可由本人变更")
+    @PutMapping
+    public Result<ProfileVO> updateProfile(@Valid @RequestBody ProfileUpdateDTO dto) {
+        return Result.ok(userService.updateProfile(dto));
     }
 
     @Operation(summary = "修改当前账号密码", description = "校验原密码一致后更新为新密码；需重新登录以外的凭据仍然有效。")

@@ -1,5 +1,6 @@
 package cn.edu.fzu.drs.module.system.service;
 
+import cn.edu.fzu.drs.module.system.dto.ProfileUpdateDTO;
 import cn.edu.fzu.drs.module.system.vo.ProfileVO;
 
 /**
@@ -16,4 +17,11 @@ public interface UserService {
      * 查询当前登录用户的完整档案（含真实姓名、手机号与账号创建时间）。
      */
     ProfileVO currentProfile();
+
+    /**
+     * 修改当前用户资料（仅真实姓名与手机号）。
+     *
+     * @return 修改后的完整档案
+     */
+    ProfileVO updateProfile(ProfileUpdateDTO dto);
 }

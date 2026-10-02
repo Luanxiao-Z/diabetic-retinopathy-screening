@@ -2,6 +2,9 @@
   <div class="drs-page">
     <PageHeader title="个人中心" :crumbs="['账户', '个人中心']">
       <template #actions>
+        <el-button @click="openProfileDialog">
+          <AppIcon name="user" :size="15" class="btn-ico" />编辑资料
+        </el-button>
         <el-button type="primary" @click="openPwdDialog">
           <AppIcon name="lock" :size="15" class="btn-ico" />修改密码
         </el-button>
@@ -45,7 +48,6 @@
               <dt>数据权限</dt>
               <dd>
                 <span class="scope-pill">{{ scopeText }}</span>
-                <span class="info-hint">{{ scopeHint }}</span>
               </dd>
             </div>
             <div class="info-row">
@@ -54,7 +56,7 @@
             </div>
             <div class="info-row">
               <dt>账号创建</dt>
-              <dd>{{ profile.createTime || '—' }}</dd>
+              <dd>{{ formatDateTime(profile.createTime) }}</dd>
             </div>
           </dl>
         </div>
@@ -79,6 +81,27 @@
           <p v-if="!permissionGroups.length" class="perm-empty">当前账号未分配任何功能权限</p>
         </div>
       </section>
+
+    <el-dialog v-model="profileDialogVisible" title="编辑资料" width="440px" destroy-on-close>
+      <p class="pwd-tip">角色与数据范围由管理员分配，不在此处修改。</p>
+      <el-form
+        ref="profileFormRef"
+        :model="profileForm"
+        :rules="profileRules"
+        label-position="top"
+      >
+        <el-form-item label="真实姓名" prop="realName">
+          <el-input v-model="profileForm.realName" maxlength="20" placeholder="请输入真实姓名" />
+        </el-form-item>
+        <el-form-item label="手机号" prop="phone">
+          <el-input v-model="profileForm.phone" maxlength="11" placeholder="选填，用于联系与账号找回" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="profileDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="profileSubmitting" @click="submitProfile">保存</el-button>
+      </template>
+    </el-dialog>
 
     <el-dialog v-model="pwdDialogVisible" title="修改密码" width="440px" destroy-on-close>
       <p class="pwd-tip">修改后当前会话仍有效，下次登录请使用新密码。</p>
@@ -126,8 +149,9 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import AppIcon from '@/components/AppIcon.vue'
 import PageHeader from '@/components/PageHeader.vue'
-import { changePassword, fetchProfile, type ProfileResult } from '@/api/user'
+import { changePassword, fetchProfile, updateProfile, type ProfileResult } from '@/api/user'
 import { useUserStore } from '@/stores/user'
+import { formatDateTime } from '@/utils/format'
 
 const userStore = useUserStore()
 
@@ -143,6 +167,55 @@ async function loadProfile() {
 }
 
 onMounted(loadProfile)
+
+/* ---------------- 编辑资料 ---------------- */
+const profileDialogVisible = ref(false)
+const profileFormRef = ref<FormInstance>()
+const profileSubmitting = ref(false)
+const profileForm = reactive({ realName: '', phone: '' })
+
+/** 与后端 ProfileUpdateDTO 的校验规则保持一致 */
+const profileRules: FormRules = {
+  realName: [
+    { required: true, message: '请输入真实姓名', trigger: 'blur' },
+    { max: 20, message: '最长 20 个字符', trigger: 'blur' }
+  ],
+  phone: [
+    {
+      validator: (_r, v: string, cb) => {
+        if (!v) return cb()
+        if (/^1[3-9]\d{9}$/.test(v)) return cb()
+        cb(new Error('请输入正确的手机号'))
+      },
+      trigger: 'blur'
+    }
+  ]
+}
+
+function openProfileDialog() {
+  profileForm.realName = profile.value.realName || ''
+  profileForm.phone = profile.value.phone || ''
+  profileDialogVisible.value = true
+}
+
+async function submitProfile() {
+  if (!profileFormRef.value) return
+  const ok = await profileFormRef.value.validate().catch(() => false)
+  if (!ok) return
+  profileSubmitting.value = true
+  try {
+    profile.value = await updateProfile({
+      realName: profileForm.realName.trim(),
+      phone: profileForm.phone.trim() || undefined
+    })
+    profileDialogVisible.value = false
+    ElMessage.success('资料已更新')
+  } catch (e) {
+    ElMessage.error((e as Error).message || '保存失败')
+  } finally {
+    profileSubmitting.value = false
+  }
+}
 
 /* ---------------- 修改密码 ---------------- */
 const pwdDialogVisible = ref(false)
@@ -206,12 +279,6 @@ const scopeText = computed(() => {
   if (userStore.dataScope === 'SELF') return '仅本人数据（SELF）'
   return userStore.role === 'ADMIN' ? '全部数据（ALL）' : '仅本人数据（SELF）'
 })
-const scopeHint = computed(() =>
-  userStore.dataScope === 'SELF' || userStore.role === 'DOCTOR'
-    ? '仅可查询、导出与删除本人创建的筛查记录'
-    : '可查询、导出与删除全部筛查记录'
-)
-
 /**
  * 权限编码 → 中文条目。映射必须覆盖后端全部权限编码，
  * 缺失时回退为「其他权限」而非展示原始编码，避免向使用者暴露内部实现。
@@ -330,7 +397,6 @@ const permissionGroups = computed(() => {
   font-size: 13.5px;
   color: var(--drs-ink-800);
 }
-
 .scope-pill {
   display: inline-block;
   padding: 2px 10px;
@@ -340,13 +406,6 @@ const permissionGroups = computed(() => {
   color: var(--drs-primary-800);
   font-size: 12px;
   font-weight: 500;
-}
-
-.info-hint {
-  display: block;
-  margin-top: 4px;
-  font-size: 12px;
-  color: var(--drs-ink-500);
 }
 
 /* ---------- 功能权限 ---------- */

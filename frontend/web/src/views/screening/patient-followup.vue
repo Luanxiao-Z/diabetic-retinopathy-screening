@@ -111,7 +111,7 @@
             </template>
           </el-table-column>
           <el-table-column label="最近筛查" min-width="164">
-            <template #default="{ row }">{{ row.latestTime || '—' }}</template>
+            <template #default="{ row }">{{ formatDateTime(row.latestTime) }}</template>
           </el-table-column>
           <el-table-column label="操作" width="120" fixed="right">
             <template #default="{ row }">
@@ -152,7 +152,7 @@
           <div class="tl-body">
             <div class="tl-head">
               <span class="chip" :style="chipStyle(r.resultLevel)">{{ r.levelName || '—' }}</span>
-              <span class="tl-time">{{ r.createTime }}</span>
+              <span class="tl-time">{{ formatDateTime(r.createTime) }}</span>
             </div>
             <div class="tl-meta">
               <span>置信度 {{ confidenceText(r.confidence) }}</span>
@@ -174,6 +174,7 @@ import AppIcon from '@/components/AppIcon.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import { pagePatients, patientTimeline } from '@/api/screening'
 import { useScreeningStore } from '@/stores/screening'
+import { formatDateTime } from '@/utils/format'
 import { GENDER_OPTIONS, LEVEL_COLOR, LEVEL_OPTIONS } from '@/types/screening'
 import type { PatientFollowUpVO, ScreeningRecordVO } from '@/types/screening'
 
@@ -468,11 +469,17 @@ onActivated(() => {
   font-weight: 600;
 }
 
-/* 无待复核时显示 0，保证该列始终有值，避免空列造成误读 */
+/* 无待复核时同样使用徽章样式，保证该列视觉统一 */
 .review-zero {
-  color: var(--drs-ink-400);
-  font-size: 12.5px;
-  font-variant-numeric: tabular-nums;
+  display: inline-block;
+  min-width: 22px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  text-align: center;
+  background: var(--drs-surface-2);
+  color: var(--drs-ink-500);
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .muted {

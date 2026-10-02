@@ -57,7 +57,7 @@
             <template #default="{ row }">{{ row.detail || '—' }}</template>
           </el-table-column>
           <el-table-column prop="time" label="时间" min-width="170">
-            <template #default="{ row }">{{ row.time || '—' }}</template>
+            <template #default="{ row }">{{ formatDateTime(row.time) }}</template>
           </el-table-column>
           <el-table-column label="操作" width="170" fixed="right">
             <template #default="{ row }">
@@ -104,6 +104,7 @@ import AppIcon from '@/components/AppIcon.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import { pageTodos } from '@/api/screening'
 import { useScreeningStore } from '@/stores/screening'
+import { formatDateTime } from '@/utils/format'
 import type { TodoItemVO, TodoType } from '@/types/screening'
 
 type TabKey = 'all' | TodoType

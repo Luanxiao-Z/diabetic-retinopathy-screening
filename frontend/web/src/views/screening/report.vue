@@ -44,7 +44,7 @@
           <div><dt>姓名</dt><dd>{{ record.patientName || '未登记' }}</dd></div>
           <div><dt>性别</dt><dd>{{ genderLabel }}</dd></div>
           <div><dt>年龄</dt><dd>{{ record.patientAge != null ? `${record.patientAge} 岁` : '—' }}</dd></div>
-          <div><dt>筛查时间</dt><dd>{{ record.createTime || '—' }}</dd></div>
+          <div><dt>筛查时间</dt><dd>{{ formatDateTime(record.createTime) }}</dd></div>
         </dl>
       </section>
 
@@ -117,7 +117,7 @@
         <h2 class="rp-h2">四、医师复核</h2>
         <dl class="rp-grid">
           <div><dt>复核人</dt><dd>{{ record.reviewer || '—' }}</dd></div>
-          <div><dt>复核时间</dt><dd>{{ record.reviewTime || '—' }}</dd></div>
+          <div><dt>复核时间</dt><dd>{{ formatDateTime(record.reviewTime) }}</dd></div>
           <div class="rp-span"><dt>复核意见</dt><dd>{{ record.reviewRemark || '（未填写）' }}</dd></div>
         </dl>
       </section>
@@ -148,6 +148,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AppIcon from '@/components/AppIcon.vue'
+import { formatDateTime, formatNow } from '@/utils/format'
 import { detailScreening } from '@/api/screening'
 import { GENDER_OPTIONS, LEVEL_COLOR, LEVEL_LABEL, LEVEL_ORDER } from '@/types/screening'
 import type { ScreeningRecordVO } from '@/types/screening'
@@ -184,7 +185,7 @@ const genderLabel = computed(() => {
   const g = GENDER_OPTIONS.find((o) => o.value === record.value?.patientGender)
   return g ? g.label : record.value?.patientGender || '—'
 })
-const generatedAt = computed(() => new Date().toLocaleString('zh-CN'))
+const generatedAt = computed(() => formatNow())
 
 /** 后端概率契约为 0~1 的 softmax 输出；仅做防御性钳制，不做单位猜测 */
 function clamp01(v: number): number {

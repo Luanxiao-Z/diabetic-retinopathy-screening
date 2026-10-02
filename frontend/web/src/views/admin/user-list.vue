@@ -92,7 +92,7 @@
             </template>
           </el-table-column>
           <el-table-column label="创建时间" min-width="160">
-            <template #default="{ row }">{{ row.createTime || '—' }}</template>
+            <template #default="{ row }">{{ formatDateTime(row.createTime) }}</template>
           </el-table-column>
           <el-table-column label="操作" width="140" fixed="right">
             <template #default="{ row }">
@@ -190,6 +190,7 @@ import {
 import { useUserStore } from '@/stores/user'
 import { ROLE_OPTIONS, USER_STATUS_OPTIONS, roleLabel } from '@/types/admin'
 import type { UserVO } from '@/types/admin'
+import { formatDateTime } from '@/utils/format'
 
 const userStore = useUserStore()
 const canEdit = computed(() => userStore.permissions.includes('admin:user:edit'))

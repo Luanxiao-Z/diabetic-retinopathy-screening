@@ -148,7 +148,9 @@
               <span v-else class="rv rv-none">无需复核</span>
             </template>
           </el-table-column>
-          <el-table-column prop="createTime" label="筛查时间" :min-width="widthOf('createTime', 170)" />
+          <el-table-column prop="createTime" label="筛查时间" :min-width="widthOf('createTime', 170)">
+            <template #default="{ row }">{{ formatDateTime(row.createTime) }}</template>
+          </el-table-column>
           <el-table-column label="操作" width="220" fixed="right">
             <template #default="{ row }">
               <el-button link type="primary" @click="openDetail(row as ScreeningRecordVO)">详情</el-button>
@@ -225,6 +227,7 @@ import {
   reviewScreening
 } from '@/api/screening'
 import { useScreeningStore } from '@/stores/screening'
+import { formatDateTime } from '@/utils/format'
 import { GENDER_OPTIONS, LEVEL_COLOR, LEVEL_OPTIONS, SUGGESTION_COLOR } from '@/types/screening'
 import type { ScreeningRecordVO } from '@/types/screening'
 

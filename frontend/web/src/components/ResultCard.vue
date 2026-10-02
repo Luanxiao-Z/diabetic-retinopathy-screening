@@ -108,12 +108,12 @@
         <span v-if="record.modelVersion" class="rc-version" :title="record.modelVersion">
           {{ record.modelVersion }}
         </span>
-        <span v-if="record.createTime">{{ record.createTime }}</span>
+        <span v-if="record.createTime">{{ formatDateTime(record.createTime) }}</span>
       </div>
 
       <p v-if="record.reviewStatus === 'CONFIRMED'" class="rc-review rc-review-done">
         <AppIcon name="check" :size="12" />
-        已由 {{ record.reviewer || '—' }} 于 {{ record.reviewTime || '—' }} 完成人工复核
+        已由 {{ record.reviewer || '—' }} 于 {{ formatDateTime(record.reviewTime) }} 完成人工复核
         <template v-if="record.reviewRemark">：{{ record.reviewRemark }}</template>
       </p>
       <p v-else-if="record.needReview" class="rc-review rc-review-pending">
@@ -132,6 +132,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import AppIcon from '@/components/AppIcon.vue'
+import { formatDateTime } from '@/utils/format'
 import type { ScreeningRecordVO } from '@/types/screening'
 import {
   GENDER_OPTIONS,

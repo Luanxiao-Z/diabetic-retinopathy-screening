@@ -5,12 +5,15 @@ import cn.edu.fzu.drs.module.common.exception.BusinessException;
 import cn.edu.fzu.drs.module.security.context.AuthContext;
 import cn.edu.fzu.drs.module.security.model.AuthPrincipal;
 import cn.edu.fzu.drs.module.common.util.PasswordUtil;
+import cn.edu.fzu.drs.module.system.dto.ProfileUpdateDTO;
 import cn.edu.fzu.drs.module.system.entity.SysUserEntity;
 import cn.edu.fzu.drs.module.system.mapper.SysUserMapper;
 import cn.edu.fzu.drs.module.system.service.UserService;
 import cn.edu.fzu.drs.module.system.vo.ProfileVO;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
 
@@ -76,5 +79,33 @@ public class UserServiceImpl implements UserService {
             vo.setCreateTime(user.getCreateTime());
         }
         return vo;
+    }
+
+    @Override
+    public ProfileVO updateProfile(ProfileUpdateDTO dto) {
+        AuthPrincipal principal = AuthContext.get();
+        if (principal == null || principal.getUsername() == null) {
+            throw new BusinessException(401, "未登录或登录已过期");
+        }
+        SysUserEntity user = userMapper.selectOne(
+                new LambdaQueryWrapper<SysUserEntity>().eq(SysUserEntity::getUsername, principal.getUsername()));
+        if (user == null) {
+            throw new BusinessException(404, "账号不存在");
+        }
+        // 仅更新资料字段；角色、状态、数据范围等权限相关字段不在此接口开放
+        //
+        // 注意：此处不能用 updateById —— MyBatis-Plus 默认字段策略为 NOT_NULL，
+        // 会把 null 字段排除在 SET 子句之外，导致「清空手机号」无法生效。
+        // 改用 LambdaUpdateWrapper 显式 set，保证 null 也能写入。
+        LambdaUpdateWrapper<SysUserEntity> update = new LambdaUpdateWrapper<>();
+        update.eq(SysUserEntity::getId, user.getId())
+                .set(SysUserEntity::getRealName, dto.getRealName().trim())
+                .set(SysUserEntity::getPhone, StringUtils.hasText(dto.getPhone()) ? dto.getPhone().trim() : null);
+        userMapper.update(null, update);
+
+        audit.record(OperationLogRecorder.MODULE_USER, OperationLogRecorder.ACTION_UPDATE,
+                principal.getUsername() + "（本人资料）", true, null, 0L, principal.getUsername());
+
+        return currentProfile();
     }
 }
