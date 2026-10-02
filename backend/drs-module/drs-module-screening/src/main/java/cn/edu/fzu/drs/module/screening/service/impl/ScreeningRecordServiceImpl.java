@@ -120,6 +120,8 @@ public class ScreeningRecordServiceImpl implements ScreeningRecordService {
             entity.setResultLevel(predict.getResultLevel());
             entity.setConfidence(predict.getConfidence() == null ? null
                     : BigDecimal.valueOf(predict.getConfidence()).setScale(4, RoundingMode.HALF_UP));
+            entity.setUncertainty(predict.getUncertainty() == null ? null
+                    : BigDecimal.valueOf(predict.getUncertainty()).setScale(4, RoundingMode.HALF_UP));
             entity.setProbabilities(BizScreeningRecordConvert.toProbabilitiesJson(predict.getProbabilities()));
             entity.setSuggestion(predict.getSuggestion());
             entity.setGradCamKey(gradCamKey);
@@ -237,10 +239,10 @@ public class ScreeningRecordServiceImpl implements ScreeningRecordService {
         vo.setGrowthRate(growthRate);
 
         vo.setNeedReviewCount(all.stream()
-                .filter(e -> BizScreeningRecordConvert.needReview(e.getConfidence()))
+                .filter(e -> BizScreeningRecordConvert.needReview(e.getUncertainty()))
                 .filter(e -> !"CONFIRMED".equals(e.getReviewStatus()))
                 .count());
-        vo.setReviewThreshold(BizScreeningRecordConvert.REVIEW_CONFIDENCE_THRESHOLD);
+        vo.setReviewThreshold(BizScreeningRecordConvert.REVIEW_UNCERTAINTY_THRESHOLD);
         return vo;
     }
 
@@ -255,7 +257,7 @@ public class ScreeningRecordServiceImpl implements ScreeningRecordService {
 
         try (XSSFWorkbook workbook = new XSSFWorkbook()) {
             Sheet sheet = workbook.createSheet("筛查记录");
-            String[] headers = {"患者姓名", "性别", "年龄", "DR分级", "分级说明", "置信度",
+            String[] headers = {"患者姓名", "性别", "年龄", "DR分级", "分级说明", "置信度", "不确定性",
                     "转诊建议", "建议说明", "复核状态", "复核人", "复核时间", "复核意见",
                     "模型版本", "创建时间", "图片链接", "热力图链接"};
             Row headerRow = sheet.createRow(0);
@@ -272,21 +274,22 @@ public class ScreeningRecordServiceImpl implements ScreeningRecordService {
                 setCell(row, 3, e.getResultLevel());
                 setCell(row, 4, BizScreeningRecordConvert.nameOf(BizScreeningRecordConvert.LEVEL_NAMES, e.getResultLevel()));
                 setCell(row, 5, e.getConfidence() == null ? "" : e.getConfidence().toString());
-                setCell(row, 6, e.getSuggestion());
-                setCell(row, 7, BizScreeningRecordConvert.nameOf(BizScreeningRecordConvert.SUGGESTION_NAMES, e.getSuggestion()));
-                // 复核状态：未落库但置信度不达标时按「待复核」导出，与页面展示口径一致
+                setCell(row, 6, e.getUncertainty() == null ? "" : e.getUncertainty().toString());
+                setCell(row, 7, e.getSuggestion());
+                setCell(row, 8, BizScreeningRecordConvert.nameOf(BizScreeningRecordConvert.SUGGESTION_NAMES, e.getSuggestion()));
+                // 复核状态：未落库但不确定性达到阈值时按「待复核」导出，与页面展示口径一致
                 String reviewStatus = e.getReviewStatus();
-                if (reviewStatus == null && BizScreeningRecordConvert.needReview(e.getConfidence())) {
+                if (reviewStatus == null && BizScreeningRecordConvert.needReview(e.getUncertainty())) {
                     reviewStatus = "PENDING";
                 }
-                setCell(row, 8, BizScreeningRecordConvert.nameOf(BizScreeningRecordConvert.REVIEW_STATUS_NAMES, reviewStatus));
-                setCell(row, 9, e.getReviewer());
-                setCell(row, 10, e.getReviewTime() == null ? "" : e.getReviewTime().format(DATE_TIME_FMT));
-                setCell(row, 11, e.getReviewRemark());
-                setCell(row, 12, e.getModelVersion());
-                setCell(row, 13, e.getCreateTime() == null ? "" : e.getCreateTime().format(DATE_TIME_FMT));
-                setCell(row, 14, presignSafe(e.getImageKey()));
-                setCell(row, 15, presignSafe(e.getGradCamKey()));
+                setCell(row, 9, BizScreeningRecordConvert.nameOf(BizScreeningRecordConvert.REVIEW_STATUS_NAMES, reviewStatus));
+                setCell(row, 10, e.getReviewer());
+                setCell(row, 11, e.getReviewTime() == null ? "" : e.getReviewTime().format(DATE_TIME_FMT));
+                setCell(row, 12, e.getReviewRemark());
+                setCell(row, 13, e.getModelVersion());
+                setCell(row, 14, e.getCreateTime() == null ? "" : e.getCreateTime().format(DATE_TIME_FMT));
+                setCell(row, 15, presignSafe(e.getImageKey()));
+                setCell(row, 16, presignSafe(e.getGradCamKey()));
             }
             for (int i = 0; i < headers.length; i++) {
                 sheet.autoSizeColumn(i);
@@ -351,8 +354,8 @@ public class ScreeningRecordServiceImpl implements ScreeningRecordService {
         if (entity == null) {
             throw new BusinessException(404, "记录不存在或无权限访问");
         }
-        if (!BizScreeningRecordConvert.needReview(entity.getConfidence())) {
-            throw new BusinessException(400, "该记录置信度已达阈值，无需人工复核");
+        if (!BizScreeningRecordConvert.needReview(entity.getUncertainty())) {
+            throw new BusinessException(400, "该记录不确定性未达阈值，无需人工复核");
         }
         if ("CONFIRMED".equals(entity.getReviewStatus())) {
             throw new BusinessException(400, "该记录已完成人工复核");
@@ -367,7 +370,7 @@ public class ScreeningRecordServiceImpl implements ScreeningRecordService {
         audit.record(OperationLogRecorder.MODULE_SCREENING, OperationLogRecorder.ACTION_REVIEW,
                 (entity.getPatientName() == null || entity.getPatientName().isBlank()
                         ? "未登记患者" : entity.getPatientName())
-                        + " · " + entity.getResultLevel() + " · 置信度 " + entity.getConfidence(),
+                        + " · " + entity.getResultLevel() + " · 不确定性 " + entity.getUncertainty(),
                 true, null, 0L);
         return toVoSafe(entity);
     }
@@ -394,7 +397,7 @@ public class ScreeningRecordServiceImpl implements ScreeningRecordService {
         vo.setLatestSuggestionName(BizScreeningRecordConvert.nameOf(BizScreeningRecordConvert.SUGGESTION_NAMES, latest.getSuggestion()));
 
         vo.setNeedReviewCount(records.stream()
-                .filter(r -> BizScreeningRecordConvert.needReview(r.getConfidence()))
+                .filter(r -> BizScreeningRecordConvert.needReview(r.getUncertainty()))
                 .filter(r -> !"CONFIRMED".equals(r.getReviewStatus()))
                 .count());
 
@@ -459,16 +462,16 @@ public class ScreeningRecordServiceImpl implements ScreeningRecordService {
         if (query.getEndDate() != null && !query.getEndDate().isBlank()) {
             wrapper.le(BizScreeningRecordEntity::getCreateTime, parseDateTime(query.getEndDate()));
         }
-        // 人工复核过滤：true → 低置信度且尚未确认复核；false → 置信度达标
+        // 人工复核过滤：true → 不确定性达阈值且尚未确认复核；false → 未达阈值
         if (query.getNeedReview() != null) {
             if (query.getNeedReview()) {
-                wrapper.lt(BizScreeningRecordEntity::getConfidence,
-                                BizScreeningRecordConvert.REVIEW_CONFIDENCE_THRESHOLD)
+                wrapper.ge(BizScreeningRecordEntity::getUncertainty,
+                                BizScreeningRecordConvert.REVIEW_UNCERTAINTY_THRESHOLD)
                         .and(w -> w.isNull(BizScreeningRecordEntity::getReviewStatus)
                                 .or().eq(BizScreeningRecordEntity::getReviewStatus, "PENDING"));
             } else {
-                wrapper.ge(BizScreeningRecordEntity::getConfidence,
-                        BizScreeningRecordConvert.REVIEW_CONFIDENCE_THRESHOLD);
+                wrapper.lt(BizScreeningRecordEntity::getUncertainty,
+                        BizScreeningRecordConvert.REVIEW_UNCERTAINTY_THRESHOLD);
             }
         }
         // 随访时间线：按患者精确匹配（与模糊匹配的 patientName 区分）

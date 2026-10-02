@@ -44,13 +44,16 @@ public class ScreeningRecordVO {
     @Schema(description = "DR 分级中文说明")
     private String levelName;
 
-    @Schema(description = "最高概率置信度")
+    @Schema(description = "最高概率置信度（top1 softmax，仅供展示参考）")
     private BigDecimal confidence;
 
-    @Schema(description = "是否需人工复核（置信度低于阈值时为 true）")
+    @Schema(description = "归一化预测熵（0~1），越大越不确定")
+    private BigDecimal uncertainty;
+
+    @Schema(description = "是否需人工复核（不确定性达到阈值时为 true）")
     private Boolean needReview;
 
-    @Schema(description = "人工复核阈值（低于该值需复核）")
+    @Schema(description = "人工复核阈值（归一化熵达到该值需复核）")
     private BigDecimal reviewThreshold;
 
     @Schema(description = "各类别概率（LEVEL_0..LEVEL_4）")

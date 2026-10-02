@@ -87,6 +87,10 @@
           </div>
           <div class="rp-verdict-side">
             <div class="rp-kv"><span>模型置信度</span><b>{{ confidenceText }}</b></div>
+            <div class="rp-kv">
+              <span>不确定性</span>
+              <b>{{ record.uncertainty == null ? '—' : record.uncertainty.toFixed(3) }}</b>
+            </div>
             <div class="rp-kv"><span>转诊建议</span><b>{{ record.suggestionName || '—' }}</b></div>
             <div class="rp-kv">
               <span>复核状态</span>

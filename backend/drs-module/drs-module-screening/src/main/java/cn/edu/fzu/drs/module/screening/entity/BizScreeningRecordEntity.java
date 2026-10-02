@@ -38,8 +38,11 @@ public class BizScreeningRecordEntity extends BaseEntity {
     /** DR 分级（字典:B_DR_LEVEL）LEVEL_0..LEVEL_4 */
     private String resultLevel;
 
-    /** 最高概率置信度 */
+    /** 最高概率置信度（top1 softmax） */
     private BigDecimal confidence;
+
+    /** 归一化预测熵（0~1），越大越不确定；人工复核判定依据 */
+    private BigDecimal uncertainty;
 
     /** 各类别概率 JSON */
     private String probabilities;
@@ -138,6 +141,14 @@ public class BizScreeningRecordEntity extends BaseEntity {
 
     public void setConfidence(BigDecimal confidence) {
         this.confidence = confidence;
+    }
+
+    public BigDecimal getUncertainty() {
+        return uncertainty;
+    }
+
+    public void setUncertainty(BigDecimal uncertainty) {
+        this.uncertainty = uncertainty;
     }
 
     public String getProbabilities() {

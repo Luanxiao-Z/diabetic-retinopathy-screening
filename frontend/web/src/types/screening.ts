@@ -17,8 +17,10 @@ export interface ScreeningRecordVO {
   resultLevel?: DrLevel | string
   /** 分级中文说明（后端提供） */
   levelName?: string
-  /** 最高概率置信度（0~1） */
+  /** 最高概率置信度（0~1，top1 softmax，仅供展示参考） */
   confidence?: number
+  /** 归一化预测熵（0~1），越大越不确定；人工复核判定依据 */
+  uncertainty?: number
   /** 各级别概率 LEVEL_0..LEVEL_4 */
   probabilities?: Record<string, number>
   suggestion?: Suggestion | string
@@ -27,9 +29,9 @@ export interface ScreeningRecordVO {
   modelVersion?: string
   remark?: string
   createTime?: string
-  /** 是否需人工复核（置信度低于阈值） */
+  /** 是否需人工复核（不确定性达到阈值） */
   needReview?: boolean
-  /** 人工复核阈值 */
+  /** 人工复核阈值（归一化熵达到该值需复核） */
   reviewThreshold?: number
   /** 人工复核状态：PENDING 待复核 / CONFIRMED 已复核 */
   reviewStatus?: string

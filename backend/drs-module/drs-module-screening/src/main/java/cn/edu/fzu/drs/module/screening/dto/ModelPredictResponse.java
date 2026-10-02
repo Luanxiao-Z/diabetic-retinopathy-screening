@@ -25,6 +25,10 @@ public class ModelPredictResponse {
     @JsonProperty("confidence")
     private Double confidence;
 
+    /** 归一化预测熵（0~1），越大越不确定；人工复核判定依据 */
+    @JsonProperty("uncertainty")
+    private Double uncertainty;
+
     @JsonProperty("probabilities")
     private Map<String, Double> probabilities;
 

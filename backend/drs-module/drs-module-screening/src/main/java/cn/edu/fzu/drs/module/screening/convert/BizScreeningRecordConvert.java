@@ -35,14 +35,21 @@ public final class BizScreeningRecordConvert {
     );
 
     /**
-     * 人工复核阈值：置信度低于该值的筛查结果视为「需人工复核」。
-     * <p>医学 AI 场景下，模型低置信输出不应直接采信，须由医师复核后再出具结论。</p>
+     * 人工复核阈值：**归一化预测熵**高于该值的筛查结果视为「需人工复核」。
+     *
+     * <p><b>为何不用 top1 置信度</b>：深度网络的 softmax 普遍饱和，实测 30 张真实眼底图中
+     * 有 20 张 top1 ≥ 0.99、仅 1 张低于 0.70，几乎失去区分度。按「top1 &lt; 0.70」判定时，
+     * 两个错分样本（top1 分别为 0.7337、0.8337）**全部漏判**，人工复核机制形同虚设。</p>
+     *
+     * <p>归一化熵（{@code -Σp·ln p / ln 5}，取值 0~1）利用了完整的概率分布形状，
+     * 对「高置信度的错误预测」更敏感：实测错分样本熵为 0.36/0.37，而正确样本普遍 ≤ 0.22。
+     * 取 0.20 作为阈值时，可覆盖全部错分样本，触发率约 17%，人工成本可控。</p>
      */
-    public static final BigDecimal REVIEW_CONFIDENCE_THRESHOLD = new BigDecimal("0.70");
+    public static final BigDecimal REVIEW_UNCERTAINTY_THRESHOLD = new BigDecimal("0.20");
 
-    /** 置信度缺失或低于阈值 → 需人工复核 */
-    public static boolean needReview(BigDecimal confidence) {
-        return confidence == null || confidence.compareTo(REVIEW_CONFIDENCE_THRESHOLD) < 0;
+    /** 不确定性缺失或达到阈值 → 需人工复核（缺失时按保守策略标记） */
+    public static boolean needReview(BigDecimal uncertainty) {
+        return uncertainty == null || uncertainty.compareTo(REVIEW_UNCERTAINTY_THRESHOLD) >= 0;
     }
 
     /** 人工复核状态中文说明 */
@@ -79,8 +86,9 @@ public final class BizScreeningRecordConvert {
         vo.setResultLevel(entity.getResultLevel());
         vo.setLevelName(nameOf(LEVEL_NAMES, entity.getResultLevel()));
         vo.setConfidence(entity.getConfidence());
-        vo.setNeedReview(needReview(entity.getConfidence()));
-        vo.setReviewThreshold(REVIEW_CONFIDENCE_THRESHOLD);
+        vo.setUncertainty(entity.getUncertainty());
+        vo.setNeedReview(needReview(entity.getUncertainty()));
+        vo.setReviewThreshold(REVIEW_UNCERTAINTY_THRESHOLD);
         vo.setProbabilities(parseProbabilities(entity.getProbabilities()));
         vo.setSuggestion(entity.getSuggestion());
         vo.setSuggestionName(nameOf(SUGGESTION_NAMES, entity.getSuggestion()));
@@ -89,7 +97,7 @@ public final class BizScreeningRecordConvert {
         vo.setCreateTime(entity.getCreateTime());
         // 复核状态：未落库时按阈值推导为「待复核」，便于前端统一展示
         String reviewStatus = entity.getReviewStatus();
-        if (reviewStatus == null && needReview(entity.getConfidence())) {
+        if (reviewStatus == null && needReview(entity.getUncertainty())) {
             reviewStatus = "PENDING";
         }
         vo.setReviewStatus(reviewStatus);

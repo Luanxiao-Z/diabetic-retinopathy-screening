@@ -63,7 +63,7 @@
           <li v-for="r in reviewList" :key="r.id" class="todo-item">
             <span class="ti-main">
               <span class="ti-name">{{ r.patientName || '未登记患者' }}</span>
-              <span class="ti-sub">{{ r.levelName || '—' }} · 置信度 {{ pct(r.confidence) }} · {{ r.createTime }}</span>
+              <span class="ti-sub">{{ r.levelName || '—' }} · 不确定性 {{ unc(r.uncertainty) }} · {{ r.createTime }}</span>
             </span>
             <span class="ti-ops">
               <el-button link type="primary" @click="openReport(r.id)">报告</el-button>
@@ -149,8 +149,9 @@ const referralList = ref<ScreeningRecordVO[]>([])
 const overdueList = ref<PatientFollowUpVO[]>([])
 const patientTotal = ref(0)
 
-function pct(c?: number) {
-  return c == null ? '—' : `${(c * 100).toFixed(1)}%`
+/** 不确定性（归一化预测熵）格式化 */
+function unc(u?: number) {
+  return u == null ? '—' : u.toFixed(3)
 }
 
 function daysSince(time?: string): number {

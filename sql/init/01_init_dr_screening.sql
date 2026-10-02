@@ -73,7 +73,8 @@ CREATE TABLE IF NOT EXISTS biz_screening_record (
   image_key     VARCHAR(255) NOT NULL COMMENT '原始图片 MinIO object key',
   image_url     VARCHAR(512) DEFAULT NULL,
   result_level  VARCHAR(20)  NOT NULL COLLATE utf8mb4_0900_as_cs COMMENT 'DR分级(字典:B_DR_LEVEL) LEVEL_0..LEVEL_4',
-  confidence    DECIMAL(6,4) DEFAULT NULL COMMENT '最高概率置信度',
+  confidence    DECIMAL(6,4) DEFAULT NULL COMMENT '最高概率置信度(top1 softmax)',
+  uncertainty   DECIMAL(6,4) DEFAULT NULL COMMENT '归一化预测熵(0~1)，越大越不确定；用于人工复核判定',
   probabilities TEXT         DEFAULT NULL COMMENT '各类别概率 JSON',
   suggestion    VARCHAR(20)  DEFAULT NULL COLLATE utf8mb4_0900_as_cs COMMENT '转诊建议(字典:B_DR_SUGGESTION)',
   grad_cam_key  VARCHAR(255) DEFAULT NULL COMMENT '热力图 MinIO object key',
@@ -168,6 +169,27 @@ SET @ddl := IF(@col_exists = 0,
      ADD COLUMN reviewer VARCHAR(64) DEFAULT NULL COMMENT ''复核人 username'',
      ADD COLUMN review_time DATETIME DEFAULT NULL COMMENT ''复核时间'',
      ADD COLUMN review_remark VARCHAR(512) DEFAULT NULL COMMENT ''复核意见''',
+  'SELECT 1');
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- ============================================================================
+-- 增量迁移：筛查记录的模型不确定性字段（幂等，兼容已建库的环境）
+-- 背景：裸 top1 置信度在深度网络上普遍饱和（实测 30 张影像中 20 张 ≥ 0.99），
+--       以其判定"是否需要人工复核"会漏掉全部高置信度错分样本（实测覆盖 0/2）。
+--       改用归一化预测熵（0~1，越大越不确定）作为复核依据，实测覆盖 2/2。
+-- ============================================================================
+SET @col_exists := (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME = 'biz_screening_record'
+    AND COLUMN_NAME = 'uncertainty'
+);
+SET @ddl := IF(@col_exists = 0,
+  'ALTER TABLE biz_screening_record
+     ADD COLUMN uncertainty DECIMAL(6,4) DEFAULT NULL COMMENT ''归一化预测熵(0~1)，越大越不确定；用于人工复核判定'',
+     ADD KEY idx_uncertainty (uncertainty)',
   'SELECT 1');
 PREPARE stmt FROM @ddl;
 EXECUTE stmt;

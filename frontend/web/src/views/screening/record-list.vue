@@ -123,8 +123,19 @@
                 </span>
                 <span class="conf-txt">{{ confidenceText(row.confidence) }}</span>
               </span>
-              <span v-if="row.needReview" class="review-tag" :title="`置信度低于阈值 ${row.reviewThreshold ?? ''}，建议人工复核`">
+              <span v-if="row.needReview" class="review-tag" :title="`模型不确定性达 ${row.reviewThreshold ?? 0.2}，建议人工复核`">
                 待复核
+              </span>
+            </template>
+          </el-table-column>
+          <el-table-column prop="uncertainty" label="不确定性" :min-width="widthOf('uncertainty', 110)">
+            <template #default="{ row }">
+              <span
+                class="unc"
+                :class="{ 'is-high': row.needReview }"
+                :title="`归一化预测熵，达 ${row.reviewThreshold ?? 0.2} 建议人工复核`"
+              >
+                {{ uncertaintyText(row.uncertainty) }}
               </span>
             </template>
           </el-table-column>
@@ -284,6 +295,11 @@ function confidenceText(c?: number) {
   return c == null ? '—' : `${(c * 100).toFixed(1)}%`
 }
 
+/** 不确定性（归一化预测熵）格式化：保留三位小数 */
+function uncertaintyText(u?: number) {
+  return u == null ? '—' : u.toFixed(3)
+}
+
 function confPercent(c?: number) {
   return c == null ? '0%' : `${Math.max(0, Math.min(1, c)) * 100}%`
 }
@@ -374,7 +390,7 @@ async function handleReview(row: ScreeningRecordVO) {
   let remark = ''
   try {
     const res = await ElMessageBox.prompt(
-      `记录「${row.patientName || '未登记患者'}」置信度 ${confidenceText(row.confidence)}，低于阈值，请核对影像后确认。`,
+      `记录「${row.patientName || '未登记患者'}」模型不确定性 ${uncertaintyText(row.uncertainty)}，已达复核阈值 ${row.reviewThreshold ?? 0.2}，请核对影像后确认。`,
       '人工复核确认',
       {
         confirmButtonText: '确认复核',
@@ -573,6 +589,18 @@ onMounted(() => {
   font-variant-numeric: tabular-nums;
   min-width: 44px;
   text-align: right;
+}
+
+/* 不确定性（归一化预测熵）：达阈值时以警示色突出 */
+.unc {
+  font-size: 12px;
+  color: var(--drs-ink-600);
+  font-variant-numeric: tabular-nums;
+}
+
+.unc.is-high {
+  color: var(--drs-warn);
+  font-weight: 600;
 }
 
 @media (max-width: 900px) {

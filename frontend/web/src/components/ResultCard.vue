@@ -57,7 +57,7 @@
         </span>
       </div>
 
-      <!-- 置信度 -->
+      <!-- 置信度与不确定性 -->
       <div class="rc-block">
         <div class="rc-block-head">
           <span>模型置信度</span>
@@ -69,6 +69,16 @@
           :color="levelColor"
           :show-text="false"
         />
+        <p class="rc-uncertain" :class="{ 'is-high': record.needReview }">
+          <AppIcon :name="record.needReview ? 'alert' : 'info'" :size="12" />
+          <span>
+            不确定性 <b>{{ uncertaintyText }}</b>
+            <template v-if="record.needReview">
+              · 已达复核阈值 {{ uncertaintyThresholdText }}，建议人工复核
+            </template>
+            <template v-else>· 低于复核阈值 {{ uncertaintyThresholdText }}</template>
+          </span>
+        </p>
       </div>
 
       <!-- 各级概率 -->
@@ -87,7 +97,7 @@
                 :style="{ width: probPercent(lv) + '%', background: levelColorMap[lv] }"
               ></span>
             </span>
-            <span class="rc-prob-val">{{ probPercent(lv) }}%</span>
+            <span class="rc-prob-val">{{ probText(lv) }}</span>
           </div>
         </div>
       </div>
@@ -108,7 +118,7 @@
       </p>
       <p v-else-if="record.needReview" class="rc-review rc-review-pending">
         <AppIcon name="clock" :size="12" />
-        置信度低于 {{ record.reviewThreshold ?? 0.7 }}，建议人工复核后再出具结论
+        模型不确定性达 {{ record.reviewThreshold ?? 0.2 }}，建议人工复核后再出具结论
       </p>
 
       <p class="rc-disclaimer">
@@ -197,15 +207,38 @@ const genderLabel = computed(() => {
   return g ? g.label : props.record.patientGender || ''
 })
 
-const confidencePercent = computed(() => Math.round((props.record.confidence ?? 0) * 100))
-const confidenceText = computed(() => `${((props.record.confidence ?? 0) * 100).toFixed(1)}%`)
+/** 后端概率契约为 0~1 的 softmax 输出；此处仅做防御性钳制，不做单位猜测 */
+function clamp01(v: number): number {
+  return Math.min(1, Math.max(0, v))
+}
 
+const confidencePercent = computed(() => Math.round(clamp01(props.record.confidence ?? 0) * 100))
+const confidenceText = computed(() => `${(clamp01(props.record.confidence ?? 0) * 100).toFixed(1)}%`)
+
+/** 不确定性（归一化预测熵）：0 表示模型完全确定，1 表示五类均匀分布 */
+const uncertaintyText = computed(() =>
+  props.record.uncertainty == null ? '—' : props.record.uncertainty.toFixed(3)
+)
+const uncertaintyThresholdText = computed(() => String(props.record.reviewThreshold ?? 0.2))
+
+/** 条形宽度（0~100 整数） */
 function probPercent(lv: string): number {
   const v = props.record.probabilities?.[lv]
-  if (v == null) return 0
-  // 后端概率可能为 0~1 或已为百分比，统一归一
-  const p = v > 1 ? v / 100 : v
-  return Math.round(p * 100)
+  return v == null ? 0 : Math.round(clamp01(v) * 100)
+}
+
+/**
+ * 概率显示文本。
+ * 保留一位小数并对极小的非零值显式标注：原实现用 Math.round 会把 0.41% 显示为 0%、
+ * 99.58% 显示为 100%，掩盖真实分布、造成"模型输出硬分类"的错觉。
+ */
+function probText(lv: string): string {
+  const v = props.record.probabilities?.[lv]
+  if (v == null) return '—'
+  const p = clamp01(v) * 100
+  if (p === 0) return '0%'
+  if (p < 0.1) return '<0.1%'
+  return `${p.toFixed(1)}%`
 }
 
 function hexToRgba(hex: string, alpha: number) {
@@ -358,6 +391,35 @@ function hexToRgba(hex: string, alpha: number) {
   color: var(--drs-ink-900);
   font-size: 13px;
   font-variant-numeric: tabular-nums;
+}
+
+/* 不确定性说明：达阈值时以警示色提示，与「待复核」状态呼应 */
+.rc-uncertain {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  margin: 8px 0 0;
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--drs-ink-500);
+}
+
+.rc-uncertain :deep(svg) {
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.rc-uncertain b {
+  color: var(--drs-ink-800);
+  font-variant-numeric: tabular-nums;
+}
+
+.rc-uncertain.is-high {
+  color: var(--drs-warn);
+}
+
+.rc-uncertain.is-high b {
+  color: var(--drs-warn);
 }
 
 .rc-probs {

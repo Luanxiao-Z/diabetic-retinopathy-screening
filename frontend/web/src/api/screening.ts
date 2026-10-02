@@ -45,7 +45,7 @@ export function removeScreening(id: string) {
   return request.delete(`/biz/screening-records/${id}`) as unknown as Promise<void>
 }
 
-/** 人工复核确认：将低置信度记录标记为已复核。 */
+/** 人工复核确认：将高不确定性（归一化预测熵达阈值）的记录标记为已复核。 */
 export function reviewScreening(id: string, remark?: string) {
   return request.patch(`/biz/screening-records/${id}/review`, null, {
     params: remark ? { remark } : {}

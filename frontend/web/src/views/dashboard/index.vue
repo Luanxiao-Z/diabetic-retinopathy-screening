@@ -56,7 +56,7 @@
         unit="例"
         tone="warn"
         clickable
-        foot="置信度低于阈值"
+        foot="模型不确定性达阈值"
         aria-label="待人工复核数量，点击进入筛查记录并筛选待复核"
         @click="goReviewList()"
       />

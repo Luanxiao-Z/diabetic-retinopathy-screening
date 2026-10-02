@@ -1,7 +1,7 @@
 """模型服务接口数据契约（Pydantic）。
 
 PredictResponse 与后端约定保持一致：
-{record_id, result_level, result_label, confidence, probabilities, suggestion, model_version}
+{record_id, result_level, result_label, confidence, uncertainty, probabilities, suggestion, model_version}
 """
 from __future__ import annotations
 
@@ -15,6 +15,8 @@ class PredictResponse(BaseModel):
     result_level: str
     result_label: str
     confidence: float
+    #: 归一化预测熵（0=完全确定，1=五类均匀）。用于人工复核判定，比裸 top1 更鲁棒。
+    uncertainty: float
     probabilities: Dict[str, float]
     suggestion: str
     model_version: str
