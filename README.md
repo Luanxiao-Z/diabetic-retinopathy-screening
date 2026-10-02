@@ -1,9 +1,6 @@
 # 糖尿病视网膜病变（DR）智能筛查系统
 
-面向基层医疗与眼科筛查场景的 **AI 辅助眼底筛查系统**。上传眼底照片后，系统自动完成
-糖尿病视网膜病变五级分级（LEVEL_0 正常 ~ LEVEL_4 增殖期），生成 Grad-CAM 可解释热力图，
-并给出分级转诊建议；同时提供筛查记录管理、低置信度人工复核、患者纵向随访、统计分析与
-诊断报告导出等业务能力。
+面向基层医疗与眼科筛查场景的 **AI 辅助眼底筛查系统**。上传眼底照片后，系统自动完成糖尿病视网膜病变五级分级（LEVEL_0 正常 ~ LEVEL_4 增殖期），生成 Grad-CAM 可解释热力图，并给出分级转诊建议；同时提供筛查记录管理、低置信度人工复核、患者纵向随访、统计分析与诊断报告导出等业务能力。
 
 > **免责声明**：本项目为医学人工智能课程项目，AI 筛查结果**仅供临床参考，不能替代执业医师的诊断意见**。
 
@@ -16,7 +13,7 @@
 - **筛查记录**：按患者、分级、复核状态与时间检索；支持批量删除与 Excel 导出；表头可拖拽调整列宽并按页记忆
 - **随访待办**：汇总待人工复核、需转诊（重度及以上）、逾期未复诊（>90 天且中度以上）三类待办
 - **患者随访**：按患者归并历次筛查，识别分级变化方向（进展 / 好转 / 持平 / 首次），提供随访时间线
-- **人工复核**：置信度低于阈值（默认 **0.70**）的结果标记为待复核，医师核对后确认复核并留存意见，形成可追溯闭环
+- **人工复核**：以模型**不确定性**（归一化预测熵，默认阈值 **0.20**）识别需复核结果，医师核对后确认复核并留存意见，形成可追溯闭环
 - **诊断报告**：A4 版式报告，含受检者信息、眼底原图与热力图、分级结论与各分级概率表、医师复核与免责声明，可打印或另存为 PDF
 
 ### 综合看板
@@ -125,11 +122,38 @@ diabetic-retinopathy-screening/
 
 ## 六、快速开始
 
-### 1. 准备基础设施
+### 0. 前置条件
 
-项目默认以**本地运行**方式交付，需自备 MySQL、Redis、MinIO 三个服务。若希望一键起停，可直接使用容器编排（见 [deploy/README.md](deploy/README.md)）。
+| 组件 | 版本要求 | 检查命令 |
+| --- | --- | --- |
+| JDK | **21** | `java -version` |
+| Maven | 3.9.x | `mvn -v` |
+| Node.js | 18+（推荐 22） | `node -v` |
+| Yarn | 1.22 | `yarn -v` |
+| Python | 3.12+ | `python --version` |
+| MySQL / Redis / MinIO | 8.0 / 7 / 最新 | 见下 |
 
-连接信息通过环境变量注入，**请勿将明文写入版本库**：
+**基础设施必须先就绪**——本项目不自带数据库、缓存与对象存储。启动前确认以下端口均在监听：
+
+```bash
+# Windows
+netstat -ano | findstr "3306 26379 9000 9001"
+# Linux / macOS
+netstat -ano | grep -E ":(3306|26379|9000|9001)"
+```
+
+| 服务 | 端口 | 说明 |
+| --- | --- | --- |
+| MySQL | 3306 | 业务库 `dr_screening` |
+| Redis | 26379 | 会话缓存（注意不是默认的 6379） |
+| MinIO API / Console | 9000 / 9001 | 对象存储 |
+
+> 端口缺失时请先启动基础设施；若希望一键起停全部服务，可使用 `deploy/` 下的容器编排
+> （见 [deploy/README.md](deploy/README.md)）。
+
+### 1. 配置连接信息
+
+连接信息一律通过**环境变量**注入，**请勿将明文写入版本库**：
 
 | 变量 | 说明 |
 | --- | --- |
@@ -137,23 +161,52 @@ diabetic-retinopathy-screening/
 | `REDIS_PASSWORD` | Redis 密码 |
 | `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY` | MinIO 凭据（后端启动时自动创建私有桶 `dr-screening`） |
 
-数据库初始化：首次部署时执行 `sql/init/01_init_dr_screening.sql`（脚本幂等，可重复执行）。
+Windows（PowerShell，`setx` 写入用户级变量，**需新开终端生效**）：
 
-### 2. 启动模型服务
+```powershell
+setx DB_PASSWORD "你的数据库密码"
+setx REDIS_PASSWORD "你的 Redis 密码"
+setx MINIO_ACCESS_KEY "你的访问键"
+setx MINIO_SECRET_KEY "你的密钥"
+```
+
+Linux / macOS：
+
+```bash
+export DB_PASSWORD=... REDIS_PASSWORD=... MINIO_ACCESS_KEY=... MINIO_SECRET_KEY=...
+```
+
+### 2. 初始化数据库
+
+```bash
+mysql -h 127.0.0.1 -P 3306 -u root -p < sql/init/01_init_dr_screening.sql
+```
+
+> 脚本**幂等**，可重复执行：包含建表、字典初始化与增量迁移判断，已建库的环境直接执行即可完成升级。
+> Windows 下若出现中文乱码，请追加 `--default-character-set=utf8mb4`。
+
+### 3. 启动模型服务（端口 8000）
 
 ```bash
 cd model-service
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-uvicorn app.main:app --host 0.0.0.0 --port 8000
-
-# 健康检查
-curl http://localhost:8000/health
+uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
-> `requirements.txt` 默认拉取 CUDA 版 PyTorch；无 NVIDIA GPU 时请将末两行改为 `+cpu` 轮子。
+验证：
 
-### 3. 启动后端
+```bash
+curl http://127.0.0.1:8000/health
+# 期望：{"status":"UP","model":"aptos2019-mobilenetv3s-1.0.0","device":"cuda","trained":true,...}
+```
+
+> `requirements.txt` 默认拉取 CUDA 版 PyTorch；无 NVIDIA GPU 时请将末两行改为 `+cpu` 轮子，
+> 模型服务支持 CPU 回退（`device` 会显示 `cpu`）。
+> 若权重文件 `model-service/models/best_model.pth` 缺失，服务仍可启动但 `trained=false`，
+> 推理结果为随机初始化输出，**仅可用于联调**。
+
+### 4. 启动后端（端口 8080）
 
 ```bash
 bash tools/mvn.sh clean install -DskipTests          # 构建 fat-jar
@@ -161,9 +214,19 @@ cd backend/drs-app/drs-app-server/target
 java -jar drs-app-server-1.0.0.jar --server.port=8080
 ```
 
-首次启动会自动完成：连接数据库、创建 MinIO 桶、幂等播种种子账号。
+首次启动会自动完成：连接数据库、创建 MinIO 私有桶、幂等播种种子账号。
 
-### 4. 启动前端
+验证：
+
+```bash
+curl http://127.0.0.1:8080/api/v1/common/health
+# 期望：{"code":200,"msg":"success","data":"UP"}
+```
+
+> **改后端代码前必须先停止 8080 端口**，否则 `mvn clean` 无法删除被运行进程占用的 `target` 目录。
+> 若 PATH 上的 `java` 不是 21，请显式指定 JDK 21 的完整路径启动。
+
+### 5. 启动前端（端口 5173）
 
 ```bash
 cd frontend/web
@@ -172,7 +235,9 @@ yarn dev        # 开发服务器 http://localhost:5173，/api 代理至后端 8
 yarn build      # 生产构建，产物位于 dist/
 ```
 
-### 5. 默认账号
+### 6. 访问与登录
+
+浏览器打开 <http://localhost:5173>。
 
 | 账号 | 密码 | 角色 | 数据权限 |
 | --- | --- | --- | --- |
@@ -181,6 +246,30 @@ yarn build      # 生产构建，产物位于 dist/
 
 > 账号由后端启动时幂等播种，已存在则跳过。也可在登录页点击「立即注册」自助创建医生账号：
 > 注册账号的角色固定为 DOCTOR、数据范围固定为 SELF，**管理员账号只能由既有管理员创建**。
+
+### 7. 启动顺序与依赖关系
+
+```
+MySQL / Redis / MinIO（前置，必须先就绪）
+          ↓
+   模型服务 :8000  ──HTTP──►  后端 :8080  ──HTTP──►  前端 :5173
+```
+
+- 三个应用服务**无强制启动先后**：后端不依赖模型服务启动，仅在实际推理时调用它
+  （不可达时降级返回 `code=503`，前端可对失败影像单独重试）。
+- 建议按「模型服务 → 后端 → 前端」顺序启动，便于逐段用上面的验证命令确认。
+- 建议为三个服务各开一个终端窗口，便于观察日志与单独重启。
+
+### 8. 常见问题
+
+| 现象 | 原因与处理 |
+| --- | --- |
+| 上传后提示「无法连接模型推理服务」 | 模型服务（8000）未启动或不可达；启动后在筛查上传页点击「重试失败」 |
+| 后端启动报数据库连接失败 | 确认 MySQL 在线，且 `DB_PASSWORD` 已在**新终端**中生效 |
+| 登录提示「用户名或密码错误」 | 种子账号在后端**首次启动**时播种，确认数据库已初始化 |
+| 页面分页、表格空态出现英文 | 需全局注入 Element Plus 中文语言包（`main.ts` 中的 `zhCn`） |
+| `mvn clean` 报无法删除 `target` | 8080 仍有进程占用，先停止后端再构建 |
+| 导入 `torch` 偶发 `WinError 32` | Windows 下 DLL 被安全软件扫描占用，重试即可（非依赖损坏） |
 
 ---
 
@@ -267,7 +356,7 @@ yarn build      # 生产构建，产物位于 dist/
 | --- | --- |
 | `sys_user` | 系统用户（含角色、状态、密码摘要） |
 | `sys_dict_domain`、`sys_dict_item` | 字典域与字典项 |
-| `biz_screening_record` | 筛查记录（分级、置信度、各分级概率、转诊建议、复核信息、对象键） |
+| `biz_screening_record` | 筛查记录（分级、置信度、不确定性、各分级概率、转诊建议、复核信息、对象键） |
 | `sys_operation_log` | 操作审计日志 |
 
 建表与字典初始化脚本：`sql/init/01_init_dr_screening.sql`（幂等，含增量迁移判断）。
@@ -373,6 +462,29 @@ python -m training.train --data-root ../datasets/aptos2019_224x224 \
 
 > 当前已训练权重在测试集（367 张）上的表现为：准确率 **0.8147**、宏平均 F1 **0.6555**；
 > 最佳验证轮次出现在第 29 轮，继续增加训练轮次会过拟合，提升精度应转向数据规模与增强策略。
+
+### 不确定性与人工复核阈值
+
+系统除分级与置信度外，还输出**归一化预测熵**作为不确定性指标：
+
+> 不确定性 = −Σ pᵢ·ln pᵢ / ln 5 　（pᵢ 为第 i 类的 softmax 概率，取值范围 0 ~ 1）
+
+- `0` 表示模型完全确定（某一类概率为 1）；`1` 表示五类概率均匀、完全不确定
+- 该值随筛查记录一并落库（`biz_screening_record.uncertainty`），在结果卡、筛查记录列表与诊断报告中展示
+
+**为何不以置信度作为复核依据**：深度网络的 softmax 普遍饱和。实测 30 张真实眼底图中，
+20 张的 top1 置信度 ≥ 0.99，仅 1 张低于 0.70。若沿用「置信度 < 0.70」判定复核，
+两个错分样本（置信度分别为 0.7337、0.8337）会被**全部漏判**，复核机制形同虚设。
+
+归一化熵利用了完整的概率分布形状，对「高置信度的错误预测」更敏感：
+
+| 判定规则 | 触发复核比例 | 覆盖错分样本 |
+| --- | --- | --- |
+| 置信度 < 0.70（旧） | 1 / 30 | **0 / 2** |
+| 归一化熵 ≥ 0.20（现行） | 5 / 30 | **2 / 2** |
+
+因此系统采用 **归一化熵 ≥ 0.20** 作为人工复核触发条件，阈值定义于
+`BizScreeningRecordConvert.REVIEW_UNCERTAINTY_THRESHOLD`，可结合临床需要调整。
 
 ---
 
