@@ -108,8 +108,13 @@ def main() -> None:
                         help="ImageNet 预训练初始化（默认开启）")
     parser.add_argument("--no-pretrained", dest="pretrained", action="store_false",
                         help="随机初始化（离线训练用）")
-    parser.add_argument("--weight-scheme", choices=["inverse", "effective"], default="inverse",
-                        help="类别加权方案，缓解不均衡")
+    parser.add_argument("--weight-scheme", choices=["none", "inverse", "effective"],
+                        default="inverse",
+                        help="类别加权方案，缓解不均衡；配合 --resample 时应改用 none，避免双重补偿")
+    parser.add_argument("--resample", choices=["none", "oversample", "sqrt"], default="none",
+                        help="训练集类别重采样：none 不重采样；oversample 各类等概率（彻底均衡，"
+                             "少数类约重复 3.8 倍）；sqrt 权重∝1/√n（温和均衡）。"
+                             "验证/测试集一律不重采样，以保证指标可比")
     parser.add_argument("--persistent-workers", dest="persistent_workers", action="store_true",
                         default=True,
                         help="复用 DataLoader worker 进程（Windows 下每 epoch 省约 13.7s，默认开启）")
@@ -139,6 +144,7 @@ def main() -> None:
         seed=args.seed,
         weight_scheme=args.weight_scheme,
         persistent_workers=args.persistent_workers,
+        resample=args.resample,
     )
 
     model = build_model(pretrained=args.pretrained).to(device)

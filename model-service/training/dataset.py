@@ -20,13 +20,15 @@ from __future__ import annotations
 
 import csv
 import logging
+import math
 import random
+from collections import Counter
 from pathlib import Path
 
 import numpy as np
 import torch
 from PIL import Image
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
 from torchvision import transforms
 
 from app.config import IMG_SIZE, IMAGENET_MEAN, IMAGENET_STD, NUM_CLASSES
@@ -239,12 +241,17 @@ def compute_class_weights(
     """计算类别权重以缓解不均衡。
 
     scheme:
+      - 'none'：全部为 1，即不加权。**配合类别重采样时应选此项**——
+        重采样已让各类样本数相等，再叠加逆频率权重会造成双重补偿，
+        少数类被过度强调而损害多数类性能。
       - 'inverse'：w_c = N / (K * n_c)（逆频率，sklearn 默认）。
       - 'effective'：有效样本数法 w_c ∝ (1-β)/(1-β^{n_c})，β 接近 1 时更强抑制大类。
     """
     counts = np.bincount(labels, minlength=num_classes).astype(np.float64)
     counts = np.where(counts == 0, 1.0, counts)  # 防除零
-    if scheme == "inverse":
+    if scheme == "none":
+        weights = np.ones(num_classes, dtype=np.float64)
+    elif scheme == "inverse":
         weights = counts.sum() / (num_classes * counts)
     elif scheme == "effective":
         effective = (1.0 - beta) / (1.0 - np.power(beta, counts))
@@ -252,6 +259,46 @@ def compute_class_weights(
     else:
         raise ValueError(f"未知 scheme: {scheme}")
     return torch.tensor(weights, dtype=torch.float32)
+
+
+def build_sampler(
+    samples: list[tuple[Path, int]],
+    mode: str = "none",
+    num_samples: int | None = None,
+) -> WeightedRandomSampler | None:
+    """构造类别重采样器（**仅用于训练集**）。
+
+    APTOS 训练集最大/最小类相差 9.4 倍（1444 : 154）。不均衡会同时伤害两个方向：
+    多数类主导梯度方向，少数类因样本过少而欠拟合（LEVEL_3 的 F1 长期最低）。
+
+    采样层面的两种均衡方式：
+
+    - ``oversample``：每个类被抽中的总概率相等（样本权重 ∝ 1/n_c），**彻底均衡**。
+      每轮样本数不变时，少数类被重复约 3.8 倍、多数类被欠采样至 0.41 倍。
+    - ``sqrt``：样本权重 ∝ 1/√n_c，**温和均衡**。少数类重复约 2.1 倍，
+      多数类仍占 34%，适合少数类样本极少（重复倍数过高会加剧过拟合）的场景。
+
+    验证集与测试集**一律不重采样**，保持原始分布，否则指标失去可比性。
+
+    :param num_samples: 每轮抽取的样本数，默认与原训练集等长（不改变每轮计算量）
+    """
+    if mode == "none":
+        return None
+
+    counts = Counter(label for _, label in samples)
+    if mode == "oversample":
+        weights = [1.0 / counts[label] for _, label in samples]
+    elif mode == "sqrt":
+        weights = [1.0 / math.sqrt(counts[label]) for _, label in samples]
+    else:
+        raise ValueError(f"未知的重采样模式: {mode}（可选 none / oversample / sqrt）")
+
+    n = num_samples or len(samples)
+    logger.info(
+        "类别重采样 -> 模式=%s 每轮样本=%d 原始分布=%s",
+        mode, n, {k: counts[k] for k in sorted(counts)},
+    )
+    return WeightedRandomSampler(weights, num_samples=n, replacement=True)
 
 
 def build_loaders(
@@ -266,6 +313,7 @@ def build_loaders(
     weight_scheme: str = "inverse",
     persistent_workers: bool = True,
     prefetch_factor: int = 2,
+    resample: str = "none",
 ) -> tuple[DataLoader, DataLoader, DataLoader, torch.Tensor]:
     """一键构造 (train_loader, val_loader, test_loader, class_weights)。
 
@@ -273,6 +321,8 @@ def build_loaders(
     开销约 13.7s（4 workers）。train/val 每个 epoch 都会重新迭代，故默认开启
     persistent_workers 复用 worker 进程；test 仅迭代一次，反而 num_workers=0
     更省（省去一次 spawn，单线程解码 367 张约 2s）。
+
+    :param resample: 训练集重采样模式（none / oversample / sqrt），见 :func:`build_sampler`
     """
     all_samples, _ = collect_samples(root)
     train_s, val_s, test_s = stratified_split(
@@ -288,8 +338,11 @@ def build_loaders(
         if num_workers > 0 else {}
     )
 
+    # WeightedRandomSampler 与 shuffle 互斥：指定 sampler 时不能再传 shuffle=True
+    sampler = build_sampler(train_s, mode=resample)
     train_loader = DataLoader(
-        train_ds, batch_size=batch_size, shuffle=True,
+        train_ds, batch_size=batch_size,
+        sampler=sampler, shuffle=sampler is None,
         num_workers=num_workers, pin_memory=pin_memory, drop_last=True,
         **worker_kwargs,
     )

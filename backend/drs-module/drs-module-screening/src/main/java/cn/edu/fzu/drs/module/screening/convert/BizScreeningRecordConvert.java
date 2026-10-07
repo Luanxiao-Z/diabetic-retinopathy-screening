@@ -37,24 +37,27 @@ public final class BizScreeningRecordConvert {
     /**
      * 人工复核阈值：**归一化预测熵**高于该值的筛查结果视为「需人工复核」。
      *
-     * <p><b>为何不用 top1 置信度</b>：深度网络的 softmax 普遍饱和，在 30 张抽样中
-     * 有 20 张 top1 ≥ 0.99。按「top1 &lt; 0.70」判定时，在完整测试集（367 张）上
-     * 仅触发 12.0% 却只覆盖 23.5% 的错分样本（16/68），复核机制形同虚设。</p>
+     * <p><b>为何不用 top1 置信度</b>：深度网络的 softmax 普遍饱和。在完整测试集（367 张）上，
+     * 按「top1 &lt; 0.70」判定仅触发 8.7%，却只覆盖 20.3% 的错分样本，复核机制形同虚设。</p>
      *
-     * <p><b>阈值 0.18 的确定依据</b>（完整测试集 367 张，脚本 {@code tools/fit_review_threshold.py}）：</p>
+     * <p><b>阈值 0.15 的确定依据</b>（当前模型，完整测试集 367 张，脚本 {@code tools/fit_review_threshold.py}）：</p>
      * <table>
      *   <tr><th>阈值</th><th>触发率</th><th>错分召回</th></tr>
-     *   <tr><td>0.15</td><td>30.5%</td><td>61.8%</td></tr>
-     *   <tr><td><b>0.18</b></td><td><b>28.6%</b></td><td><b>61.8%</b></td></tr>
-     *   <tr><td>0.20</td><td>27.0%</td><td>60.3%</td></tr>
-     *   <tr><td>0.25</td><td>24.3%</td><td>57.4%</td></tr>
+     *   <tr><td><b>0.15</b></td><td><b>24.5%</b></td><td><b>53.1%</b></td></tr>
+     *   <tr><td>0.18</td><td>22.9%</td><td>50.0%</td></tr>
+     *   <tr><td>0.20</td><td>20.7%</td><td>45.3%</td></tr>
+     *   <tr><td>0.25</td><td>18.8%</td><td>42.2%</td></tr>
      * </table>
-     * <p>0.18 在「触发率 ≤ 30%」的约束下取得最高召回（61.8%，与 0.15 持平但触发更少）。</p>
+     * <p>0.15 在「触发率 ≤ 25%」的约束下取得最高召回。</p>
      *
-     * <p><b>已知局限</b>：仍有 38.2% 的错分样本熵极低（18/68 的熵 &lt; 0.05），
+     * <p><b>阈值随模型变化，换模型必须重新标定</b>：本值针对引入类别重采样后训练的模型
+     * （测试集 acc 0.8229 / 宏平均 F1 0.6528）。上一版模型在 0.18 阈值下召回 61.8%，
+     * 本版错分样本更集中于低熵区，同阈值下召回降至 50.0%，故下调至 0.15。</p>
+     *
+     * <p><b>已知局限</b>：仍有约 23% 的错分样本熵低于 0.05（64 个错分中 15 个），
      * 属「高置信度错误」，基于输出分布的不确定性指标无法识别，需从模型层面改进。</p>
      */
-    public static final BigDecimal REVIEW_UNCERTAINTY_THRESHOLD = new BigDecimal("0.18");
+    public static final BigDecimal REVIEW_UNCERTAINTY_THRESHOLD = new BigDecimal("0.15");
 
     /** 不确定性缺失或达到阈值 → 需人工复核（缺失时按保守策略标记） */
     public static boolean needReview(BigDecimal uncertainty) {

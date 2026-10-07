@@ -21,6 +21,8 @@ model-service/models/*
 !model-service/models/train_metrics.json
 # 生成的热力图不纳入版本控制
 model-service/heatmaps/
+# 多随机种子对比实验的日志与中间指标（生成物，结论已写入文档）
+model-service/experiments/
 
 # ============ 工具/IDE ============
 .mvn/
