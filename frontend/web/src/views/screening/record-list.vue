@@ -74,9 +74,7 @@
       <div class="drs-card-head">
         <h3>记录列表</h3>
         <span class="drs-card-meta">
-          共 {{ total }} 条{{ selectedIds.length ? ` · 已选 ${selectedIds.length} 条` : '' }} ·
-          拖动表头分隔线可调整列宽，双击表头重置
-          <el-button link type="primary" @click="fitColumns">重置列宽</el-button>
+          共 {{ total }} 条{{ selectedIds.length ? ` · 已选 ${selectedIds.length} 条` : '' }}
         </span>
       </div>
 
@@ -235,7 +233,7 @@ const route = useRoute()
 const router = useRouter()
 /** 列宽可拖拽调整并按表记忆；初始宽度按内容与容器自适应 */
 const tableRef = ref()
-const { fit: fitColumns } = useFitColumns(tableRef)
+useFitColumns(tableRef)
 const levelOptions = LEVEL_OPTIONS
 const genderOptions = GENDER_OPTIONS
 
