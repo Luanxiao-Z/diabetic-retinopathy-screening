@@ -150,6 +150,28 @@ VALUES
 SQL
 
 # ---------------------------------------------------------------------------
+# 3.5) 按归一化预测熵补算 uncertainty（复核判定依据；缺失会导致「待复核」为 0）
+# ---------------------------------------------------------------------------
+echo "==> 补算不确定性（归一化熵）…"
+run_sql <<SQL
+UPDATE biz_screening_record r
+JOIN (
+  SELECT id,
+    CAST(JSON_UNQUOTE(JSON_EXTRACT(probabilities,'\$.LEVEL_0')) AS DECIMAL(10,6)) p0,
+    CAST(JSON_UNQUOTE(JSON_EXTRACT(probabilities,'\$.LEVEL_1')) AS DECIMAL(10,6)) p1,
+    CAST(JSON_UNQUOTE(JSON_EXTRACT(probabilities,'\$.LEVEL_2')) AS DECIMAL(10,6)) p2,
+    CAST(JSON_UNQUOTE(JSON_EXTRACT(probabilities,'\$.LEVEL_3')) AS DECIMAL(10,6)) p3,
+    CAST(JSON_UNQUOTE(JSON_EXTRACT(probabilities,'\$.LEVEL_4')) AS DECIMAL(10,6)) p4
+  FROM biz_screening_record WHERE remark = '$DEMO_REMARK'
+) t ON r.id = t.id
+SET r.uncertainty = ROUND(-(
+  IFNULL(t.p0*LN(NULLIF(t.p0,0)),0) + IFNULL(t.p1*LN(NULLIF(t.p1,0)),0) +
+  IFNULL(t.p2*LN(NULLIF(t.p2,0)),0) + IFNULL(t.p3*LN(NULLIF(t.p3,0)),0) +
+  IFNULL(t.p4*LN(NULLIF(t.p4,0)),0)
+) / LN(5), 4);
+SQL
+
+# ---------------------------------------------------------------------------
 # 4) 汇总
 # ---------------------------------------------------------------------------
 echo "==> 完成。当前演示数据统计："
@@ -159,7 +181,7 @@ UNION ALL
 SELECT '演示筛查记录', COUNT(*) FROM biz_screening_record WHERE remark = '$DEMO_REMARK'
 UNION ALL
 SELECT '其中待复核', COUNT(*) FROM biz_screening_record
-  WHERE remark = '$DEMO_REMARK' AND confidence < 0.70
+  WHERE remark = '$DEMO_REMARK' AND uncertainty >= 0.15
     AND (review_status IS NULL OR review_status = 'PENDING');
 SQL
 echo "提示：清理演示数据执行 bash tools/seed-demo-data.sh --clean"
