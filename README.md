@@ -44,16 +44,73 @@
 
 ### 功能截图
 
-| 页面 | 截图 | 页面 | 截图 |
-| --- | --- | --- | --- |
-| 登录 | [查看](docs/images/login.png) | 工作台 | [查看](docs/images/dashboard.png) |
-| 筛查上传 | [查看](docs/images/screening-upload.png) | 筛查记录 | [查看](docs/images/screening-records.png) |
-| 随访待办 | [查看](docs/images/screening-todos.png) | 患者随访 | [查看](docs/images/screening-patients.png) |
-| 诊断报告 | [查看](docs/images/screening-report.png) | 统计分析 | [查看](docs/images/screening-statistics.png) |
-| 模型信息 | [查看](docs/images/model-info.png) | 用户管理 | [查看](docs/images/admin-users.png) |
-| 字典管理 | [查看](docs/images/admin-dicts.png) | 操作日志 | [查看](docs/images/admin-logs.png) |
-| 个人中心 | [查看](docs/images/profile.png) | 使用指南 | [查看](docs/images/guide.png) |
-| 关于系统 | [查看](docs/images/about.png) | | |
+**筛查业务**
+
+![筛查上传](docs/images/screening-upload.png)
+
+*筛查上传：先入队预览，再逐张独立推理*
+
+![筛查记录](docs/images/screening-records.png)
+
+*筛查记录：按患者 / 分级 / 复核状态检索，支持批量删除与导出*
+
+![随访待办](docs/images/screening-todos.png)
+
+*随访待办：待复核 / 需转诊 / 逾期未复诊三类聚合*
+
+![患者随访](docs/images/screening-patients.png)
+
+*患者随访：分级变化与趋势、随访时间线*
+
+![诊断报告](docs/images/screening-report.png)
+
+*诊断报告：眼底原图与 Grad-CAM 热力图、分级结论与概率表*
+
+**综合看板**
+
+![工作台](docs/images/dashboard.png)
+
+*工作台：关键指标与待办摘要*
+
+![统计分析](docs/images/screening-statistics.png)
+
+*统计分析：统计明细、分级分布与近 30 天趋势*
+
+![模型信息](docs/images/model-info.png)
+
+*模型信息：骨干、设备与训练指标*
+
+**系统管理**
+
+![用户管理](docs/images/admin-users.png)
+
+*用户管理*
+
+![字典管理](docs/images/admin-dicts.png)
+
+*字典管理*
+
+![操作日志](docs/images/admin-logs.png)
+
+*操作日志*
+
+**通用能力**
+
+![登录](docs/images/login.png)
+
+*登录：图形验证码*
+
+![个人中心](docs/images/profile.png)
+
+*个人中心*
+
+![使用指南](docs/images/guide.png)
+
+*使用指南*
+
+![关于系统](docs/images/about.png)
+
+*关于系统*
 
 > **时间展示约定**：界面时间统一为 `yyyy-MM-dd HH:mm:ss`（空格分隔、无 `T`）；
 > 仅操作日志等面向排障的场景保留 ISO8601 写法。
