@@ -130,20 +130,23 @@
 
 ## 三、系统架构
 
-```
-┌──────────────┐   HTTP    ┌──────────────────┐   HTTP    ┌────────────────────┐
-│  前端 Web     │ ────────► │  后端 Backend     │ ────────► │  模型服务           │
-│  Vue3 + Vite │  /api/v1  │  Spring Boot 3    │  /predict │  FastAPI + PyTorch │
-│  端口 5173    │ ◄──────── │  端口 8080        │ ◄──────── │  端口 8000          │
-└──────────────┘           └────────┬─────────┘           └────────────────────┘
-                                    │
-                    ┌───────────────┼───────────────┐
-                    ▼               ▼               ▼
-              ┌──────────┐   ┌──────────┐   ┌──────────────┐
-              │ MySQL 8  │   │ Redis 7  │   │ MinIO        │
-              │ 业务数据  │   │ 会话缓存  │   │ 影像私有桶    │
-              │ 3306     │   │ 6379     │   │ 9000 / 9001  │
-              └──────────┘   └──────────┘   └──────────────┘
+```mermaid
+flowchart TD
+    User([医生 / 管理员]) -->|浏览器 HTTP| Web[前端 Web<br/>Vue3 + Vite<br/>端口 5173]
+
+    Web -->|/api/v1 REST| Backend
+
+    subgraph Backend[后端 Spring Boot 多模块 · 端口 8080]
+        Auth[安全模块<br/>Token 认证 + 图形验证码]
+        System[系统模块<br/>用户 / 字典 / 操作日志]
+        Screening[筛查业务模块<br/>上传 / 记录 / 复核 / 随访 / 统计]
+    end
+
+    Backend -->|MyBatis-Plus| MySQL[(MySQL 8<br/>业务数据 · 3306)]
+    Backend -->|Jedis| Redis[(Redis 7<br/>Token 会话 / 验证码 · 6379)]
+    Backend -->|S3 预签名| MinIO[(MinIO<br/>影像私有桶 · 9000 / 9001)]
+    Backend -->|HTTP /predict| Model[模型服务<br/>FastAPI + PyTorch<br/>端口 8000]
+    Model -->|PyTorch 推理| GPU[(GPU CUDA<br/>可选加速)]
 ```
 
 **关键约定**
