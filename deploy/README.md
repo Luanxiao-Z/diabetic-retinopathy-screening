@@ -139,6 +139,6 @@ DB_HOST=127.0.0.1 DB_PORT=${MYSQL_PORT} DB_PASSWORD=****** \
 | --- | --- |
 | 后端容器反复重启 | 看 `logs backend`：多为 `DB_PASSWORD` 未设置或 MySQL 未就绪；compose 已用 `service_healthy` 约束启动顺序 |
 | 前端能打开但接口 502 | 后端容器未就绪或崩溃；检查 `logs backend`，确认 8080 已监听 |
-| 上传提示「无法连接模型推理服务」 | 模型服务未启动或 `DRS_MODEL_SERVICE_BASE_URL` 未指向 `model-service:8000` |
+| 上传提示“无法连接模型推理服务” | 模型服务未启动或 `DRS_MODEL_SERVICE_BASE_URL` 未指向 `model-service:8000` |
 | 登录报错但账号正确 | 数据库未初始化或种子账号未播种；确认数据卷为首次创建（或手工执行 `sql/init`） |
 | 影像无法显示 | 权重/桶异常：确认 MinIO 已就绪且后端已自动创建 `dr-screening` 桶；预签名 URL 30 分钟过期 |

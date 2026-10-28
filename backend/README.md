@@ -148,7 +148,7 @@ java -jar drs-app/drs-app-server/target/drs-app-server-1.0.0.jar --server.port=8
 
 2. **`updateById` 无法把字段更新为 `null`**
    MyBatis-Plus 默认字段策略为 `NOT_NULL`，会把 null 排除在 SET 子句之外。
-   需要「清空某字段」时必须改用 `LambdaUpdateWrapper` 显式 `.set(...)`。
+   需要“清空某字段”时必须改用 `LambdaUpdateWrapper` 显式 `.set(...)`。
 
 3. **`Map.of(...)` 的 `get(null)` 会抛 NPE**
    名称映射查询一律使用空安全的 `nameOf(...)`（见 `BizScreeningRecordConvert`）。
@@ -206,13 +206,13 @@ java -jar drs-app/drs-app-server/target/drs-app-server-1.0.0.jar --server.port=8
 
 | 现象 | 原因与处理 |
 | --- | --- |
-| `Column 'id' cannot be null` | 新建实体未显式设置主键，见「开发约定」第 1 条 |
+| `Column 'id' cannot be null` | 新建实体未显式设置主键，见“开发约定”第 1 条 |
 | 字段清空后仍是旧值 | `updateById` 忽略 null，改用 `LambdaUpdateWrapper`，见第 2 条 |
 | `mvn clean` 报无法删除 target | 8080 端口仍被占用，先停服务 |
 | 启动报 Redis 连接失败 | Redis 端口是 **26379** 而非 6379；确认 Docker 容器 `fjzhmz-redis` 已运行 |
 | 启动报 MinIO 连接失败 | 确认容器 `fjzhmz-minio` 已运行、`MINIO_*` 环境变量已设置 |
 | 上传筛查报模型服务不可用 | 模型服务（默认 8000）未启动 |
-| 登录返回「验证码已过期」 | 验证码一次性消费，失败后需点击图片刷新重新获取 |
+| 登录返回“验证码已过期” | 验证码一次性消费，失败后需点击图片刷新重新获取 |
 
 ---
 
