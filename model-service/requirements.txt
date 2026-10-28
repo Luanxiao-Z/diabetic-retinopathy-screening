@@ -1,12 +1,14 @@
 # ===========================================================================
-# DR 筛查模型服务依赖
+# DR screening model-service dependencies
 # ---------------------------------------------------------------------------
-# PyTorch 采用 CUDA 13.0 (cu130) GPU 轮子，本地 RTX 4050 可加速训练/推理。
-# 若运行环境无 NVIDIA GPU，请将最后两行改为：
+# PyTorch uses the CUDA 13.0 (cu130) GPU wheels; a local RTX 4050 accelerates
+# training/inference. If the runtime has NO NVIDIA GPU, change the last two
+# lines to the CPU wheels instead:
 #     torch==2.14.0+cpu
 #     torchvision==0.29.0+cpu
-# （同样走 PyTorch 额外索引；CPU 轮子也可直接从 PyPI 安装，去掉 +cu130 即可）
-# 安装命令：pip install -r requirements.txt
+# (Still via the PyTorch extra index; CPU wheels can also be installed
+#  directly from PyPI by dropping the +cu130 suffix.)
+# Install: pip install -r requirements.txt
 # ===========================================================================
 --extra-index-url https://download.pytorch.org/whl/cu130
 
