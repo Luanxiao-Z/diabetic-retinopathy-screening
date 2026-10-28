@@ -132,9 +132,10 @@
 
 ```mermaid
 flowchart TD
-    User([医生 / 管理员]) -->|浏览器 HTTP| Web[前端 Web<br/>Vue3 + Vite<br/>端口 5173]
+    User([医生 / 管理员]) -->|HTTP / HTTPS| Nginx[Nginx<br/>反向代理 + 静态资源托管]
 
-    Web -->|/api/v1 REST| Backend
+    Nginx -->|静态资源| Web[前端 Web<br/>Vue3 + Vite<br/>端口 5173]
+    Nginx -->|/api/v1 REST| Backend
 
     subgraph Backend[后端 Spring Boot 多模块 · 端口 8080]
         Auth[安全模块<br/>Token 认证 + 图形验证码]
