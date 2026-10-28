@@ -60,13 +60,13 @@
       </div>
 
       <div class="table-wrap">
-        <el-table
-          v-loading="loading"
-          :data="list"
-          row-key="patientName"
-          border
-          @row-dblclick="openTimeline"
-        >
+         <el-table
+           ref="tableRef"
+           v-loading="loading"
+           :data="list"
+           row-key="patientName"
+           @row-dblclick="openTimeline"
+         >
           <el-table-column label="患者" min-width="140">
             <template #default="{ row }">
               <span class="patient">
@@ -177,6 +177,10 @@ import { useScreeningStore } from '@/stores/screening'
 import { formatDateTime } from '@/utils/format'
 import { GENDER_OPTIONS, LEVEL_COLOR, LEVEL_OPTIONS } from '@/types/screening'
 import type { PatientFollowUpVO, ScreeningRecordVO } from '@/types/screening'
+import { useFitColumns } from '@/composables/useFitColumns'
+
+const tableRef = ref()
+useFitColumns(tableRef)
 
 const screeningStore = useScreeningStore()
 const levelOptions = LEVEL_OPTIONS

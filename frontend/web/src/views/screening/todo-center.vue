@@ -37,13 +37,13 @@
       </div>
 
       <div class="table-wrap">
-        <el-table
-          v-loading="loading"
-          :data="list"
-          row-key="id"
-          border
-          @row-dblclick="onRowDblClick"
-        >
+         <el-table
+           ref="tableRef"
+           v-loading="loading"
+           :data="list"
+           row-key="id"
+           @row-dblclick="onRowDblClick"
+         >
           <el-table-column v-if="activeTab === 'all'" label="类型" min-width="120">
             <template #default="{ row }">
               <span class="ti-type" :class="`tt-${row.type}`">{{ row.typeName }}</span>
@@ -106,6 +106,10 @@ import { pageTodos } from '@/api/screening'
 import { useScreeningStore } from '@/stores/screening'
 import { formatDateTime } from '@/utils/format'
 import type { TodoItemVO, TodoType } from '@/types/screening'
+import { useFitColumns } from '@/composables/useFitColumns'
+
+const tableRef = ref()
+useFitColumns(tableRef)
 
 type TabKey = 'all' | TodoType
 

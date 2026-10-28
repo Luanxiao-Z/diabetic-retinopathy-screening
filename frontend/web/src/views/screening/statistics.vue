@@ -55,7 +55,7 @@
         <span class="drs-card-meta">共 {{ total }} 例</span>
       </div>
       <div class="drs-card-body">
-        <el-table :data="summaryRows" size="small" border>
+        <el-table ref="tableRef" :data="summaryRows" size="small">
           <el-table-column prop="label" label="统计项" min-width="150" />
           <el-table-column prop="value" label="数值" width="130" align="right">
             <template #default="{ row }">
@@ -79,6 +79,10 @@ import { statisticsScreening } from '@/api/screening'
 import { useScreeningStore } from '@/stores/screening'
 import { LEVEL_COLOR, LEVEL_LABEL, SUGGESTION_COLOR, SUGGESTION_LABEL } from '@/types/screening'
 import type { ScreeningStatisticsVO } from '@/types/screening'
+import { useFitColumns } from '@/composables/useFitColumns'
+
+const tableRef = ref()
+useFitColumns(tableRef)
 
 const screeningStore = useScreeningStore()
 const loading = ref(false)

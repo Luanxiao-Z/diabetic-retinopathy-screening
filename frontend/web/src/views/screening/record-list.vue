@@ -75,39 +75,38 @@
         <h3>记录列表</h3>
         <span class="drs-card-meta">
           共 {{ total }} 条{{ selectedIds.length ? ` · 已选 ${selectedIds.length} 条` : '' }} ·
-          拖动表头分隔线可调整列宽
-          <el-button v-if="hasCustom" link type="primary" @click="resetWidths">恢复默认</el-button>
+          拖动表头分隔线可调整列宽，双击表头重置
+          <el-button link type="primary" @click="fitColumns">重置列宽</el-button>
         </span>
       </div>
 
       <div class="table-wrap">
         <el-table
+          ref="tableRef"
           v-loading="loading"
           :data="list"
           row-key="id"
-          border
           @selection-change="onSelectionChange"
-          @header-dragend="onHeaderDragend"
           @row-dblclick="onRowDblClick"
         >
           <el-table-column type="selection" width="46" />
-          <el-table-column prop="patientName" label="患者姓名" :min-width="widthOf('patientName', 130)">
+          <el-table-column prop="patientName" label="患者姓名" min-width="130">
             <template #default="{ row }">{{ row.patientName || '未登记' }}</template>
           </el-table-column>
-          <el-table-column prop="patientGender" label="性别" :min-width="widthOf('patientGender', 90)">
+          <el-table-column prop="patientGender" label="性别" min-width="90">
             <template #default="{ row }">{{ genderLabel(row.patientGender) }}</template>
           </el-table-column>
-          <el-table-column prop="patientAge" label="年龄" :min-width="widthOf('patientAge', 90)">
+          <el-table-column prop="patientAge" label="年龄" min-width="90">
             <template #default="{ row }">{{ row.patientAge ?? '—' }}</template>
           </el-table-column>
-          <el-table-column prop="resultLevel" label="DR 分级" :min-width="widthOf('resultLevel', 130)">
+          <el-table-column prop="resultLevel" label="DR 分级" min-width="130">
             <template #default="{ row }">
               <span v-if="row.levelName" class="chip" :style="chipStyle(row.resultLevel, LEVEL_COLOR)">
                 {{ row.levelName }}
               </span>
             </template>
           </el-table-column>
-          <el-table-column prop="confidence" label="置信度" :min-width="widthOf('confidence', 150)">
+          <el-table-column prop="confidence" label="置信度" min-width="150">
             <template #default="{ row }">
               <span class="conf">
                 <span class="conf-bar" aria-hidden="true">
@@ -121,7 +120,7 @@
               </span>
             </template>
           </el-table-column>
-          <el-table-column prop="uncertainty" label="不确定性" :min-width="widthOf('uncertainty', 110)">
+          <el-table-column prop="uncertainty" label="不确定性" min-width="110">
             <template #default="{ row }">
               <span
                 class="unc"
@@ -132,14 +131,14 @@
               </span>
             </template>
           </el-table-column>
-          <el-table-column prop="suggestion" label="转诊建议" :min-width="widthOf('suggestion', 150)">
+          <el-table-column prop="suggestion" label="转诊建议" min-width="150">
             <template #default="{ row }">
               <span v-if="row.suggestionName" class="chip" :style="chipStyle(row.suggestion, SUGGESTION_COLOR)">
                 {{ row.suggestionName }}
               </span>
             </template>
           </el-table-column>
-          <el-table-column prop="reviewStatus" label="复核状态" :min-width="widthOf('reviewStatus', 130)">
+          <el-table-column prop="reviewStatus" label="复核状态" min-width="130">
             <template #default="{ row }">
               <span v-if="row.reviewStatus === 'CONFIRMED'" class="rv rv-done" :title="`${row.reviewer || ''} ${row.reviewTime || ''} ${row.reviewRemark || ''}`">
                 <AppIcon name="check" :size="12" />已复核
@@ -148,7 +147,7 @@
               <span v-else class="rv rv-none">无需复核</span>
             </template>
           </el-table-column>
-          <el-table-column prop="createTime" label="筛查时间" :min-width="widthOf('createTime', 170)">
+          <el-table-column prop="createTime" label="筛查时间" min-width="170">
             <template #default="{ row }">{{ formatDateTime(row.createTime) }}</template>
           </el-table-column>
           <el-table-column label="操作" width="220" fixed="right">
@@ -217,7 +216,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import AppIcon from '@/components/AppIcon.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import ResultCard from '@/components/ResultCard.vue'
-import { useColumnWidths } from '@/composables/useColumnWidths'
+import { useFitColumns } from '@/composables/useFitColumns'
 import {
   detailScreening,
   exportScreening,
@@ -235,7 +234,8 @@ const screeningStore = useScreeningStore()
 const route = useRoute()
 const router = useRouter()
 /** 列宽可拖拽调整并按表记忆；初始宽度按内容与容器自适应 */
-const { widthOf, onHeaderDragend, resetWidths, hasCustom } = useColumnWidths('screening-records')
+const tableRef = ref()
+const { fit: fitColumns } = useFitColumns(tableRef)
 const levelOptions = LEVEL_OPTIONS
 const genderOptions = GENDER_OPTIONS
 

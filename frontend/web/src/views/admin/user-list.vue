@@ -52,10 +52,10 @@
 
       <div class="table-wrap">
         <el-table
+          ref="tableRef"
           v-loading="loading"
           :data="list"
           row-key="id"
-          border
           @row-dblclick="openEdit"
         >
           <el-table-column prop="username" label="用户名" min-width="130">
@@ -191,9 +191,13 @@ import { useUserStore } from '@/stores/user'
 import { ROLE_OPTIONS, USER_STATUS_OPTIONS, roleLabel } from '@/types/admin'
 import type { UserVO } from '@/types/admin'
 import { formatDateTime } from '@/utils/format'
+import { useFitColumns } from '@/composables/useFitColumns'
 
 const userStore = useUserStore()
 const canEdit = computed(() => userStore.permissions.includes('admin:user:edit'))
+
+const tableRef = ref()
+useFitColumns(tableRef)
 
 const loading = ref(false)
 const saving = ref(false)

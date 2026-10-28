@@ -290,6 +290,26 @@ a:hover {
   width: 100%;
 }
 
+/* ===== 列表：仅保留横向框线，去除纵向框线与外框 ===== */
+/* 即使个别表格仍带 border 属性，也不显示纵向分隔线 */
+.el-table--border .el-table__cell,
+.el-table--border th.el-table__cell,
+.el-table--border td.el-table__cell {
+  border-right: none;
+}
+
+/* 去掉右侧（纵向）外框伪元素；底部横向线保留 */
+.el-table--border::after,
+.el-table::after {
+  display: none;
+}
+
+/* 表头与各行之间保留一条横向分隔线 */
+.el-table th.el-table__cell,
+.el-table td.el-table__cell {
+  border-bottom: 1px solid var(--drs-border);
+}
+
 .el-tag {
   border-radius: var(--drs-radius-xs);
   font-weight: 500;

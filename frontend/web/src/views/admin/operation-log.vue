@@ -64,7 +64,7 @@
       </div>
 
       <div class="table-wrap">
-        <el-table v-loading="loading" :data="list" row-key="id" border>
+        <el-table ref="tableRef" v-loading="loading" :data="list" row-key="id">
           <el-table-column label="时间" min-width="164">
             <template #default="{ row }">{{ row.createTime || '—' }}</template>
           </el-table-column>
@@ -130,6 +130,10 @@ import PageHeader from '@/components/PageHeader.vue'
 import { pageOperationLogs } from '@/api/admin'
 import { LOG_ACTION_OPTIONS, LOG_MODULE_OPTIONS, LOG_RESULT_OPTIONS } from '@/types/admin'
 import type { OperationLogVO } from '@/types/admin'
+import { useFitColumns } from '@/composables/useFitColumns'
+
+const tableRef = ref()
+useFitColumns(tableRef)
 
 const loading = ref(false)
 const list = ref<OperationLogVO[]>([])

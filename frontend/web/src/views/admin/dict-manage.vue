@@ -74,13 +74,13 @@
           </div>
 
           <div class="table-wrap">
-            <el-table
-              v-loading="loadingItems"
-              :data="items"
-              row-key="itemCode"
-              border
-              @row-dblclick="openItemEdit"
-            >
+             <el-table
+               ref="tableRef"
+               v-loading="loadingItems"
+               :data="items"
+               row-key="itemCode"
+               @row-dblclick="openItemEdit"
+             >
               <el-table-column prop="itemCode" label="编码" min-width="140" />
               <el-table-column prop="itemName" label="名称" min-width="150" />
               <el-table-column label="扩展值" min-width="110">
@@ -194,9 +194,13 @@ import {
 } from '@/api/admin'
 import { useUserStore } from '@/stores/user'
 import type { DictDomainVO, DictItemVO } from '@/types/admin'
+import { useFitColumns } from '@/composables/useFitColumns'
 
 const userStore = useUserStore()
 const canEdit = computed(() => userStore.permissions.includes('admin:dict:edit'))
+
+const tableRef = ref()
+useFitColumns(tableRef)
 
 const CODE_PATTERN = /^[A-Za-z0-9_]+$/
 
