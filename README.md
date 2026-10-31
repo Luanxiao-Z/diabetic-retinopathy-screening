@@ -274,24 +274,54 @@ mysql -h 127.0.0.1 -P 3306 -u root -p < sql/init/01_init_dr_screening.sql
 
 ### 3. 启动模型服务（端口 8000）
 
-```bash
+> 推荐使用**系统安装的 Python 3.13**（本机 `.venv` 即按此创建；3.11 / 3.12 / 3.14 亦可，但 3.13 与本机缓存的 cu130 轮子匹配，安装最快）。
+
+**首次准备（仅一次，`.venv` 不存在时）**
+
+```powershell
+# Windows（py 启动器；无 py 时用 python）
 cd model-service
-python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
+py -3.13 -m venv .venv
+. .venv\Scripts\Activate.ps1          # PowerShell；cmd 用 .venv\Scripts\activate.bat
 pip install -r requirements.txt
+```
+
+```bash
+# Linux / macOS / Git Bash
+cd model-service
+python3 -m venv .venv
+source .venv/bin/activate             # Windows Git Bash：source .venv/Scripts/activate
+pip install -r requirements.txt
+```
+
+**快速启动（虚拟环境已就绪时，日常只需两步）**
+
+```powershell
+# Windows PowerShell
+cd model-service
+. .venv\Scripts\Activate.ps1
 uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
-验证：
+```bash
+# Linux / macOS / Git Bash
+cd model-service
+source .venv/bin/activate             # Windows Git Bash：source .venv/Scripts/activate
+uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
+
+> 也可不激活，直接用解释器启动：`.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000`。
+
+**验证**
 
 ```bash
 curl http://127.0.0.1:8000/health
 # 期望：{"status":"UP","model":"aptos2019-mobilenetv3s-1.0.0","device":"cuda","trained":true,...}
 ```
 
-> `requirements.txt` 默认拉取 CUDA 版 PyTorch；无 NVIDIA GPU 时请将末两行改为 `+cpu` 轮子，
-> 模型服务支持 CPU 回退（`device` 会显示 `cpu`）。
-> 若权重文件 `model-service/models/best_model.pth` 缺失，服务仍可启动但 `trained=false`，
-> 推理结果为随机初始化输出，**仅可用于联调**。
+> **依赖说明**：`requirements.txt` 默认拉取 CUDA 版 PyTorch（`torch==2.14.0+cu130`）。pip 会复用本地 HTTP 缓存，
+> 此前下载过时安装无需重新下载大轮子；无 NVIDIA GPU 时把末两行改为 `+cpu` 轮子即可，服务支持 CPU 回退（`device` 显示 `cpu`）。
+> 若权重 `model-service/models/best_model.pth` 缺失，服务仍可启动但 `trained=false`，推理为随机初始化输出，**仅可用于联调**。
 
 ### 4. 启动后端（端口 8080）
 
