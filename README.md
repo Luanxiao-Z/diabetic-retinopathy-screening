@@ -387,6 +387,7 @@ MySQL / Redis / MinIO（前置，必须先就绪）
 | 页面分页、表格空态出现英文 | 需全局注入 Element Plus 中文语言包（`main.ts` 中的 `zhCn`） |
 | `mvn clean` 报无法删除 `target` | 8080 仍有进程占用，先停止后端再构建 |
 | 导入 `torch` 偶发 `WinError 32` | Windows 下 DLL 被安全软件扫描占用，重试即可（非依赖损坏） |
+| 导入 `torch` 报 `Failed to load PyTorch C extensions` | venv 的 Python 版本与 torch 轮子 ABI 不一致（如 venv 为 3.12、torch 为 cp313）。执行 `py -3.13 -m venv .venv` 原地切换基址，或删除 `.venv` 后用 3.13 重建 |
 | 打印诊断报告时带出侧栏/顶栏 | 打印样式已全局隐藏壳层元素；若仍出现，请检查浏览器是否禁用了页面样式 |
 | 验证码看不清 | 点击验证码图片可刷新；验证码 5 分钟有效且**校验后立即失效**，登录失败需重新输入 |
 | 注册提示“注册过于频繁” | 已启用限流（同一 IP 每 10 分钟最多 5 次、全站每分钟最多 30 次），等待后重试即可 |
