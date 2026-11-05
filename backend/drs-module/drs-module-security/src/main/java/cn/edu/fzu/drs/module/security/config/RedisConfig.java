@@ -16,7 +16,7 @@ public class RedisConfig {
     @Bean
     public JedisPooled jedisPooled(
             @Value("${spring.data.redis.host:localhost}") String host,
-            @Value("${spring.data.redis.port:6379}") int port,
+            @Value("${spring.data.redis.port:26379}") int port,
             @Value("${spring.data.redis.password:}") String password) {
         if (password == null || password.isEmpty()) {
             return new JedisPooled(host, port);

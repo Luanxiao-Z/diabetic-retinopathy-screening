@@ -48,18 +48,19 @@ services:
     image: redis:7
     container_name: drs-redis
     restart: unless-stopped
-    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:?请在 deploy/.env 中设置 REDIS_PASSWORD}"]
+    command: ["redis-server", "--port", "${REDIS_PORT:-26379}", "--requirepass", "${REDIS_PASSWORD:?请在 deploy/.env 中设置 REDIS_PASSWORD}"]
     ports:
-      - "${REDIS_PORT:-6379}:6379"
+      - "${REDIS_PORT:-26379}:${REDIS_PORT:-26379}"
     volumes:
       - redis-data:/data
     healthcheck:
-      test: ["CMD-SHELL", "redis-cli -a $$REDIS_PASSWORD ping | grep -q PONG"]
+      test: ["CMD-SHELL", "redis-cli -p $$REDIS_PORT -a $$REDIS_PASSWORD ping | grep -q PONG"]
       interval: 10s
       timeout: 5s
       retries: 10
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_PORT: ${REDIS_PORT:-26379}
     networks: [drs-net]
 
   minio:
@@ -92,7 +93,7 @@ services:
     ports:
       - "${MODEL_PORT:-8000}:8000"
     volumes:
-      # 训练权重与指标不入镜像，改为挂载（权重不入库，需自行放置）
+      # 权重与训练指标已纳入版本控制，随仓库分发；挂载便于重训后热更新
       - ../model-service/models:/app/models
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://127.0.0.1:8000/health')\""]
@@ -131,7 +132,7 @@ services:
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
       SPRING_DATA_REDIS_HOST: redis
-      SPRING_DATA_REDIS_PORT: "6379"
+      SPRING_DATA_REDIS_PORT: "${REDIS_PORT:-26379}"
       SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD}
       DRS_MODEL_SERVICE_BASE_URL: http://model-service:8000
     networks: [drs-net]

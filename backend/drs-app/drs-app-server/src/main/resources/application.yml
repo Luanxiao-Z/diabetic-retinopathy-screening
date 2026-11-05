@@ -19,7 +19,7 @@ spring:
   data:
     redis:
       host: localhost
-      # Docker 容器 fjzhmz-redis 映射端口（非默认 6379）
+      # 统一使用 26379，容器编排与物理机部署保持一致
       port: 26379
       # 密码通过环境变量 REDIS_PASSWORD 注入，勿写明文入库
       password: ${REDIS_PASSWORD}
