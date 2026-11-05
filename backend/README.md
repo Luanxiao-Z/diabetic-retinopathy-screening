@@ -60,8 +60,8 @@ drs-app-server ──> drs-module-system ──> drs-module-security ──> drs
 | JDK | 21 | 编译与运行均需 21 |
 | Maven | 3.9+ | |
 | MySQL | 8.0 | 库名 `dr_screening`，建表脚本见 `../sql/` |
-| Redis | 7.x | **本项目使用容器 `fjzhmz-redis` 映射的 26379 端口，非默认 6379** |
-| MinIO | 最新 | 容器 `fjzhmz-minio`，端口 9000（控制台 9001） |
+| Redis | 7.x | 仓库默认连接 `localhost:26379`；端口可通过 `SPRING_DATA_REDIS_PORT` 覆盖 |
+| MinIO | 最新 | API 9000，控制台 9001 |
 | 模型服务 | — | 需先启动，默认 `http://127.0.0.1:8000` |
 
 ---
@@ -209,8 +209,8 @@ java -jar drs-app/drs-app-server/target/drs-app-server-1.0.0.jar --server.port=8
 | `Column 'id' cannot be null` | 新建实体未显式设置主键，见“开发约定”第 1 条 |
 | 字段清空后仍是旧值 | `updateById` 忽略 null，改用 `LambdaUpdateWrapper`，见第 2 条 |
 | `mvn clean` 报无法删除 target | 8080 端口仍被占用，先停服务 |
-| 启动报 Redis 连接失败 | Redis 端口是 **26379** 而非 6379；确认 Docker 容器 `fjzhmz-redis` 已运行 |
-| 启动报 MinIO 连接失败 | 确认容器 `fjzhmz-minio` 已运行、`MINIO_*` 环境变量已设置 |
+| 启动报 Redis 连接失败 | 全项目默认 26379，确认 Redis 已在该端口运行；如自定义端口，设置 `SPRING_DATA_REDIS_PORT` |
+| 启动报 MinIO 连接失败 | 确认 MinIO 已运行（9000/9001）、`MINIO_*` 环境变量已设置 |
 | 上传筛查报模型服务不可用 | 模型服务（默认 8000）未启动 |
 | 登录返回“验证码已过期” | 验证码一次性消费，失败后需点击图片刷新重新获取 |
 
@@ -221,6 +221,6 @@ java -jar drs-app/drs-app-server/target/drs-app-server-1.0.0.jar --server.port=8
 | 文档 | 位置 |
 | --- | --- |
 | 项目总览、功能与部署 | `../README.md` |
-| 系统实现说明（含设计取舍） | `../docs/系统实现说明.md` |
+| 后端应用开发规范、目录规划 | `../docs/backend/` |
+| 接口权限、数据库与字典规范 | `../docs/design/` |
 | 数据库建表脚本 | `../sql/` |
-| 接口规范与验收要求 | `../spec/` |

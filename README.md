@@ -1,14 +1,16 @@
 # 糖尿病视网膜病变（DR）智能筛查系统
 
-面向基层医疗与眼科筛查场景的 **AI 辅助眼底筛查系统**。上传眼底照片后，系统自动完成糖尿病视网膜病变五级分级（LEVEL_0 正常 ~ LEVEL_4 增殖期），生成 Grad-CAM 可解释热力图，并给出分级转诊建议；同时提供筛查记录管理、低置信度人工复核、患者纵向随访、统计分析与诊断报告导出等业务能力。
+一个面向基层医疗与眼科筛查场景的开源 **AI 辅助眼底筛查系统**（[GitHub](https://github.com/Luanxiao-Z/diabetic-retinopathy-screening)，MIT 协议）。上传眼底照片后，系统自动完成糖尿病视网膜病变五级分级（LEVEL_0 正常 ~ LEVEL_4 增殖期），生成 Grad-CAM 可解释热力图，并给出分级转诊建议；同时提供筛查记录管理、不确定性驱动的人工复核、患者纵向随访、统计分析与诊断报告导出等业务能力。
+
+项目包含完整可运行的前后端与模型推理服务，权重文件与训练指标随仓库分发，克隆后按[第六节](#六快速开始)配置即可在本地或容器中启动。
 
 ### 现实意义
 
 糖尿病视网膜病变（DR）是工作年龄人群首要的致盲性眼病之一，早期常无明显症状，而**在进展至增殖期之前发现并干预，绝大多数严重视力损害可以避免**。然而基层医疗机构普遍缺乏眼科医师与阅片能力，人工分级耗时且主观性强，大量患者因此错过最佳干预窗口。
 
-本系统正是针对这一痛点：以 AI 自动完成五级分级与转诊建议，将“是否需要转诊”的判断前置到基层筛查环节，**降低对专科医师的依赖、提升筛查覆盖与判读一致性**；以“归一化预测熵”识别不确定结果并交由医师复核（human-in-the-loop），在提升效率的同时守住安全底线；Grad-CAM 热力图使模型判断可追溯、可解释，便于医患沟通与教学。整体服务于**眼底病早筛早治与分级诊疗**的现实需求，可作为基层筛查场景的辅助工具。
+本系统针对这一痛点：以 AI 自动完成五级分级与转诊建议，将“是否需要转诊”的判断前置到基层筛查环节，**降低对专科医师的依赖、提升筛查覆盖与判读一致性**；以“归一化预测熵”识别不确定结果并交由医师复核（human-in-the-loop），在提升效率的同时守住安全底线；Grad-CAM 热力图使模型判断可追溯、可解释，便于医患沟通与教学。整体服务于**眼底病早筛早治与分级诊疗**的现实需求，可作为基层筛查场景的辅助工具。
 
-> **免责声明**：本项目为医学人工智能课程项目，AI 筛查结果**仅供临床参考，不能替代执业医师的诊断意见**。
+> **适用范围与免责声明**：本项目是教学与科研用途的演示系统，**不是医疗器械，未经过临床验证或监管审批**；AI 筛查结果**仅供研究与教学参考，不得用于诊断、治疗决策或替代执业医师的意见**。数据集与第三方组件的使用须遵循各自许可（见[第十一节数据集](#十一数据集)与[第十六节许可证](#十六许可证)）。
 
 ---
 
@@ -19,7 +21,7 @@
 - **筛查记录**：按患者、分级、复核状态与时间检索；复核状态区分为“待复核 / 已复核 / 无需复核”；支持批量删除与 Excel 导出；列宽按内容自动适配，拖动表头可调整、双击表头重置；**双击行可打开详情**
 - **随访待办**：以分页表格呈现三类待办——待人工复核、需转诊（重度及以上）、逾期未复诊（>90 天且中度以上）；支持类型切换、患者姓名筛选与分页；“全部”视图额外标注每项归属类型
 - **患者随访**：按患者归并历次筛查，列表分列展示“分级变化”（前次 → 最近）与“变化趋势”（进展 / 好转 / 持平 / 首次），并提供随访时间线
-- **人工复核**：以模型**不确定性**（归一化预测熵，阈值 **0.18**）识别需复核结果，医师核对后确认复核并留存意见，形成可追溯闭环
+- **人工复核**：以模型**不确定性**（归一化预测熵，阈值 **0.15**）识别需复核结果，医师核对后确认复核并留存意见，形成可追溯闭环
 - **诊断报告**：A4 版式报告，含受检者信息、眼底原图与热力图、分级结论与各分级概率表、医师复核与免责声明，可打印或另存为 PDF
 
 ### 综合看板
@@ -123,7 +125,7 @@
 | --- | --- |
 | 前端 | Vue 3 + TypeScript + Vite + Element Plus + Pinia + Vue Router + ECharts（包管理器 Yarn） |
 | 后端 | Spring Boot 3.4（Java 21）+ Maven 多模块 + MyBatis-Plus + Redis（Token 会话）+ Apache POI |
-| 模型服务 | Python 3.12 + FastAPI + PyTorch（CUDA cu130）+ torchvision，自实现 Grad-CAM |
+| 模型服务 | Python 3.13 + FastAPI + PyTorch（CUDA cu130）+ torchvision，自实现 Grad-CAM |
 | 数据存储 | MySQL 8（业务数据）、Redis 7（会话缓存）、MinIO（眼底图与热力图私有桶） |
 
 ---
@@ -144,7 +146,7 @@ flowchart TD
     end
 
     Backend -->|MyBatis-Plus| MySQL[(MySQL 8<br/>业务数据 · 3306)]
-    Backend -->|Jedis| Redis[(Redis 7<br/>Token 会话 / 验证码 · 6379)]
+    Backend -->|Jedis| Redis[(Redis 7<br/>Token 会话 / 验证码 · 26379)]
     Backend -->|S3 预签名| MinIO[(MinIO<br/>影像私有桶 · 9000 / 9001)]
     Backend -->|HTTP /predict| Model[模型服务<br/>FastAPI + PyTorch<br/>端口 8000]
     Model -->|PyTorch 推理| GPU[(GPU CUDA<br/>可选加速)]
@@ -175,20 +177,29 @@ diabetic-retinopathy-screening/
 │   └── src/
 │       ├── api/                 接口封装
 │       ├── components/          通用组件（AppIcon/PageHeader/StatCard/EChart/ResultCard）
-│       ├── composables/         组合式函数（表格列宽记忆等）
+│       ├── composables/         组合式函数（useFitColumns 列宽自适应等）
+│       ├── directives/          自定义指令（v-permission）
 │       ├── layouts/             布局外壳（顶栏 + 分组侧栏 + 多标签页）
+│       ├── router/              路由与全局守卫
+│       ├── stores/              Pinia 状态管理
 │       ├── styles/              设计令牌与主题
 │       ├── types/               类型定义
+│       ├── utils/               请求封装、格式化、下载
 │       └── views/               页面
 ├── model-service/               FastAPI 模型服务
 │   ├── app/                     推理管线、Grad-CAM、模型加载、配置
+│   ├── models/                  权重与训练指标（已入库）
 │   └── training/                训练数据加载与训练入口
 ├── datasets/                    APTOS 2019 数据集（不入库）
 ├── deploy/                      Nginx 与 Docker 容器化部署示例（见 deploy/README.md）
-├── docs/                        项目文档
-├── spec/                        规范体系（效力高于 docs 与 README）
+├── docs/                        项目文档与开发规范（统一在此维护）
+│   ├── images/                  功能截图
+│   ├── backend/                 后端规范
+│   ├── design/                  设计类规范
+│   ├── frontend/                前端规范
+│   └── project/                 项目级规则与目录规划
 ├── sql/init/                    MySQL 建表与字典初始化脚本（幂等）
-└── tools/                       辅助脚本（Maven 包装、演示数据生成）
+└── tools/                       辅助脚本（构建包装、演示数据、截图、阈值标定）
 ```
 
 ---
@@ -201,8 +212,8 @@ diabetic-retinopathy-screening/
 | Maven | 3.9.x |
 | Node.js | 18+（推荐 22） |
 | Yarn | 1.22 |
-| Python | 3.12+ |
-| MySQL / Redis / MinIO | 8.0 / 7 / 最新版（本地或容器均可） |
+| Python | 3.13（推荐；与 torch cu130 轮子匹配） |
+| MySQL / Redis / MinIO | 8.0 / 7 / 最新版（自行部署或使用 Docker Compose） |
 | NVIDIA 驱动 + CUDA | 可选；模型服务支持 CPU 回退 |
 
 ---
@@ -217,26 +228,27 @@ diabetic-retinopathy-screening/
 | Maven | 3.9.x | `mvn -v` |
 | Node.js | 18+（推荐 22） | `node -v` |
 | Yarn | 1.22 | `yarn -v` |
-| Python | 3.12+ | `python --version` |
+| Python | 3.13（推荐；与 torch cu130 轮子匹配） | `python --version` |
 | MySQL / Redis / MinIO | 8.0 / 7 / 最新 | 见下 |
 
-**基础设施必须先就绪**——本项目不自带数据库、缓存与对象存储。启动前确认以下端口均在监听：
+**基础设施必须先就绪**——本项目不自带数据库、缓存与对象存储。可以直接使用 `deploy/` 下的容器编排一键启动，或自行准备后按下表检查端口：
 
 ```bash
+# Linux / macOS
+ss -lnt | grep -E ":(3306|26379|9000|9001)"
 # Windows
 netstat -ano | findstr "3306 26379 9000 9001"
-# Linux / macOS
-netstat -ano | grep -E ":(3306|26379|9000|9001)"
 ```
 
 | 服务 | 端口 | 说明 |
 | --- | --- | --- |
 | MySQL | 3306 | 业务库 `dr_screening` |
-| Redis | 26379 | 会话缓存（注意不是默认的 6379） |
+| Redis | 26379 | 会话缓存；仓库默认配置为此端口 |
 | MinIO API / Console | 9000 / 9001 | 对象存储 |
 
-> 端口缺失时请先启动基础设施；若希望一键起停全部服务，可使用 `deploy/` 下的容器编排
-> （见 [deploy/README.md](deploy/README.md)）。
+> **端口说明**：全项目统一使用 **26379**（物理机部署与容器编排一致）。后端 `application.yml` 默认连接 `localhost:26379`；容器编排中 Redis 亦监听 26379，后端通过 `SPRING_DATA_REDIS_HOST` 指向服务名 `redis`。如需改端口，可用 `SPRING_DATA_REDIS_PORT` / `REDIS_PORT` 覆盖；数据库连接地址可用 `SPRING_DATASOURCE_URL` 覆盖。
+>
+> 端口缺失时请先启动基础设施；一键起停全部服务见 [deploy/README.md](deploy/README.md)。
 
 ### 1. 配置连接信息
 
@@ -274,7 +286,7 @@ mysql -h 127.0.0.1 -P 3306 -u root -p < sql/init/01_init_dr_screening.sql
 
 ### 3. 启动模型服务（端口 8000）
 
-> 推荐使用**系统安装的 Python 3.13**（本机 `.venv` 即按此创建；3.11 / 3.12 / 3.14 亦可，但 3.13 与本机缓存的 cu130 轮子匹配，安装最快）。
+> 推荐 **Python 3.13**（与 PyTorch cu130 的 cp313 轮子匹配）；3.11 / 3.12 / 3.14 需改用对应 ABI 的轮子。`requirements.txt` 为纯 ASCII，避免在中文 Windows 下被 pip 以 GBK 解码。
 
 **首次准备（仅一次，`.venv` 不存在时）**
 
@@ -319,9 +331,8 @@ curl http://127.0.0.1:8000/health
 # 期望：{"status":"UP","model":"aptos2019-mobilenetv3s-1.0.0","device":"cuda","trained":true,...}
 ```
 
-> **依赖说明**：`requirements.txt` 默认拉取 CUDA 版 PyTorch（`torch==2.14.0+cu130`）。pip 会复用本地 HTTP 缓存，
-> 此前下载过时安装无需重新下载大轮子；无 NVIDIA GPU 时把末两行改为 `+cpu` 轮子即可，服务支持 CPU 回退（`device` 显示 `cpu`）。
-> 若权重 `model-service/models/best_model.pth` 缺失，服务仍可启动但 `trained=false`，推理为随机初始化输出，**仅可用于联调**。
+> **依赖说明**：`requirements.txt` 默认拉取 CUDA 版 PyTorch（`torch==2.14.0+cu130`），首次安装需下载约 3 GB 轮子；pip 会复用 HTTP 缓存，重复安装不再下载。无 NVIDIA GPU 时把末两行改为 `+cpu` 轮子即可，服务支持 CPU 回退（`device` 显示 `cpu`）。
+> 若权重 `model-service/models/best_model.pth` 缺失，服务仍可启动但 `trained=false`，推理为随机初始化输出，**仅可用于接口调试**。
 
 ### 4. 启动后端（端口 8080）
 
@@ -396,14 +407,14 @@ MySQL / Redis / MinIO（前置，必须先就绪）
 
 ## 七、默认端口
 
-| 服务 | 端口 |
-| --- | --- |
-| 前端 web（dev） | 5173 |
-| 后端 backend | 8080 |
-| 模型服务 model-service | 8000 |
-| MySQL | 3306 |
-| Redis | 6379 |
-| MinIO API / Console | 9000 / 9001 |
+| 服务 | 端口 | 说明 |
+| --- | --- | --- |
+| 前端 web（dev） | 5173 | Vite 开发服务器，`/api` 代理至后端 |
+| 后端 backend | 8080 | REST API `/api/v1` |
+| 模型服务 model-service | 8000 | FastAPI 推理服务 |
+| MySQL | 3306 | 业务库 |
+| Redis | 26379 | 全项目统一；可用 `SPRING_DATA_REDIS_PORT` / `REDIS_PORT` 覆盖 |
+| MinIO API / Console | 9000 / 9001 | 对象存储及控制台 |
 
 ---
 
@@ -671,24 +682,24 @@ APTOS 训练集的类别分布高度倾斜（最大/最小类 **9.4 倍**）：
 
 ## 十三、开发规范与质量
 
-- **规范效力**：`spec/` 目录效力高于 `docs/` 与本文档，冲突时以 `spec/` 为准
+- **规范位置**：项目级规则与各分项规范统一维护在 [`docs/`](docs/) 下（`backend/`、`design/`、`frontend/`、`project/` 四个子目录）；与代码实现冲突时以代码实现为准，并同步修订文档
 - **前端**：TypeScript 全量，ESLint + Prettier + Stylelint
 
   ```bash
   cd frontend/web
   yarn build      # vue-tsc --noEmit && vite build
   yarn lint       # eslint
-  yarn stylelint  # stylelint
+  yarn format     # prettier
   ```
 
-- **后端**：统一响应体、统一异常处理、接口 100% 提供 Knife4j 中文注解
+- **后端**：统一响应体、统一异常处理、接口提供 Knife4j 中文注解
 - **提交信息**：遵循 Conventional Commits（`feat` / `fix` / `docs` / `refactor` / `perf` / `chore` 等）
 
 ---
 
 ## 十四、部署
 
-- **本地运行**：见“六、快速开始”，三个服务分别启动，基础设施由本机提供
+- **本地运行**：见“六、快速开始”，三个服务分别启动，基础设施需自行准备（MySQL / Redis / MinIO）
 - **容器化**：`deploy/` 提供 `docker-compose.yml`、三个 Dockerfile 与 Nginx 配置，一键启动全部六个服务（MySQL / Redis / MinIO / 模型服务 / 后端 / 前端），详见 [deploy/README.md](deploy/README.md)
 
 ---
@@ -698,10 +709,18 @@ APTOS 训练集的类别分布高度倾斜（最大/最小类 **9.4 倍**）：
 | 脚本 | 用途 |
 | --- | --- |
 | `tools/mvn.sh` | Git Bash 下 Maven 包装脚本（解决 POSIX 路径问题） |
-| `tools/seed-demo-data.sh` | 生成演示数据（账号 + 筛查记录），幂等，支持 `--clean` |
+| `tools/seed-demo-data.sh` | 生成演示数据（账号 + 筛查记录，无影像），幂等，支持 `--clean` |
+| `tools/gen-demo-data.py` | 通过上传接口用 `datasets/` 真实眼底图生成带影像与热力图的演示数据 |
+| `tools/screenshot.mjs` | 基于系统 Chrome 的 CDP 自动截图，输出到 `docs/images/` |
+| `tools/fit_review_threshold.py` | 标定人工复核的归一化熵阈值 |
+| `tools/compare_resample.py` | 多随机种子下对比类别重采样策略 |
 
 ---
 
-## 十六、许可证
+## 十六、许可证与反馈
 
-本项目采用 [MIT License](LICENSE)。第三方组件遵循各自开源许可，清单见系统内“帮助 → 关于系统”页。
+本项目采用 [MIT License](LICENSE)，欢迎通过 GitHub Issue 反馈问题或提交 Pull Request。提交前请遵循 Conventional Commits，并确保 `yarn build` 与后端编译通过。
+
+第三方组件遵循各自开源许可，清单见系统内“帮助 → 关于系统”页；APTOS 2019 数据集版权归原始提供方所有，仅限科研与教学用途（见[第十一节](#十一数据集)）。
+
+> 再次强调：本项目为教学与科研演示系统，**不可用于临床诊断**。
