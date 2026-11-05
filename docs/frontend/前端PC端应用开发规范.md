@@ -10,10 +10,11 @@
 - **状态管理**: Pinia
 - **路由**: Vue Router 4.x
 - **HTTP 客户端**: Axios
-- **样式预处理器**: SCSS/SASS
-- **图标**: unplugin-icons
+- **样式**: 原生 CSS + CSS 变量（设计令牌集中在 `src/styles/theme.css`）
+- **图标**: 自封装 `AppIcon` 组件，不使用 emoji
 - **图表**: ECharts
 - **代码规范**: ESLint + Prettier + Stylelint
+- **包管理器**: Yarn
 
 ### 1.2 项目结构
 
@@ -23,8 +24,8 @@
 
 ### 2.1 版本要求
 
-- Node.js: `^20.19.0 || >=22.12.0`（Vite 6 要求）
-- 包管理器: Yarn（与 H5 端保持一致，避免 lock 文件混用）
+- Node.js: 推荐 22（Vite 6 要求 `^20.19.0 || >=22.12.0`）
+- 包管理器: Yarn 1.22，不混用 npm，避免 lock 文件冲突
 - 推荐使用 `nvm` 或 `fnm` 管理 Node.js 版本
 
 ### 2.2 开发命令
@@ -33,19 +34,20 @@
 # 安装依赖
 yarn install
 
-# 启动开发服务器
+# 启动开发服务器（http://localhost:5173，/api 代理至后端 8080）
 yarn dev
 
-# 构建生产包
+# 构建生产包（内含 vue-tsc --noEmit 类型检查）
 yarn build
 
-# 代码检查与修复
-yarn lint
-yarn lint:prettier
-yarn lint:stylelint
+# 预览构建产物
+yarn preview
 
-# 类型检查
-yarn type-check
+# 代码检查
+yarn lint
+
+# 格式化
+yarn format
 ```
 
 ## 3. 编码规范
@@ -203,14 +205,14 @@ export default http
 
 ### 4.4 接口文件组织
 
-- API 定义放在 `src/apis/` 目录，按功能模块组织，路径使用**资源名词复数**，不含动词。
-- 每个接口文件包含完整的 TypeScript 请求/响应类型定义。
+- API 定义放在 `src/api/` 目录（`auth.ts` / `user.ts` / `admin.ts` / `screening.ts`），路径使用**资源名词**，不含动词。
+- 每个接口文件包含完整的 TypeScript 请求/响应类型定义，类型集中在 `src/types/`。
 - 接口函数名采用 `{动作}{资源}` 形式，与 HTTP 方法语义对应。
 
 ```typescript
-// apis/screening.ts
-import http from '@/utils/http'
-import type { PageResult, ScreeningRecord, ScreeningQuery, ScreeningCreateDTO } from '@/types/screening'
+// api/screening.ts
+import request from '@/utils/request'
+import type { PageResult, ScreeningRecordVO, ScreeningPageQuery } from '@/types/screening'
 
 const BASE = '/biz/screening-records'
 
@@ -283,9 +285,9 @@ export const useUserStore = defineStore('user', () => {
 
 ### 6.1 路由定义
 
-- 路由配置放在 `src/router/modules/` 目录，按功能模块划分。
+- 路由配置集中在 `src/router/index.ts`（本项目无 `modules/` 拆分），按业务模块分组书写。
 - 路由组件使用异步加载（`() => import('...')`）。
-- 页面级权限通过路由 `meta.permission` 标记，由全局守卫校验，详见[前端页面权限控制规范](../design/前端页面权限控制规范.md)。
+- 页面级权限通过路由 `meta.permission` 标记，公开页面通过 `meta.public` 标记，由全局守卫校验，详见[前端页面权限控制规范](../design/前端页面权限控制规范.md)。
 
 ### 6.2 路由命名
 
@@ -297,30 +299,29 @@ export const useUserStore = defineStore('user', () => {
 
 ### 7.1 样式组织
 
-- 使用 SCSS 预处理器。
-- 全局样式定义在 `src/assets/css/` 目录下。
-- 组件样式必须使用 `scoped`，避免样式污染。
-- 遵循 BEM 命名规范。
+- 使用原生 CSS，不引入 SCSS/SASS 预处理器。
+- 设计令牌与全局样式集中在 `src/styles/theme.css`。
+- 组件样式必须使用 `scoped`，跨组件覆盖 Element Plus 样式时使用 `:deep()`。
+- 类名使用小写短横线分隔，保持语义化。
 
 ### 7.2 变量和主题
 
-- 颜色、尺寸等常量定义在变量文件中，禁止在组件内硬编码色值。
-- 主题切换使用 CSS 变量定义。
-- 变量命名规范：`$color-primary`、`$font-size-large`。
+- 颜色、间距、圆角等常量统一定义为 CSS 变量（如 `--drs-primary`、`--drs-border`），禁止在组件内硬编码色值。
+- 图标统一使用 `AppIcon` 组件，不使用 emoji。
+- 列表表格只保留横向框线；列宽由 `useFitColumns` 按内容自动适配，固定列与显式宽度列跳过，双击表头可重置，不做持久化。
 
 ## 8. 组件开发规范
 
 ### 8.1 组件分类
 
-- **基础组件**: 通用 UI 组件，如按钮、输入框等，放 `src/components/base/`
-- **业务组件**: 封装特定业务逻辑的组件，放 `src/components/business/`
-- **布局组件**: 页面布局相关组件，放 `src/layout/`
+- **通用组件**: `AppIcon`、`PageHeader`、`StatCard`、`EChart`、`ResultCard` 等，直接放在 `src/components/`
+- **布局组件**: 页面外壳放在 `src/layouts/`
+- **页面组件**: 按业务模块分目录放在 `src/views/`
 
 ### 8.2 组件复用
 
-- 优先使用 Element Plus 等成熟组件库。
-- 公共组件支持按需引入，全局组件在 `src/plugins/` 中统一注册。
-- 单个组件文件超过 400 行时应拆分。
+- 优先使用 Element Plus 组件；Element Plus 在 `main.ts` 中全局注册并注入中文语言包 `zhCn`，否则分页与表格空态会显示英文。
+- 公共组件无需额外注册；单个组件文件超过 400 行时应拆分。
 
 ### 8.3 组件通信
 
@@ -338,8 +339,8 @@ export const useUserStore = defineStore('user', () => {
 
 ### 9.2 资源优化
 
-- 图片资源压缩和懒加载。
-- 第三方库按需引入（Element Plus 使用 `unplugin-vue-components` 自动按需）。
+- 图片资源压缩和懒加载；演示样例图放在 `public/samples/`。
+- 第三方库按需引入，ECharts 图表通过 `EChart` 组件按需初始化。
 - 路由组件异步加载。
 
 ### 9.3 代码分割
@@ -357,9 +358,10 @@ export const useUserStore = defineStore('user', () => {
 
 ### 10.2 数据安全
 
-- 敏感信息（令牌、密码）不存储在 `localStorage`，优先使用内存 + `sessionStorage`。
-- API 调用统一由拦截器添加认证头。
-- 禁止在代码中硬编码密钥、地址等敏感信息。
+- 登录令牌当前保存在 `localStorage` 的 `token` 键（与 `stores/user.ts`、`utils/request.ts`、`utils/download.ts` 的实现一致）；退出登录时清除。若后续改用 HttpOnly Cookie，需同步修改这三处。
+- 密码等凭据不得写入任何持久化存储，也不得写入日志。
+- API 调用统一由 `utils/request.ts` 拦截器注入 `X-Access-Token`；文件下载走 `utils/download.ts`，同样需要该请求头。
+- 禁止在代码中硬编码密钥、地址等敏感信息；连接凭据通过环境变量注入。
 - 涉及患者隐私数据的页面禁止截图分享、禁止打印无关字段。
 
 ### 10.3 内容安全策略
