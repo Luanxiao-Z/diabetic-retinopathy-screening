@@ -1,6 +1,6 @@
 # 糖尿病视网膜病变（DR）智能筛查系统
 
-一个面向基层医疗与眼科筛查场景的开源 **AI 辅助眼底筛查系统**（[GitHub](https://github.com/Luanxiao-Z/diabetic-retinopathy-screening)，MIT 协议）。上传眼底照片后，系统自动完成糖尿病视网膜病变五级分级（LEVEL_0 正常 ~ LEVEL_4 增殖期），生成 Grad-CAM 可解释热力图，并给出分级转诊建议；同时提供筛查记录管理、不确定性驱动的人工复核、患者纵向随访、统计分析与诊断报告导出等业务能力。
+一个面向基层医疗与眼科筛查场景的**开源学习项目**（[GitHub](https://github.com/Luanxiao-Z/diabetic-retinopathy-screening)，[MIT 协议](LICENSE)）。系统以 AI 辅助眼底筛查为业务背景，完整覆盖前端、后端、模型推理与容器化部署，适合作为医学人工智能方向的工程实践参考。上传眼底照片后，系统自动完成糖尿病视网膜病变五级分级（LEVEL_0 正常 ~ LEVEL_4 增殖期），生成 Grad-CAM 可解释热力图，并给出分级转诊建议；同时提供筛查记录管理、不确定性驱动的人工复核、患者纵向随访、统计分析与诊断报告导出等业务能力。
 
 项目包含完整可运行的前后端与模型推理服务，权重文件与训练指标随仓库分发，克隆后按[第六节](#六快速开始)配置即可在本地或容器中启动。
 
@@ -123,10 +123,13 @@
 
 | 层次 | 技术选型 |
 | --- | --- |
-| 前端 | Vue 3 + TypeScript + Vite + Element Plus + Pinia + Vue Router + ECharts（包管理器 Yarn） |
-| 后端 | Spring Boot 3.4（Java 21）+ Maven 多模块 + MyBatis-Plus + Redis（Token 会话）+ Apache POI |
-| 模型服务 | Python 3.13 + FastAPI + PyTorch（CUDA cu130）+ torchvision，自实现 Grad-CAM |
-| 数据存储 | MySQL 8（业务数据）、Redis 7（会话缓存）、MinIO 兼容对象存储（默认 Silo，眼底图与热力图私有桶） |
+| 前端 | Vue 3.5 + TypeScript 5.6 + Vite 6 + Element Plus 2.9 + Pinia 2.3 + Vue Router 4.5 + ECharts 5.5（Yarn 1.22，原生 CSS 设计令牌） |
+| 后端 | JDK 21 + Spring Boot 3.4.4 + Maven 多模块 + MyBatis-Plus 3.5.11 + Redis 7（Jedis，Token 会话）+ Knife4j 4.5 + Apache POI |
+| 模型服务 | **Python 3.13+** + FastAPI + PyTorch 2.14（cu130 / CPU）+ torchvision 0.29 + MobileNetV3-Small + 自实现 Grad-CAM |
+| 数据存储 | MySQL 8（业务数据）、Redis 7（会话缓存）、**Silo**（MinIO 兼容 fork，私有桶 `dr-screening`） |
+| 部署 | Docker + Docker Compose + Nginx 1.27；前端、后端、模型服务各自独立镜像 |
+
+> 完整的版本约束与选型理由见 [`docs/design/项目技术栈.md`](docs/design/项目技术栈.md)。
 
 ---
 
@@ -147,7 +150,7 @@ flowchart TD
 
     Backend -->|MyBatis-Plus| MySQL[(MySQL 8<br/>业务数据 · 3306)]
     Backend -->|Jedis| Redis[(Redis 7<br/>Token 会话 / 验证码 · 26379)]
-    Backend -->|S3 预签名| MinIO[(MinIO<br/>影像私有桶 · 9000 / 9001)]
+    Backend -->|S3 预签名| Silo[(Silo<br/>影像私有桶 · 9000 / 9001)]
     Backend -->|HTTP /predict| Model[模型服务<br/>FastAPI + PyTorch<br/>端口 8000]
     Model -->|PyTorch 推理| GPU[(GPU CUDA<br/>可选加速)]
 ```
@@ -156,7 +159,7 @@ flowchart TD
 
 - 响应体统一为 `{ code, msg, data }`；成功 `code=200`，业务异常保持 HTTP 200 + 信封 code（401/403 同时返回对应 HTTP 状态码）
 - 认证采用 **UUID 令牌 + Redis 会话**（非 JWT），令牌通过请求头 `X-Access-Token` 传递
-- 影像存于 MinIO **私有桶**，前端通过 **30 分钟有效期的预签名 URL** 访问
+- 影像存于 Silo **私有桶**，前端通过 **30 分钟有效期的预签名 URL** 访问
 - 后端与模型服务之间为 HTTP 调用，模型服务不可达时后端降级返回 503
 
 ---
@@ -213,7 +216,7 @@ diabetic-retinopathy-screening/
 | Node.js | 18+（推荐 22） |
 | Yarn | 1.22 |
 | Python | 3.13（推荐；与 torch cu130 轮子匹配） |
-| MySQL / Redis / MinIO | 8.0 / 7 / 最新版（自行部署或使用 Docker Compose） |
+| MySQL / Redis / Silo | 8.0 / 7 / 最新版（自行部署或使用 Docker Compose） |
 | NVIDIA 驱动 + CUDA | 可选；模型服务支持 CPU 回退 |
 
 ---
@@ -229,7 +232,7 @@ diabetic-retinopathy-screening/
 | Node.js | 18+（推荐 22） | `node -v` |
 | Yarn | 1.22 | `yarn -v` |
 | Python | 3.13（推荐；与 torch cu130 轮子匹配） | `python --version` |
-| MySQL / Redis / MinIO | 8.0 / 7 / 最新 | 见下 |
+| MySQL / Redis / Silo | 8.0 / 7 / 最新 | 见下 |
 
 **基础设施必须先就绪**——本项目不自带数据库、缓存与对象存储。可以直接使用 `deploy/` 下的容器编排一键启动，或自行准备后按下表检查端口：
 
@@ -244,7 +247,7 @@ netstat -ano | findstr "3306 26379 9000 9001"
 | --- | --- | --- |
 | MySQL | 3306 | 业务库 `dr_screening` |
 | Redis | 26379 | 会话缓存；仓库默认配置为此端口 |
-| MinIO API / Console | 9000 / 9001 | 对象存储 |
+| Silo API / Console | 9000 / 9001 | 对象存储 |
 
 > **端口说明**：全项目统一使用 **26379**（物理机部署与容器编排一致）。后端 `application.yml` 默认连接 `localhost:26379`；容器编排中 Redis 亦监听 26379，后端通过 `SPRING_DATA_REDIS_HOST` 指向服务名 `redis`。如需改端口，可用 `SPRING_DATA_REDIS_PORT` / `REDIS_PORT` 覆盖；数据库连接地址可用 `SPRING_DATASOURCE_URL` 覆盖。
 >
@@ -286,7 +289,7 @@ mysql -h 127.0.0.1 -P 3306 -u root -p < sql/init/01_init_dr_screening.sql
 
 ### 3. 启动模型服务（端口 8000）
 
-> 推荐 **Python 3.13**（与 PyTorch cu130 的 cp313 轮子匹配）；3.11 / 3.12 / 3.14 需改用对应 ABI 的轮子。`requirements.txt` 为纯 ASCII，避免在中文 Windows 下被 pip 以 GBK 解码。
+> 推荐 **Python 3.13+**（`requirements.txt` 的 PyTorch 轮子为 cp313 ABI，3.13 可直接使用；更高版本需确认对应轮子可用）。`requirements.txt` 为纯 ASCII，避免在中文 Windows 下被 pip 以 GBK 解码。
 
 **首次准备（仅一次，`.venv` 不存在时）**
 
@@ -342,7 +345,7 @@ cd backend/drs-app/drs-app-server/target
 java -jar drs-app-server-1.0.0.jar --server.port=8080
 ```
 
-首次启动会自动完成：连接数据库、创建 MinIO 私有桶、幂等播种种子账号。
+首次启动会自动完成：连接数据库、创建 Silo 私有桶、幂等播种种子账号。
 
 验证：
 
@@ -378,7 +381,7 @@ yarn build      # 生产构建，产物位于 dist/
 ### 7. 启动顺序与依赖关系
 
 ```
-MySQL / Redis / MinIO（前置，必须先就绪）
+MySQL / Redis / Silo（前置，必须先就绪）
           ↓
    模型服务 :8000  ──HTTP──►  后端 :8080  ──HTTP──►  前端 :5173
 ```
@@ -414,7 +417,7 @@ MySQL / Redis / MinIO（前置，必须先就绪）
 | 模型服务 model-service | 8000 | FastAPI 推理服务 |
 | MySQL | 3306 | 业务库 |
 | Redis | 26379 | 全项目统一；可用 `SPRING_DATA_REDIS_PORT` / `REDIS_PORT` 覆盖 |
-| MinIO API / Console | 9000 / 9001 | 对象存储及控制台 |
+| Silo API / Console | 9000 / 9001 | 对象存储及控制台 |
 
 ---
 
@@ -699,8 +702,8 @@ APTOS 训练集的类别分布高度倾斜（最大/最小类 **9.4 倍**）：
 
 ## 十四、部署
 
-- **本地运行**：见“六、快速开始”，三个服务分别启动，基础设施需自行准备（MySQL / Redis / MinIO）
-- **容器化**：`deploy/` 提供 `docker-compose.yml`、三个 Dockerfile 与 Nginx 配置。默认启动 5 个服务（MySQL / Redis / MinIO / 后端 / 前端），模型服务由宿主机 Python 常驻；需要完整容器化时追加 `--profile model`。镜像源可通过 `DOCKER_REGISTRY` 切换国内加速源。详见 [deploy/README.md](deploy/README.md)
+- **本地运行**：见“六、快速开始”，三个服务分别启动，基础设施需自行准备（MySQL / Redis / Silo）
+- **容器化**：`deploy/` 提供 `docker-compose.yml`、三个 Dockerfile 与 Nginx 配置。默认启动 5 个服务（MySQL / Redis / Silo / 后端 / 前端），模型服务由宿主机 Python 常驻；需要完整容器化时追加 `--profile model`。镜像源可通过 `DOCKER_REGISTRY` 切换国内加速源。详见 [deploy/README.md](deploy/README.md)
 
 ---
 
