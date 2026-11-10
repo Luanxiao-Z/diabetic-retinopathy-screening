@@ -1,22 +1,24 @@
 # ============================================================================
 # 前端镜像（多阶段构建）
-#   构建阶段：Node 22 + Yarn 打包静态资源
+#   构建阶段：Node 22 + Yarn 1.x 打包静态资源（按 yarn.lock 锁定依赖版本）
 #   运行阶段：Nginx 托管 dist，并反代 /api 到后端容器
 # 构建上下文为仓库根目录（见 deploy/docker-compose.yml 的 context: ..）
+# 可通过 DOCKER_REGISTRY 切换基础镜像源（如 docker.m.daocloud.io）
 # ============================================================================
-FROM node:22-alpine AS build
+ARG DOCKER_REGISTRY=docker.io
+
+FROM ${DOCKER_REGISTRY}/library/node:22-alpine AS build
 WORKDIR /build
 
-RUN corepack enable
-
-# 依赖层缓存：先拷清单与 registry 配置（frontend/web/.yarnrc 指向国内镜像）
-COPY frontend/web/package.json frontend/web/.yarnrc* ./
-RUN yarn install --network-timeout 600000
+# 依赖层缓存：先拷清单、锁文件与 registry 配置（.yarnrc 指向国内镜像）
+# 必须包含 yarn.lock，否则 yarn install 会重新解析版本，导致构建不可复现
+COPY frontend/web/package.json frontend/web/yarn.lock frontend/web/.yarnrc* ./
+RUN yarn install --frozen-lockfile --network-timeout 600000
 
 COPY frontend/web/ ./
 RUN yarn build
 
-FROM nginx:1.27-alpine
+FROM ${DOCKER_REGISTRY}/library/nginx:1.27-alpine
 ENV TZ=Asia/Shanghai
 
 # 项目自定义 Nginx 配置（SPA 回退 + /api 反代 + 上传体积）

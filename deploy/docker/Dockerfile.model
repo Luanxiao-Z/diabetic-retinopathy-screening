@@ -1,20 +1,26 @@
 # ============================================================================
 # 模型服务镜像（FastAPI + PyTorch）
-#   注意：
-#   1. requirements.txt 顶部通过 --extra-index-url 拉取 CUDA(cu130) 版 PyTorch，
-#      镜像体积较大；**纯 CPU 部署**请将末两行改为 +cpu 轮子（见 requirements.txt 注释）。
-#   2. 容器内一般无 NVIDIA 运行时；如需 GPU 推理，请配合 NVIDIA Container Toolkit
-#      并在 compose 中声明 runtime/devices，或改用 CPU 轮子。
+# ----------------------------------------------------------------------------
+# 注意：
+#   1. 基础镜像必须使用 Python 3.13：requirements.txt 中的 torch 轮子为 cp313 ABI，
+#      与 3.12 不兼容（pip 会直接报 No matching distribution）。
+#   2. 容器内通常没有 NVIDIA 运行时，因此默认使用 CPU 版 torch 轮子（镜像约 1.5–2 GB）；
+#      如需 GPU 推理，设置构建参数 USE_GPU_TORCH=true，并配合 NVIDIA Container Toolkit
+#      在 compose 中声明 runtime / devices（此时镜像约 5–7 GB）。
 #   3. 训练权重 models/best_model.pth 与 train_metrics.json 已纳入版本控制，
 #      由 compose 挂载 ../model-service/models 提供，便于重训后热更新。
 #   4. 模块入口为 app.main:app（app/ 为包目录），切勿写成 main:app。
+#   5. 可通过 DOCKER_REGISTRY 切换基础镜像源（如 docker.m.daocloud.io），
+#      PIP_INDEX_URL 切换 PyPI 源。
 # ============================================================================
-FROM python:3.12-slim
+ARG DOCKER_REGISTRY=docker.io
+FROM ${DOCKER_REGISTRY}/library/python:3.13-slim
 WORKDIR /app
 
 ENV TZ=Asia/Shanghai \
     PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
 
 # 健康检查需要 curl；libgomp1 为 PyTorch 运行时依赖
 RUN apt-get update \
@@ -22,7 +28,17 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 
 COPY model-service/requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
+
+ARG PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
+ARG USE_GPU_TORCH=false
+# 默认将 cu130 轮子替换为 CPU 轮子，显著减小镜像体积；GPU 构建时保留原配置
+RUN if [ "$USE_GPU_TORCH" = "true" ]; then \
+      cp requirements.txt requirements.container.txt; \
+    else \
+      sed -e 's|whl/cu130|whl/cpu|g' -e 's|+cu130|+cpu|g' requirements.txt > requirements.container.txt; \
+    fi \
+ && pip install --index-url "$PIP_INDEX_URL" -r requirements.container.txt \
+ && rm requirements.container.txt
 
 COPY model-service/app ./app
 COPY model-service/training ./training

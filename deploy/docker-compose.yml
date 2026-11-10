@@ -1,20 +1,26 @@
 # ============================================================================
-# DR 智能筛查系统 —— 容器化部署编排示例
+# DR 智能筛查系统 —— 容器化部署编排
 # ----------------------------------------------------------------------------
 # 说明：
-#   - 本文件为**容器化部署示例**；项目默认交付形态为本地直接运行（见 README）。
 #   - 敏感项统一由同目录 .env 注入（参考 deploy/.env.example），**不写入本文件**。
 #   - build context 为仓库根目录，Dockerfile 位于 deploy/docker/。
+#   - 中间件与基础镜像可通过 DOCKER_REGISTRY 切换到国内加速源（默认 Docker Hub）。
 #
 # 用法（仓库根目录）：
 #   cp deploy/.env.example deploy/.env   # 按需修改密码
 #   docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d --build
 #   docker compose -f deploy/docker-compose.yml ps
 #
+# 模型服务：
+#   - 默认不构建（镜像含 PyTorch，体积约 1.5–2 GB），由宿主机 Python 3.13 常驻 8000 端口；
+#     后端通过 host.docker.internal:8000 访问。
+#   - 如需一并容器化：docker compose ... --profile model up -d --build，
+#     并将 .env 中 MODEL_SERVICE_BASE_URL 改为 http://model-service:8000。
+#
 # 后端配置读取说明（重要）：
 #   后端 application.yml 使用 ${DB_PASSWORD} / ${REDIS_PASSWORD} /
 #   ${MINIO_ACCESS_KEY} / ${MINIO_SECRET_KEY} 四个环境变量，且数据源地址、
-#   Redis 地址、模型服务地址需通过 Spring Boot 环境变量覆盖为容器内地址，
+#   Redis 地址、MinIO 地址、模型服务地址需通过环境变量覆盖为容器内可达地址，
 #   否则容器会去连 127.0.0.1 而失败。
 # ============================================================================
 name: dr-stack
@@ -22,7 +28,7 @@ name: dr-stack
 services:
   # ---------------------------------------------------------------- 基础设施
   mysql:
-    image: mysql:8.0
+    image: ${DOCKER_REGISTRY:-docker.io}/library/mysql:8.0
     container_name: drs-mysql
     restart: unless-stopped
     environment:
@@ -33,6 +39,7 @@ services:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_0900_ai_ci
     ports:
+      # 宿主机 3306 常被本机 MySQL 占用，冲突时在 .env 中改为 3307 等
       - "${MYSQL_PORT:-3306}:3306"
     volumes:
       # 首次启动自动执行建表与字典初始化（脚本幂等）
@@ -47,7 +54,7 @@ services:
     networks: [drs-net]
 
   redis:
-    image: redis:7
+    image: ${DOCKER_REGISTRY:-docker.io}/library/redis:7
     container_name: drs-redis
     restart: unless-stopped
     command: ["redis-server", "--port", "${REDIS_PORT:-26379}", "--requirepass", "${REDIS_PASSWORD:?请在 deploy/.env 中设置 REDIS_PASSWORD}"]
@@ -66,7 +73,10 @@ services:
     networks: [drs-net]
 
   minio:
-    image: minio/minio
+    # MinIO 官方社区镜像已迁出 Docker Hub，默认使用 Pigsty 社区维护的 fork（Silo），
+    # 其 S3 API、环境变量、启动命令、控制台端口与 MinIO 完全兼容，可直接替换。
+    # 如需改用其他实现，可通过 MINIO_IMAGE 指定（如自建镜像或 quay.io/minio/minio:RELEASE.xxx）。
+    image: ${MINIO_IMAGE:-pgsty/silo:latest}
     container_name: drs-minio
     restart: unless-stopped
     command: server /data --console-address ":9001"
@@ -79,17 +89,24 @@ services:
     volumes:
       - minio-data:/data
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:9000/minio/health/live || exit 1"]
+      test: ["CMD", "mc", "ready", "local"]
       interval: 10s
       timeout: 5s
       retries: 10
+      start_period: 20s
     networks: [drs-net]
 
   # ---------------------------------------------------------------- 应用服务
+  # 模型服务默认不启动（镜像含 PyTorch，体积较大）；需要容器化时使用 --profile model
   model-service:
+    profiles: ["model"]
     build:
       context: ..
       dockerfile: deploy/docker/Dockerfile.model
+      args:
+        DOCKER_REGISTRY: ${DOCKER_REGISTRY:-docker.io}
+        USE_GPU_TORCH: ${USE_GPU_TORCH:-false}
+        PIP_INDEX_URL: ${PIP_INDEX_URL:-https://pypi.tuna.tsinghua.edu.cn/simple}
     container_name: drs-model
     restart: unless-stopped
     ports:
@@ -98,17 +115,19 @@ services:
       # 权重与训练指标已纳入版本控制，随仓库分发；挂载便于重训后热更新
       - ../model-service/models:/app/models
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://127.0.0.1:8000/health')\""]
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:8000/health || exit 1"]
       interval: 15s
       timeout: 10s
       retries: 10
-      start_period: 40s
+      start_period: 90s
     networks: [drs-net]
 
   backend:
     build:
       context: ..
       dockerfile: deploy/docker/Dockerfile.backend
+      args:
+        DOCKER_REGISTRY: ${DOCKER_REGISTRY:-docker.io}
     container_name: drs-backend
     restart: unless-stopped
     ports:
@@ -120,8 +139,6 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
-      model-service:
-        condition: service_started
     environment:
       TZ: Asia/Shanghai
       # —— 与 application.yml 占位符一致 ——
@@ -136,19 +153,29 @@ services:
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: "${REDIS_PORT:-26379}"
       SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD}
-      DRS_MODEL_SERVICE_BASE_URL: http://model-service:8000
+      # 后端读写对象存储走容器网络；预签名 URL 必须用浏览器可达地址
+      DRS_MINIO_ENDPOINT: http://minio:9000
+      DRS_MINIO_PUBLIC_ENDPOINT: ${MINIO_PUBLIC_ENDPOINT:-http://localhost:9000}
+      # 模型服务默认由宿主机提供（系统 Python 3.13）；启用 model profile 时改为 http://model-service:8000
+      DRS_MODEL_SERVICE_BASE_URL: ${MODEL_SERVICE_BASE_URL:-http://host.docker.internal:8000}
+    # 允许容器通过 host.docker.internal 访问宿主机服务（Linux 需显式声明）
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks: [drs-net]
 
   web:
     build:
       context: ..
       dockerfile: deploy/docker/Dockerfile.frontend
+      args:
+        DOCKER_REGISTRY: ${DOCKER_REGISTRY:-docker.io}
     container_name: drs-web
     restart: unless-stopped
     ports:
       - "${WEB_PORT:-80}:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     networks: [drs-net]
 
 volumes:

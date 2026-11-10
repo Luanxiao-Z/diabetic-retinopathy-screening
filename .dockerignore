@@ -1,0 +1,53 @@
+# ============================================================================
+# Docker 构建上下文排除清单
+# ----------------------------------------------------------------------------
+# compose 的 build.context 为仓库根目录，若不排除以下内容，构建时会把数 GB
+# 无关文件传给 Docker daemon，导致构建极慢甚至失败。
+# ============================================================================
+
+# 版本控制与协作文档
+.git
+.gitignore
+.github
+.workbuddy
+.workbuddy-ai
+HANDOFF.md
+
+# 训练数据集（体积大，不参与任何镜像构建）
+datasets/
+
+# Python 虚拟环境与缓存
+**/.venv/
+**/venv/
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+.pytest_cache/
+.mypy_cache/
+
+# 前端依赖与构建产物
+**/node_modules/
+frontend/web/dist/
+frontend/web/.yarn/cache/
+
+# 后端构建产物与日志
+backend/**/target/
+backend/**/build/
+**/*.log
+
+# 模型服务运行时产物（权重 models/ 需要保留，由 compose 挂载/复制）
+model-service/heatmaps/
+model-service/experiments/
+
+# IDE 与系统文件
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# 本地环境变量文件（凭据不得进入构建上下文；仅排除根级与部署目录，
+# 保留 frontend/web/.env —— 前端构建需要其中的 VITE_API_BASE）
+/.env
+deploy/.env
+**/.env.local

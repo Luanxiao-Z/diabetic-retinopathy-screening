@@ -1,10 +1,13 @@
 # ============================================================================
 # 后端镜像（多阶段构建）
-#   构建阶段：Maven 3.9 + JDK 21 编译聚合工程
+#   构建阶段：Maven 3.9 + JDK 21 编译聚合工程（Maven 本地仓库使用 BuildKit 缓存）
 #   运行阶段：仅携带 JRE 与 fat-jar，镜像更小
 # 构建上下文为仓库根目录（见 deploy/docker-compose.yml 的 context: ..）
+# 可通过 DOCKER_REGISTRY 切换基础镜像源（如 docker.m.daocloud.io）
 # ============================================================================
-FROM maven:3.9.9-eclipse-temurin-21 AS build
+ARG DOCKER_REGISTRY=docker.io
+
+FROM ${DOCKER_REGISTRY}/library/maven:3.9.9-eclipse-temurin-21 AS build
 WORKDIR /build
 
 # 先拷 POM 以复用依赖层缓存，再拷源码
@@ -12,9 +15,11 @@ COPY backend/pom.xml backend/
 COPY backend/drs-dependencies/ backend/drs-dependencies/
 COPY backend/drs-module/ backend/drs-module/
 COPY backend/drs-app/ backend/drs-app/
+# 不使用 BuildKit cache mount：缓存一旦因网络中断留下不完整的 jar，后续构建会持续
+# 报 MavenFilteringException 等类缺失错误，排查成本高；依赖层缓存已由上面的 COPY 分层提供。
 RUN mvn -B -q -f backend/pom.xml package -DskipTests
 
-FROM eclipse-temurin:21-jre
+FROM ${DOCKER_REGISTRY}/library/eclipse-temurin:21-jre
 WORKDIR /app
 
 ENV TZ=Asia/Shanghai \
@@ -23,6 +28,10 @@ ENV TZ=Asia/Shanghai \
 COPY --from=build /build/backend/drs-app/drs-app-server/target/drs-app-server-*.jar app.jar
 
 EXPOSE 8080
+
+# 健康检查：JRE 镜像无 curl，使用 bash 的 /dev/tcp 探测端口
+HEALTHCHECK --interval=15s --timeout=5s --start-period=60s --retries=10 \
+  CMD bash -c 'exec 3<>/dev/tcp/127.0.0.1/8080' || exit 1
 
 # 显式指定端口，避免外部注入 SERVER__PORT 造成端口漂移
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar --server.port=8080"]
