@@ -14,6 +14,7 @@ import io.minio.http.Method;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayInputStream;
@@ -30,10 +31,15 @@ public class ObjectStorageServiceImpl implements ObjectStorageService {
     private static final Logger log = LoggerFactory.getLogger(ObjectStorageServiceImpl.class);
 
     private final MinioClient minioClient;
+    /** 预签名专用客户端：使用浏览器可达的对外地址，避免容器服务名在浏览器侧无法解析 */
+    private final MinioClient minioPresignClient;
     private final MinioProperties properties;
 
-    public ObjectStorageServiceImpl(MinioClient minioClient, MinioProperties properties) {
+    public ObjectStorageServiceImpl(@Qualifier("drsMinioClient") MinioClient minioClient,
+                                    @Qualifier("minioPresignClient") MinioClient minioPresignClient,
+                                    MinioProperties properties) {
         this.minioClient = minioClient;
+        this.minioPresignClient = minioPresignClient;
         this.properties = properties;
     }
 
@@ -71,7 +77,7 @@ public class ObjectStorageServiceImpl implements ObjectStorageService {
     @Override
     public String presignUrl(String key, int expireMinutes) {
         try {
-            return minioClient.getPresignedObjectUrl(GetPresignedObjectUrlArgs.builder()
+            return minioPresignClient.getPresignedObjectUrl(GetPresignedObjectUrlArgs.builder()
                     .method(Method.GET)
                     .bucket(properties.getBucket())
                     .object(key)

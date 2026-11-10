@@ -62,13 +62,18 @@ springdoc:
 drs:
   auth:
     token-header: X-Access-Token
-  # MinIO 对象存储（Docker 容器 fjzhmz-minio）；阶段1 仅预留，上传接口在后续阶段实现
+    # MinIO 对象存储；endpoint 供后端读写，public-endpoint 供浏览器访问预签名 URL
   minio:
-    endpoint: http://127.0.0.1:9000
+    endpoint: ${DRS_MINIO_ENDPOINT:http://127.0.0.1:9000}
+    # 容器部署时后端用服务名（http://minio:9000），但浏览器无法解析该主机名，
+    # 需将 public-endpoint 设为浏览器可达地址（如 http://localhost:9000）；留空则回退 endpoint
+    public-endpoint: ${DRS_MINIO_PUBLIC_ENDPOINT:}
     # AccessKey / SecretKey 通过环境变量 MINIO_ACCESS_KEY / MINIO_SECRET_KEY 注入，勿写明文入库
     access-key: ${MINIO_ACCESS_KEY}
     secret-key: ${MINIO_SECRET_KEY}
     bucket: dr-screening
-  # 模型推理服务（Python FastAPI，Docker 容器/本地运行）；阶段1 预留
+    # MinIO/Silo 默认 region；显式指定后预签名无需连接服务端探测
+    region: ${DRS_MINIO_REGION:us-east-1}
+  # 模型推理服务（Python FastAPI）；容器部署时用 DRS_MODEL_SERVICE_BASE_URL 覆盖为可达地址
   model-service:
-    base-url: http://127.0.0.1:8000
+    base-url: ${DRS_MODEL_SERVICE_BASE_URL:http://127.0.0.1:8000}
