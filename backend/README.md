@@ -17,7 +17,7 @@
 | 框架 | Spring Boot 3.4.4（Web、Validation、AOP） |
 | 持久层 | MyBatis-Plus + MySQL 8 |
 | 缓存 / 会话 | Redis（UUID Token + Session，**非 JWT**） |
-| 对象存储 | MinIO（眼底图与热力图） |
+| 对象存储 | Silo（MinIO 兼容 fork，眼底图与热力图） |
 | 接口文档 | Knife4j / SpringDoc OpenAPI |
 | 验证码 | easy-captcha |
 | Excel 导出 | Apache POI |
@@ -61,7 +61,7 @@ drs-app-server ──> drs-module-system ──> drs-module-security ──> drs
 | Maven | 3.9+ | |
 | MySQL | 8.0 | 库名 `dr_screening`，建表脚本见 `../sql/` |
 | Redis | 7.x | 仓库默认连接 `localhost:26379`；端口可通过 `SPRING_DATA_REDIS_PORT` 覆盖 |
-| MinIO | 最新 | API 9000，控制台 9001 |
+| Silo | 最新 | API 9000，控制台 9001（`MINIO_*` 环境变量保持兼容） |
 | 模型服务 | — | 需先启动，默认 `http://127.0.0.1:8000` |
 
 ---
@@ -70,11 +70,11 @@ drs-app-server ──> drs-module-system ──> drs-module-security ──> drs
 
 ### 1. 准备依赖服务
 
-MySQL、Redis、MinIO 三个外部依赖需先就绪（Redis / MinIO 由 Docker 提供）。
+MySQL、Redis、Silo 三个外部依赖需先就绪（Redis / Silo 由 Docker 提供）。
 
 ### 2. 配置环境变量
 
-`application.yml` 中数据库密码、Redis 密码、MinIO 凭据**均通过环境变量注入**，
+`application.yml` 中数据库密码、Redis 密码、Silo 凭据（沿用 `MINIO_*` 变量）**均通过环境变量注入**，
 不写明文。启动前需设置：
 
 ```bash
@@ -210,7 +210,7 @@ java -jar drs-app/drs-app-server/target/drs-app-server-1.0.0.jar --server.port=8
 | 字段清空后仍是旧值 | `updateById` 忽略 null，改用 `LambdaUpdateWrapper`，见第 2 条 |
 | `mvn clean` 报无法删除 target | 8080 端口仍被占用，先停服务 |
 | 启动报 Redis 连接失败 | 全项目默认 26379，确认 Redis 已在该端口运行；如自定义端口，设置 `SPRING_DATA_REDIS_PORT` |
-| 启动报 MinIO 连接失败 | 确认 MinIO 已运行（9000/9001）、`MINIO_*` 环境变量已设置 |
+| 启动报对象存储连接失败 | 确认 Silo 已运行（9000/9001）、`MINIO_*` 环境变量已设置 |
 | 上传筛查报模型服务不可用 | 模型服务（默认 8000）未启动 |
 | 登录返回“验证码已过期” | 验证码一次性消费，失败后需点击图片刷新重新获取 |
 

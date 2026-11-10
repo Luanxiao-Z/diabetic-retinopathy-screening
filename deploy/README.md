@@ -2,7 +2,7 @@
 
 本目录提供 **Docker Compose 一键编排**，用于在未安装 MySQL / Redis / 对象存储等中间件的环境里快速启动系统。
 
-编排默认启动 **5 个服务**：基础设施 3 个（MySQL、Redis、对象存储）+ 应用 2 个（后端、前端）。模型服务因镜像含 PyTorch、体积较大（CPU 版约 1.5–2 GB），默认由**宿主机 Python 3.13 常驻**提供；需要完整容器化时使用 `--profile model` 追加。
+编排默认启动 **5 个服务**：基础设施 3 个（MySQL、Redis、对象存储）+ 应用 2 个（后端、前端）。模型服务因镜像含 PyTorch、体积较大（CPU 版约 1.5–2 GB），默认由**宿主机 Python 3.13+ 常驻**提供；需要完整容器化时使用 `--profile model` 追加。
 
 > **对象存储镜像**：MinIO 官方社区镜像已迁出 Docker Hub，编排默认使用 Pigsty 社区维护的 fork **Silo**（`pgsty/silo`）。其 S3 API、`MINIO_*` 环境变量、启动命令、控制台端口与 MinIO 完全兼容，后端代码无需改动；也可通过 `MINIO_IMAGE` 换成其他 S3 兼容实现。
 
@@ -20,7 +20,7 @@
 | `.env.example` | 环境变量模板（复制为 `.env` 后填写；`.env` 不入库） |
 | `docker/Dockerfile.backend` | 后端多阶段构建：Maven 3.9 + JDK 21 编译 → JRE 运行 fat-jar |
 | `docker/Dockerfile.frontend` | 前端多阶段构建：Node 22 + Yarn 打包 → Nginx 托管 `dist/` |
-| `docker/Dockerfile.model` | 模型服务：Python 3.13 + FastAPI + PyTorch（默认 CPU 轮子） |
+| `docker/Dockerfile.model` | 模型服务：Python 3.13+、FastAPI、PyTorch（默认 CPU 轮子） |
 | `nginx/nginx.conf` | Nginx 配置：SPA 路由回退、`/api` 反代、上传体积限制 |
 
 三个 Dockerfile 的构建上下文均为**仓库根目录**（compose 中的 `context: ..`），因此必须从仓库根目录执行 compose 命令。

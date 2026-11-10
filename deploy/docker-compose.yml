@@ -12,7 +12,7 @@
 #   docker compose -f deploy/docker-compose.yml ps
 #
 # 模型服务：
-#   - 默认不构建（镜像含 PyTorch，体积约 1.5–2 GB），由宿主机 Python 3.13 常驻 8000 端口；
+#   - 默认不构建（镜像含 PyTorch，体积约 1.5–2 GB），由宿主机 Python 3.13+ 常驻 8000 端口；
 #     后端通过 host.docker.internal:8000 访问。
 #   - 如需一并容器化：docker compose ... --profile model up -d --build，
 #     并将 .env 中 MODEL_SERVICE_BASE_URL 改为 http://model-service:8000。
@@ -156,7 +156,7 @@ services:
       # 后端读写对象存储走容器网络；预签名 URL 必须用浏览器可达地址
       DRS_MINIO_ENDPOINT: http://minio:9000
       DRS_MINIO_PUBLIC_ENDPOINT: ${MINIO_PUBLIC_ENDPOINT:-http://localhost:9000}
-      # 模型服务默认由宿主机提供（系统 Python 3.13）；启用 model profile 时改为 http://model-service:8000
+      # 模型服务默认由宿主机提供（Python 3.13+）；启用 model profile 时改为 http://model-service:8000
       DRS_MODEL_SERVICE_BASE_URL: ${MODEL_SERVICE_BASE_URL:-http://host.docker.internal:8000}
     # 允许容器通过 host.docker.internal 访问宿主机服务（Linux 需显式声明）
     extra_hosts:
