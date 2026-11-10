@@ -126,7 +126,7 @@
 | 前端 | Vue 3 + TypeScript + Vite + Element Plus + Pinia + Vue Router + ECharts（包管理器 Yarn） |
 | 后端 | Spring Boot 3.4（Java 21）+ Maven 多模块 + MyBatis-Plus + Redis（Token 会话）+ Apache POI |
 | 模型服务 | Python 3.13 + FastAPI + PyTorch（CUDA cu130）+ torchvision，自实现 Grad-CAM |
-| 数据存储 | MySQL 8（业务数据）、Redis 7（会话缓存）、MinIO（眼底图与热力图私有桶） |
+| 数据存储 | MySQL 8（业务数据）、Redis 7（会话缓存）、MinIO 兼容对象存储（默认 Silo，眼底图与热力图私有桶） |
 
 ---
 
@@ -700,7 +700,7 @@ APTOS 训练集的类别分布高度倾斜（最大/最小类 **9.4 倍**）：
 ## 十四、部署
 
 - **本地运行**：见“六、快速开始”，三个服务分别启动，基础设施需自行准备（MySQL / Redis / MinIO）
-- **容器化**：`deploy/` 提供 `docker-compose.yml`、三个 Dockerfile 与 Nginx 配置，一键启动全部六个服务（MySQL / Redis / MinIO / 模型服务 / 后端 / 前端），详见 [deploy/README.md](deploy/README.md)
+- **容器化**：`deploy/` 提供 `docker-compose.yml`、三个 Dockerfile 与 Nginx 配置。默认启动 5 个服务（MySQL / Redis / MinIO / 后端 / 前端），模型服务由宿主机 Python 常驻；需要完整容器化时追加 `--profile model`。镜像源可通过 `DOCKER_REGISTRY` 切换国内加速源。详见 [deploy/README.md](deploy/README.md)
 
 ---
 
