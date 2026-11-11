@@ -24,7 +24,14 @@ function render() {
   if (!chart.value) {
     chart.value = echarts.init(el.value)
   }
-  chart.value.setOption(props.option, true)
+  /*
+   * 统一动画时长与缓动，避免各页图表节奏不一：
+   * 900ms + cubicOut 与条形/数字滚动的数据动效同源；页面显式传入 animation 时以页面为准。
+   */
+  chart.value.setOption(
+    { animationDuration: 900, animationEasing: 'cubicOut', ...props.option },
+    true
+  )
 }
 
 function resize() {
