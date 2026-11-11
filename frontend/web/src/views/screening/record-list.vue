@@ -191,19 +191,6 @@
       </div>
     </section>
 
-    <el-dialog v-model="detailVisible" title="筛查记录详情" width="620px" destroy-on-close>
-      <ResultCard v-if="currentRecord" :record="currentRecord" />
-      <template #footer>
-        <el-button @click="detailVisible = false">关闭</el-button>
-        <el-button
-          v-if="currentRecord"
-          type="primary"
-          @click="openReport(currentRecord)"
-        >
-          <AppIcon name="download" :size="15" class="btn-ico" />打印诊断报告
-        </el-button>
-      </template>
-    </el-dialog>
   </div>
 </template>
 
@@ -214,10 +201,8 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import AppIcon from '@/components/AppIcon.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import { usePageRefresh } from '@/composables/usePageRefresh'
-import ResultCard from '@/components/ResultCard.vue'
 import { useFitColumns } from '@/composables/useFitColumns'
 import {
-  detailScreening,
   exportScreening,
   pageScreening,
   removeScreening,
@@ -256,8 +241,6 @@ const query = reactive({
   pageSize: 10
 })
 
-const detailVisible = ref(false)
-const currentRecord = ref<ScreeningRecordVO | null>(null)
 
 /** 由等级色生成浅底深字的标签样式，避免大面积实色块 */
 function chipStyle(key: string | undefined, colorMap: Record<string, string>) {
@@ -346,13 +329,11 @@ function onSelectionChange(rows: ScreeningRecordVO[]) {
   selectedIds.value = rows.map((r) => r.id)
 }
 
-async function openDetail(row: ScreeningRecordVO) {
-  try {
-    currentRecord.value = await detailScreening(row.id)
-    detailVisible.value = true
-  } catch (e) {
-    ElMessage.error((e as Error).message || '获取详情失败')
-  }
+function openDetail(row: ScreeningRecordVO) {
+  router.push({
+    path: `/screening/records/${row.id}`,
+    query: { name: row.patientName || '' }
+  })
 }
 
 /** 双击行 → 打开详情（本列表的默认操作） */
@@ -414,8 +395,10 @@ async function handleReview(row: ScreeningRecordVO) {
 
 /** 打开诊断报告（当前页内跳转，不新开浏览器标签页） */
 function openReport(row: ScreeningRecordVO) {
-  detailVisible.value = false
-  router.push({ path: `/screening/records/${row.id}/report` })
+  router.push({
+    path: `/screening/records/${row.id}/report`,
+    query: { name: row.patientName || '' }
+  })
 }
 
 /** 批量删除：逐条执行并汇总结果 */

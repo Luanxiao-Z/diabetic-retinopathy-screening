@@ -365,11 +365,26 @@ try {
   tabs.value = []
 }
 
+/**
+ * 标签标题 = 路由标题 + 可选的「-患者姓名」后缀。
+ * 详情页与报告页按 id 区分路由，但标题同为「筛查记录详情」「诊断报告」，
+ * 打开多个患者时会分不清，故从 ?name= 追加后缀。
+ */
+function tabTitleOf(): string {
+  const base = (route.meta.title as string) || '页面'
+  const suffix = typeof route.query.name === 'string' ? route.query.name.trim() : ''
+  return suffix ? `${base}-${suffix}` : base
+}
+
 function syncTab() {
   const path = route.path
-  if (!tabs.value.some((t) => t.path === path)) {
-    tabs.value.push({ path, title: (route.meta.title as string) || '页面' })
+  const title = tabTitleOf()
+  const existing = tabs.value.find((t) => t.path === path)
+  if (existing) {
+    existing.title = title
+    return
   }
+  tabs.value.push({ path, title })
 }
 
 function persistTabs() {

@@ -69,6 +69,18 @@ const routes: RouteRecordRaw[] = [
         meta: { permission: 'biz:screening:view', title: '诊断报告', group: '筛查业务', crumb: '诊断报告' }
       },
       {
+        // 放在 :id/report 之后，避免路径段误匹配
+        path: 'screening/records/:id',
+        name: 'ScreeningRecordDetail',
+        component: () => import('@/views/screening/record-detail.vue'),
+        meta: {
+          permission: 'biz:screening:view',
+          title: '筛查记录详情',
+          group: '筛查业务',
+          crumb: '筛查记录详情'
+        }
+      },
+      {
         path: 'model-info',
         name: 'ModelInfo',
         component: () => import('@/views/model-info/index.vue'),
