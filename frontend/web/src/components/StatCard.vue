@@ -16,7 +16,7 @@
     <span class="stat-num">
       <CountUp v-if="canAnimate" :value="numericValue" :decimals="decimals" />
       <template v-else>{{ displayValue }}</template>
-      <span v-if="unit" class="stat-unit">{{ unit }}</span>
+      <span v-if="unit" class="stat-unit" :class="{ 'is-pct': unit === '%' }">{{ unit }}</span>
     </span>
 
     <!-- 角部弧线：L1 图形层装饰，跟随色调，不承载信息 -->
@@ -156,7 +156,12 @@ function onActivate() {
   font-size: 13px;
   font-weight: 400;
   color: var(--drs-ink-500);
-  margin-left: 4px;
+  margin-left: 2px;
+}
+
+/* 百分号紧贴数字，与中文单位「例」的间距区分开 */
+.stat-unit.is-pct {
+  margin-left: 0;
 }
 
 .stat-foot {

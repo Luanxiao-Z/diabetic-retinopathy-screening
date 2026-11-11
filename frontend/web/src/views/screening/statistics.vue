@@ -219,7 +219,8 @@ const trendOption = computed<EChartsOption>(() => {
     grid: { left: 8, right: 20, top: 20, bottom: 8, containLabel: true },
     xAxis: {
       type: 'category',
-      boundaryGap: false,
+      // 柱状需要留出边界间距；折线才用 boundaryGap: false
+      boundaryGap: true,
       data: trend.map((t) => t.date.slice(5)),
       axisLine: { lineStyle: { color: '#e4e8ee' } },
       axisTick: { show: false },
@@ -233,25 +234,11 @@ const trendOption = computed<EChartsOption>(() => {
     },
     series: [
       {
-        type: 'line',
-        smooth: true,
-        showSymbol: false,
+        // 日筛查量多为 0/1，折线会退化成尖刺状；柱状更贴近真实分布
+        type: 'bar',
+        barMaxWidth: 22,
         data: trend.map((t) => t.count),
-        lineStyle: { color: '#0891b2', width: 2.5 },
-        itemStyle: { color: '#0891b2' },
-        areaStyle: {
-          color: {
-            type: 'linear',
-            x: 0,
-            y: 0,
-            x2: 0,
-            y2: 1,
-            colorStops: [
-              { offset: 0, color: 'rgba(8,145,178,0.24)' },
-              { offset: 1, color: 'rgba(8,145,178,0.02)' }
-            ]
-          }
-        }
+        itemStyle: { color: '#0891b2', borderRadius: [3, 3, 0, 0] }
       }
     ]
   }

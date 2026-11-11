@@ -98,14 +98,22 @@
           <span class="drs-card-meta">单位：例</span>
         </div>
         <div class="drs-card-body trend-body">
-          <template v-if="trendPts.length > 1">
+          <template v-if="trendBars.length > 1">
             <svg class="trend" viewBox="0 0 460 150" preserveAspectRatio="none" aria-hidden="true">
               <line class="trend-grid" x1="0" y1="37" x2="460" y2="37" />
               <line class="trend-grid" x1="0" y1="75" x2="460" y2="75" />
               <line class="trend-grid" x1="0" y1="113" x2="460" y2="113" />
-              <path class="trend-area" :d="trendArea" />
-              <path class="trend-line" :d="trendLine" />
-              <circle class="trend-dot" :cx="lastTrend.x" :cy="lastTrend.y" r="4" />
+              <rect
+                v-for="(b, i) in trendBars"
+                :key="b.key"
+                class="trend-bar"
+                :class="{ 'is-zero': b.count === 0 }"
+                :x="b.x"
+                :y="b.y"
+                :width="b.w"
+                :height="b.h"
+                :style="{ '--d': `${(i * 40) / 1000}s` }"
+              />
             </svg>
             <div class="trend-axis">
               <span>{{ trendLabels[0] }}</span>
@@ -237,41 +245,33 @@ const TREND_PAD = 10
 
 const trendSeries = computed(() => (stats.value?.trend || []).slice(-14))
 
-const trendPts = computed(() => {
+/**
+ * 柱状而非折线：筛查量在多数日期为 0 或 1，折线会退化成一条平线，
+ * 柱状能如实表达「空档日 + 峰值日」，也便于复用条形增长动效。
+ */
+const trendBars = computed(() => {
   const arr = trendSeries.value
   if (arr.length < 2) return []
-  const max = Math.max(1, ...arr.map((d) => d.count))
-  const step = (TREND_W - TREND_PAD * 2) / (arr.length - 1)
-  return arr.map((d, i) => ({
-    x: Number((TREND_PAD + step * i).toFixed(1)),
-    y: Number((TREND_H - TREND_PAD - (d.count / max) * (TREND_H - TREND_PAD * 2)).toFixed(1))
-  }))
+  const peak = Math.max(1, ...arr.map((d) => d.count))
+  // 只有 0/1 两档时按 2 作为刻度上限，柱高留出余量，避免整排顶格
+  const max = peak <= 1 ? 2 : peak
+  const inner = TREND_W - TREND_PAD * 2
+  const step = inner / arr.length
+  const w = Math.max(6, Math.min(18, step * 0.56))
+  const plotH = TREND_H - TREND_PAD * 2
+
+  return arr.map((d, i) => {
+    const h = d.count === 0 ? 2 : Math.max(4, (d.count / max) * plotH)
+    return {
+      key: d.date || String(i),
+      count: d.count,
+      x: Number((TREND_PAD + step * i + (step - w) / 2).toFixed(1)),
+      y: Number((TREND_H - TREND_PAD - h).toFixed(1)),
+      w: Number(w.toFixed(1)),
+      h: Number(h.toFixed(1))
+    }
+  })
 })
-
-/** 水平控制点三次贝塞尔：比折线柔和，比样条实现简单 */
-function smoothPath(pts: { x: number; y: number }[]): string {
-  if (pts.length < 2) return ''
-  let d = `M${pts[0].x},${pts[0].y}`
-  for (let i = 0; i < pts.length - 1; i++) {
-    const p0 = pts[i]
-    const p1 = pts[i + 1]
-    const cx = Number(((p0.x + p1.x) / 2).toFixed(1))
-    d += ` C${cx},${p0.y} ${cx},${p1.y} ${p1.x},${p1.y}`
-  }
-  return d
-}
-
-const trendLine = computed(() => smoothPath(trendPts.value))
-
-const trendArea = computed(() => {
-  const pts = trendPts.value
-  if (pts.length < 2) return ''
-  const first = pts[0]
-  const last = pts[pts.length - 1]
-  return `${smoothPath(pts)} L${last.x},${TREND_H} L${first.x},${TREND_H} Z`
-})
-
-const lastTrend = computed(() => trendPts.value[trendPts.value.length - 1] || { x: 0, y: 0 })
 
 const trendLabels = computed(() => {
   const arr = trendSeries.value
@@ -458,6 +458,7 @@ onActivated(() => {
 .trend-body {
   display: flex;
   flex-direction: column;
+  justify-content: center;
   gap: 8px;
 }
 
@@ -472,23 +473,19 @@ onActivated(() => {
   stroke-width: 1;
 }
 
-.trend-line {
-  fill: none;
-  stroke: var(--drs-primary);
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.trend-area {
+/* 柱状：从底部生长，逐条 40ms 错峰，与条形分布同一动效语言 */
+.trend-bar {
   fill: var(--drs-primary);
-  opacity: 0.08;
+  opacity: 0.85;
+  transform-box: fill-box;
+  transform-origin: bottom;
+  transform: scaleY(0);
+  animation: drs-grow-y var(--mo-dur-4) var(--mo-ease-out) var(--d, 0s) forwards;
 }
 
-.trend-dot {
-  fill: var(--drs-surface);
-  stroke: var(--drs-primary);
-  stroke-width: 2;
+.trend-bar.is-zero {
+  fill: var(--drs-ink-200);
+  opacity: 1;
 }
 
 .trend-axis {
@@ -507,6 +504,7 @@ onActivated(() => {
 .model-body {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 18px;
   flex: 1;
 }
