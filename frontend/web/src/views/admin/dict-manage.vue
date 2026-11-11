@@ -2,7 +2,6 @@
   <div class="drs-page drs-stagger">
     <PageHeader
       title="字典管理"
-      :crumbs="['系统管理', '字典管理']"
     >
       <template #actions>
         <el-button v-permission="'admin:dict:edit'" type="primary" @click="openDomainCreate">
@@ -116,7 +115,8 @@
       :title="domainEditing ? '编辑字典域' : '新增字典域'"
       width="480px"
       destroy-on-close
-    >
+    
+      append-to-body>
       <el-form ref="domainFormRef" :model="domainForm" :rules="domainRules" label-width="88px">
         <el-form-item label="编码" prop="domainCode">
           <el-input
@@ -144,7 +144,8 @@
       :title="itemEditing ? '编辑字典项' : '新增字典项'"
       width="480px"
       destroy-on-close
-    >
+    
+      append-to-body>
       <el-form ref="itemFormRef" :model="itemForm" :rules="itemRules" label-width="88px">
         <el-form-item label="所属字典域">
           <el-input :model-value="activeDomain" disabled />

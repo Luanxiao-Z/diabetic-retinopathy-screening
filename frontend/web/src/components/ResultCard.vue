@@ -7,6 +7,7 @@
         :src="record.imageUrl"
         fit="contain"
         :preview-src-list="previewList"
+        preview-teleported
         :initial-index="0"
         class="rc-img"
         alt="眼底影像"

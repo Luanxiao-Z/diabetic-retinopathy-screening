@@ -2,7 +2,6 @@
   <div class="drs-page drs-stagger">
     <PageHeader
       title="筛查上传"
-      :crumbs="['筛查业务', '筛查上传']"
     >
       <template #actions>
         <el-button :disabled="submitting" @click="openPatientDialog">
@@ -207,7 +206,8 @@
       align-center
       :close-on-click-modal="false"
       class="patient-dialog"
-    >
+    
+      append-to-body>
       <p class="pd-hint">
         <AppIcon name="info" :size="13" />
         以下信息全部选填。填写后随筛查记录与诊断报告一并保存，留空则记为「未登记」。

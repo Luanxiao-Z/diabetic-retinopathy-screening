@@ -2,7 +2,6 @@
   <div class="drs-page drs-stagger">
     <PageHeader
       title="用户管理"
-      :crumbs="['系统管理', '用户管理']"
     >
       <template #actions>
         <el-button v-permission="'admin:user:edit'" type="primary" @click="openCreate">
@@ -136,7 +135,8 @@
       :title="editing ? '编辑用户' : '新增用户'"
       width="520px"
       destroy-on-close
-    >
+    
+      append-to-body>
       <el-form ref="formRef" :model="form" :rules="rules" label-width="88px">
         <el-form-item label="用户名" prop="username">
           <el-input v-model="form.username" :disabled="editing" placeholder="登录账号，创建后不可修改" />

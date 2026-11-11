@@ -2,7 +2,6 @@
   <div class="drs-page drs-stagger">
     <PageHeader
       title="患者随访"
-      :crumbs="['筛查业务', '患者随访']"
     >
     </PageHeader>
 
@@ -134,7 +133,8 @@
     </section>
 
     <!-- ============ 随访时间线 ============ -->
-    <el-drawer v-model="drawerVisible" :title="`随访时间线 · ${activePatient}`" size="560px" destroy-on-close>
+    <el-drawer v-model="drawerVisible" :title="`随访时间线 · ${activePatient}`" size="560px" destroy-on-close
+      append-to-body>
       <div v-loading="loadingTimeline" class="timeline">
         <div v-if="!timeline.length && !loadingTimeline" class="timeline-empty">
           <el-empty :image-size="72" description="暂无筛查记录" />
