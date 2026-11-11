@@ -1,6 +1,6 @@
 <template>
-  <div class="drs-page">
-    <PageHeader title="工作台" :crumbs="['综合看板', '工作台']">
+  <div class="drs-page drs-stagger">
+    <PageHeader title="工作台" :crumbs="['综合看板', '工作台']" style="--i: 0">
       <template #actions>
         <el-button :loading="loading" @click="load">
           <AppIcon name="refresh" :size="15" class="btn-ico" />刷新
@@ -12,13 +12,14 @@
     </PageHeader>
 
     <!-- ============ 关键指标（概览） ============ -->
-    <div class="drs-grid-4 kpi-row">
+    <div class="drs-grid-4 kpi-row" style="--i: 1">
       <StatCard
         icon="activity"
         label="累计筛查"
         :value="total"
         unit="例"
         tone="brand"
+        animated
         clickable
         :foot="totalFoot"
         aria-label="累计筛查记录数，点击进入筛查记录列表"
@@ -27,8 +28,11 @@
       <StatCard
         icon="alert"
         label="转诊率"
-        :value="referralRate"
+        :value="referralRateNum"
+        unit="%"
+        :decimals="1"
         tone="danger"
+        animated
         clickable
         foot="建议尽快转诊占比"
         aria-label="转诊率，点击查看转诊建议分布"
@@ -40,6 +44,7 @@
         :value="referralCount"
         unit="例"
         tone="warn"
+        animated
         clickable
         foot="建议眼科就诊或转诊"
         aria-label="需转诊人数，点击查看转诊建议分布"
@@ -51,6 +56,7 @@
         :value="needReviewCount"
         unit="例"
         tone="warn"
+        animated
         clickable
         foot="模型不确定性达阈值"
         aria-label="待人工复核数量，点击进入筛查记录并筛选待复核"
@@ -58,8 +64,8 @@
       />
     </div>
 
-    <!-- ============ 待办摘要 / 快捷入口 ============ -->
-    <div class="drs-grid-2 mt">
+    <!-- ============ 待办摘要 / 近 14 天趋势 ============ -->
+    <div class="dash-row mt" style="--i: 2">
       <section class="drs-card">
         <div class="drs-card-head">
           <h3>待办事项</h3>
@@ -86,6 +92,34 @@
         </div>
       </section>
 
+      <section class="drs-card">
+        <div class="drs-card-head">
+          <h3>近 14 天筛查趋势</h3>
+          <span class="drs-card-meta">单位：例</span>
+        </div>
+        <div class="drs-card-body trend-body">
+          <template v-if="trendPts.length > 1">
+            <svg class="trend" viewBox="0 0 460 150" preserveAspectRatio="none" aria-hidden="true">
+              <line class="trend-grid" x1="0" y1="37" x2="460" y2="37" />
+              <line class="trend-grid" x1="0" y1="75" x2="460" y2="75" />
+              <line class="trend-grid" x1="0" y1="113" x2="460" y2="113" />
+              <path class="trend-area" :d="trendArea" />
+              <path class="trend-line" :d="trendLine" />
+              <circle class="trend-dot" :cx="lastTrend.x" :cy="lastTrend.y" r="4" />
+            </svg>
+            <div class="trend-axis">
+              <span>{{ trendLabels[0] }}</span>
+              <span>{{ trendLabels[1] }}</span>
+              <span>{{ trendLabels[2] }}</span>
+            </div>
+          </template>
+          <el-empty v-else :image-size="64" description="暂无趋势数据" />
+        </div>
+      </section>
+    </div>
+
+    <!-- ============ 快捷入口 / 模型状态 ============ -->
+    <div class="dash-row mt" style="--i: 3">
       <section class="drs-card">
         <div class="drs-card-head">
           <h3>快捷操作</h3>
@@ -116,6 +150,37 @@
           />
         </div>
       </section>
+
+      <section class="drs-card model-card">
+        <div class="drs-card-head">
+          <h3>模型状态</h3>
+          <span class="drs-card-meta">{{ model?.backbone || 'MobileNetV3-S' }}</span>
+        </div>
+        <div class="drs-card-body model-body">
+          <RetinaMark :size="132" />
+          <div class="model-meta">
+            <span class="model-status" :class="modelOnline ? 'is-online' : 'is-offline'">
+              <i class="model-dot" aria-hidden="true"></i>
+              {{ modelOnline ? '服务在线' : '暂不可用' }}
+            </span>
+            <b class="model-version">{{ model?.version || '—' }}</b>
+            <p class="model-line">
+              {{ model?.device || '未上报' }} · {{ model?.num_classes || 5 }} 分类 ·
+              {{ model?.img_size || 224 }}px
+            </p>
+            <div class="model-metrics">
+              <div>
+                <b>{{ accText }}</b>
+                <span>准确率</span>
+              </div>
+              <div>
+                <b>{{ f1Text }}</b>
+                <span>宏 F1</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   </div>
 </template>
@@ -126,10 +191,11 @@ import { useRouter } from 'vue-router'
 import AppIcon from '@/components/AppIcon.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import StatCard from '@/components/StatCard.vue'
-import { pagePatients, pageScreening, statisticsScreening } from '@/api/screening'
+import RetinaMark from '@/components/decor/RetinaMark.vue'
+import { modelInfo, pagePatients, pageScreening, statisticsScreening } from '@/api/screening'
 import { useScreeningStore } from '@/stores/screening'
 import { useUserStore } from '@/stores/user'
-import type { PatientFollowUpVO, ScreeningStatisticsVO } from '@/types/screening'
+import type { ModelInfoVO, PatientFollowUpVO, ScreeningStatisticsVO } from '@/types/screening'
 
 /** 与「随访待办」页保持一致的逾期阈值（天） */
 const OVERDUE_DAYS = 90
@@ -140,6 +206,8 @@ const screeningStore = useScreeningStore()
 
 const loading = ref(false)
 const stats = ref<ScreeningStatisticsVO | null>(null)
+/** 模型信息单独维护：接口失败只影响本卡，不影响整个看板 */
+const model = ref<ModelInfoVO | null>(null)
 const pendingReview = ref(0)
 const pendingReferral = ref(0)
 const overduePatients = ref<PatientFollowUpVO[]>([])
@@ -156,9 +224,71 @@ const total = computed(() => stats.value?.total || 0)
 const referralCount = computed(() => stats.value?.suggestionDistribution?.['REFERRAL'] || 0)
 const needReviewCount = computed(() => stats.value?.needReviewCount || 0)
 
-const referralRate = computed(() => {
+/** 转诊率：0~1 转百分比数值，供数字滚动使用；无数据时为空串（显示「—」） */
+const referralRateNum = computed(() => {
   const r = stats.value?.referralRate
-  return r == null ? '0%' : `${(Number(r) * 100).toFixed(1)}%`
+  return r == null ? '' : Number(r) * 100
+})
+
+/* ---------- 近 14 天趋势（静态 SVG 折线，不做描边动画） ---------- */
+const TREND_W = 460
+const TREND_H = 150
+const TREND_PAD = 10
+
+const trendSeries = computed(() => (stats.value?.trend || []).slice(-14))
+
+const trendPts = computed(() => {
+  const arr = trendSeries.value
+  if (arr.length < 2) return []
+  const max = Math.max(1, ...arr.map((d) => d.count))
+  const step = (TREND_W - TREND_PAD * 2) / (arr.length - 1)
+  return arr.map((d, i) => ({
+    x: Number((TREND_PAD + step * i).toFixed(1)),
+    y: Number((TREND_H - TREND_PAD - (d.count / max) * (TREND_H - TREND_PAD * 2)).toFixed(1))
+  }))
+})
+
+/** 水平控制点三次贝塞尔：比折线柔和，比样条实现简单 */
+function smoothPath(pts: { x: number; y: number }[]): string {
+  if (pts.length < 2) return ''
+  let d = `M${pts[0].x},${pts[0].y}`
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i]
+    const p1 = pts[i + 1]
+    const cx = Number(((p0.x + p1.x) / 2).toFixed(1))
+    d += ` C${cx},${p0.y} ${cx},${p1.y} ${p1.x},${p1.y}`
+  }
+  return d
+}
+
+const trendLine = computed(() => smoothPath(trendPts.value))
+
+const trendArea = computed(() => {
+  const pts = trendPts.value
+  if (pts.length < 2) return ''
+  const first = pts[0]
+  const last = pts[pts.length - 1]
+  return `${smoothPath(pts)} L${last.x},${TREND_H} L${first.x},${TREND_H} Z`
+})
+
+const lastTrend = computed(() => trendPts.value[trendPts.value.length - 1] || { x: 0, y: 0 })
+
+const trendLabels = computed(() => {
+  const arr = trendSeries.value
+  if (!arr.length) return ['', '', '']
+  const fmt = (s: string) => (s || '').slice(5)
+  return [fmt(arr[0].date), fmt(arr[Math.floor(arr.length / 2)].date), fmt(arr[arr.length - 1].date)]
+})
+
+/* ---------- 模型状态（仅真实字段，不显示推理耗时） ---------- */
+const modelOnline = computed(() => Boolean(model.value?.version))
+const accText = computed(() => {
+  const v = model.value?.metrics?.test_acc
+  return v == null ? '—' : `${(v * 100).toFixed(1)}%`
+})
+const f1Text = computed(() => {
+  const v = model.value?.metrics?.test_macro_f1
+  return v == null ? '—' : v.toFixed(3)
 })
 
 /** 环比：近 30 天 vs 前 30 天（放在累计筛查卡的脚注，避免单独占一张图） */
@@ -284,6 +414,11 @@ async function load() {
       (p) => levelIndex(p.latestLevel) >= 2 && daysSince(p.latestTime) > OVERDUE_DAYS
     )
     loadedVersion.value = screeningStore.dataVersion
+
+    // 模型信息失败不阻塞看板（模型服务未启动时后端转发会报错）
+    modelInfo()
+      .then((m) => (model.value = m))
+      .catch(() => (model.value = null))
   } catch {
     // 静默：看板数据不可用时不影响导航
   } finally {
@@ -308,8 +443,162 @@ onActivated(() => {
   margin-top: var(--drs-gap);
 }
 
+/* 两栏：左侧主内容 1.35，右侧概览 1；窄屏自动落为单列 */
+.dash-row {
+  display: grid;
+  grid-template-columns: 1.35fr 1fr;
+  gap: var(--drs-gap);
+}
+
 .btn-ico {
   margin-right: 5px;
+}
+
+/* ---------- 近 14 天趋势（静态折线，不做描边动画） ---------- */
+.trend-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.trend {
+  width: 100%;
+  height: 150px;
+  display: block;
+}
+
+.trend-grid {
+  stroke: var(--drs-ink-100);
+  stroke-width: 1;
+}
+
+.trend-line {
+  fill: none;
+  stroke: var(--drs-primary);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.trend-area {
+  fill: var(--drs-primary);
+  opacity: 0.08;
+}
+
+.trend-dot {
+  fill: var(--drs-surface);
+  stroke: var(--drs-primary);
+  stroke-width: 2;
+}
+
+.trend-axis {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10.5px;
+  color: var(--drs-ink-400);
+}
+
+/* ---------- 模型状态 ---------- */
+.model-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.model-body {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex: 1;
+}
+
+.model-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+  flex: 1;
+}
+
+.model-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--drs-ok);
+}
+
+.model-status.is-offline {
+  color: var(--drs-ink-500);
+}
+
+/* 状态点呼吸：仅「在线」时脉动，离线保持静止 */
+.model-dot {
+  position: relative;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.model-dot::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+  opacity: 0.45;
+  animation: drs-breathe-ring 3.4s var(--mo-ease-std) infinite;
+}
+
+.is-offline .model-dot::after {
+  animation: none;
+  opacity: 0;
+}
+
+.model-version {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--drs-ink-900);
+}
+
+.model-line {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--drs-ink-500);
+}
+
+.model-metrics {
+  display: flex;
+  gap: 20px;
+  margin-top: 2px;
+  padding-top: 9px;
+  border-top: 1px dashed var(--drs-border);
+}
+
+.model-metrics div {
+  display: flex;
+  flex-direction: column;
+}
+
+.model-metrics b {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--drs-ink-800);
+  font-variant-numeric: tabular-nums;
+}
+
+.model-metrics span {
+  font-size: 10.5px;
+  color: var(--drs-ink-500);
+}
+
+@media (max-width: 1180px) {
+  .dash-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ---------- 待办摘要 ---------- */
