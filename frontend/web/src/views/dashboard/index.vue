@@ -89,21 +89,27 @@
         </div>
       </section>
 
-      <section class="drs-card">
+      <section class="drs-card trend-card">
         <div class="drs-card-head">
           <h3>近 14 天筛查数量</h3>
           <span class="drs-card-meta">单位：例</span>
         </div>
         <div class="drs-card-body trend-body">
           <template v-if="trendBars.length > 1">
-            <svg class="trend" viewBox="0 0 460 150" preserveAspectRatio="none" aria-hidden="true">
+            <div ref="trendBox" class="trend-plot">
+              <svg
+                :viewBox="`0 0 ${plotW} ${plotH}`"
+                :width="plotW"
+                :height="plotH"
+                aria-hidden="true"
+              >
               <!-- 纵轴：0 / 中值 / 最大值三档刻度 -->
               <line
                 class="trend-axis-line"
                 :x1="TREND_AXIS_W"
                 y1="10"
                 :x2="TREND_AXIS_W"
-                :y2="TREND_H - 10"
+                :y2="plotH - 10"
               />
               <text
                 v-for="t in trendTicks"
@@ -121,7 +127,7 @@
                 class="trend-grid"
                 :x1="TREND_AXIS_W"
                 :y1="t.y"
-                :x2="TREND_W"
+                :x2="plotW"
                 :y2="t.y"
               />
               <rect
@@ -135,7 +141,8 @@
                 :height="b.h"
                 :style="{ '--d': `${(i * 40) / 1000}s` }"
               />
-            </svg>
+              </svg>
+            </div>
             <div class="trend-axis">
               <span>{{ trendLabels[0] }}</span>
               <span>{{ trendLabels[1] }}</span>
@@ -186,7 +193,7 @@
           <span class="drs-card-meta">{{ model?.backbone || 'MobileNetV3-S' }}</span>
         </div>
         <div class="drs-card-body model-body">
-          <RetinaMark :size="132" />
+          <div class="model-visual"><RetinaMark :size="132" /></div>
           <div class="model-meta">
             <span class="model-status" :class="modelOnline ? 'is-online' : 'is-offline'">
               <i class="model-dot" aria-hidden="true"></i>
@@ -215,7 +222,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onActivated, onMounted, ref } from 'vue'
+import { computed, nextTick, onActivated, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import AppIcon from '@/components/AppIcon.vue'
 import PageHeader from '@/components/PageHeader.vue'
@@ -261,11 +268,23 @@ const referralRateNum = computed(() => {
 })
 
 /* ---------- 近 14 天趋势（静态 SVG 折线，不做描边动画） ---------- */
-const TREND_W = 460
-const TREND_H = 150
 /** 左侧纵轴刻度区宽度 */
 const TREND_AXIS_W = 34
 const TREND_PAD_Y = 10
+/** 绘图区尺寸按容器实测像素计算，viewBox 与真实尺寸一致，避免缩放导致文字变形 */
+const plotW = ref(460)
+const plotH = ref(160)
+const trendBox = ref<HTMLElement>()
+let trendObserver: ResizeObserver | undefined
+
+function measureTrend() {
+  const el = trendBox.value
+  if (!el) return
+  const w = el.clientWidth
+  const h = el.clientHeight
+  if (w > 0) plotW.value = Math.round(w)
+  if (h > 0) plotH.value = Math.round(h)
+}
 
 const trendSeries = computed(() => (stats.value?.trend || []).slice(-14))
 
@@ -283,18 +302,18 @@ const trendBars = computed(() => {
   const arr = trendSeries.value
   if (arr.length < 2) return []
   const max = trendScaleMax.value
-  const plotW = TREND_W - TREND_AXIS_W - 6
-  const step = plotW / arr.length
-  const w = Math.max(6, Math.min(18, step * 0.56))
-  const plotH = TREND_H - TREND_PAD_Y * 2
+  const innerW = plotW.value - TREND_AXIS_W - 6
+  const step = innerW / arr.length
+  const w = Math.max(6, Math.min(22, step * 0.55))
+  const innerH = plotH.value - TREND_PAD_Y * 2
 
   return arr.map((d, i) => {
-    const h = d.count === 0 ? 2 : Math.max(4, (d.count / max) * plotH)
+    const h = d.count === 0 ? 2 : Math.max(4, (d.count / max) * innerH)
     return {
       key: d.date || String(i),
       count: d.count,
       x: Number((TREND_AXIS_W + step * i + (step - w) / 2).toFixed(1)),
-      y: Number((TREND_H - TREND_PAD_Y - h).toFixed(1)),
+      y: Number((plotH.value - TREND_PAD_Y - h).toFixed(1)),
       w: Number(w.toFixed(1)),
       h: Number(h.toFixed(1))
     }
@@ -304,11 +323,11 @@ const trendBars = computed(() => {
 /** 纵轴刻度：0、中值、上限 */
 const trendTicks = computed(() => {
   const max = trendScaleMax.value
-  const plotH = TREND_H - TREND_PAD_Y * 2
+  const innerH = plotH.value - TREND_PAD_Y * 2
   return [
     { v: max, y: TREND_PAD_Y },
-    { v: Math.round(max / 2), y: TREND_PAD_Y + plotH / 2 },
-    { v: 0, y: TREND_H - TREND_PAD_Y }
+    { v: Math.round(max / 2), y: TREND_PAD_Y + innerH / 2 },
+    { v: 0, y: plotH.value - TREND_PAD_Y }
   ]
 })
 
@@ -468,7 +487,38 @@ async function load() {
 // 刷新入口统一在多标签栏，页面只负责把 load 注册出去
 usePageRefresh(load)
 
-onMounted(load)
+/**
+ * 图表容器由 v-if 控制，数据到位后才存在。
+ * 必须等渲染完成再测量并挂观察器，否则量到的是旧尺寸，图会矮一截、横轴被推到卡片底部。
+ */
+function setupTrendObserver() {
+  const el = trendBox.value
+  if (!el) return
+  measureTrend()
+  if (typeof ResizeObserver === 'undefined') return
+  // KeepAlive 切回后元素可能重建，重新绑定到当前节点
+  trendObserver?.disconnect()
+  trendObserver = new ResizeObserver(() => measureTrend())
+  trendObserver.observe(el)
+}
+
+watch(
+  () => trendBars.value.length,
+  async (len) => {
+    if (len > 1) {
+      await nextTick()
+      setupTrendObserver()
+    }
+  }
+)
+
+onMounted(async () => {
+  load()
+  await nextTick()
+  setupTrendObserver()
+})
+
+onBeforeUnmount(() => trendObserver?.disconnect())
 
 // 完成新的筛查后切回工作台时刷新指标
 onActivated(() => {
@@ -497,16 +547,28 @@ onActivated(() => {
 }
 
 /* ---------- 近 14 天趋势（静态折线，不做描边动画） ---------- */
+/* 卡片纵向撑满：卡片头固定，图表吃掉剩余高度 */
+.trend-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.trend-card .drs-card-body {
+  flex: 1;
+}
+
 .trend-body {
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  gap: 8px;
+  gap: 6px;
 }
 
-.trend {
-  width: 100%;
-  height: 150px;
+.trend-plot {
+  flex: 1;
+  min-height: 150px;
+}
+
+.trend-plot svg {
   display: block;
 }
 
@@ -555,16 +617,34 @@ onActivated(() => {
 
 .model-body {
   display: flex;
+  align-items: stretch;
+  gap: 20px;
+  flex: 1;
+  min-height: 230px;
+}
+
+/* 视网膜图形按卡片可用高度等比放大，避免下方大片留白 */
+.model-visual {
+  flex: 0 0 auto;
+  align-self: center;
+  height: 100%;
+  max-height: 176px;
+  aspect-ratio: 1;
+  display: flex;
   align-items: center;
   justify-content: center;
-  gap: 18px;
-  flex: 1;
+}
+
+.model-visual :deep(svg) {
+  width: 100%;
+  height: 100%;
 }
 
 .model-meta {
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  justify-content: center;
+  gap: 9px;
   min-width: 0;
   flex: 1;
 }
@@ -572,8 +652,8 @@ onActivated(() => {
 .model-status {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 12px;
+  gap: 8px;
+  font-size: 15px;
   font-weight: 500;
   color: var(--drs-ok);
 }
@@ -585,8 +665,8 @@ onActivated(() => {
 /* 状态点呼吸：仅「在线」时脉动，离线保持静止 */
 .model-dot {
   position: relative;
-  width: 7px;
-  height: 7px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
   background: currentColor;
   flex-shrink: 0;
@@ -608,14 +688,16 @@ onActivated(() => {
 }
 
 .model-version {
-  font-size: 14px;
+  font-size: 15px;
+  line-height: 1.35;
+  word-break: break-word;
   font-weight: 600;
   color: var(--drs-ink-900);
 }
 
 .model-line {
   margin: 0;
-  font-size: 11.5px;
+  font-size: 13px;
   line-height: 1.6;
   color: var(--drs-ink-500);
 }
@@ -634,14 +716,14 @@ onActivated(() => {
 }
 
 .model-metrics b {
-  font-size: 14px;
+  font-size: 17px;
   font-weight: 600;
   color: var(--drs-ink-800);
   font-variant-numeric: tabular-nums;
 }
 
 .model-metrics span {
-  font-size: 10.5px;
+  font-size: 12px;
   color: var(--drs-ink-500);
 }
 
