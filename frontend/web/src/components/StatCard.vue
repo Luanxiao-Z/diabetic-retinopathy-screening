@@ -14,8 +14,13 @@
     <span class="stat-label">{{ label }}</span>
 
     <span class="stat-num">
-      {{ displayValue }}<span v-if="unit" class="stat-unit">{{ unit }}</span>
+      <CountUp v-if="canAnimate" :value="numericValue" :decimals="decimals" />
+      <template v-else>{{ displayValue }}</template>
+      <span v-if="unit" class="stat-unit">{{ unit }}</span>
     </span>
+
+    <!-- 角部弧线：L1 图形层装饰，跟随色调，不承载信息 -->
+    <span class="stat-arc" aria-hidden="true"></span>
 
     <span v-if="foot || clickable" class="stat-foot">
       <span class="stat-foot-text">{{ foot }}</span>
@@ -30,10 +35,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import AppIcon from '@/components/AppIcon.vue'
+import CountUp from '@/components/CountUp.vue'
 
 /**
  * 指标卡：图标 + 标签 + 数值（可带单位）+ 脚注。
  * 可点击时使用原生 button 语义，键盘 Enter/Space 均可触发（无障碍）。
+ * animated 开启后数值走 900ms 缓出滚动（仅关键汇总数字使用）。
  */
 const props = withDefaults(
   defineProps<{
@@ -46,13 +53,26 @@ const props = withDefaults(
     tone?: 'brand' | 'ok' | 'warn' | 'danger' | 'info' | 'violet' | 'neutral'
     clickable?: boolean
     ariaLabel?: string
+    animated?: boolean
+    decimals?: number
   }>(),
-  { unit: '', foot: '', goText: '去查看', tone: 'brand', clickable: false, ariaLabel: '' }
+  {
+    unit: '',
+    foot: '',
+    goText: '去查看',
+    tone: 'brand',
+    clickable: false,
+    ariaLabel: '',
+    animated: false,
+    decimals: 0
+  }
 )
 
 const emit = defineEmits<{ (e: 'click'): void }>()
 
 const displayValue = computed(() => (props.value === '' || props.value == null ? '—' : props.value))
+const canAnimate = computed(() => props.animated && typeof props.value === 'number')
+const numericValue = computed(() => (typeof props.value === 'number' ? props.value : 0))
 
 function onActivate() {
   if (props.clickable) emit('click')
@@ -73,7 +93,23 @@ function onActivate() {
   text-align: left;
   font: inherit;
   color: inherit;
-  transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+  overflow: hidden;
+  transition:
+    border-color var(--mo-dur-2) var(--mo-ease-std),
+    box-shadow var(--mo-dur-2) var(--mo-ease-std);
+}
+
+/* 角部弧线：从卡片右下角溢出，hover 时保持不变，只做静态装饰 */
+.stat-arc {
+  position: absolute;
+  right: -24px;
+  bottom: -28px;
+  width: 92px;
+  height: 92px;
+  border-radius: 50%;
+  border: 12px solid var(--tone-bg);
+  opacity: 0.75;
+  pointer-events: none;
 }
 
 .stat.is-clickable {

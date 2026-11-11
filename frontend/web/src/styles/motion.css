@@ -1,0 +1,158 @@
+/* ============================================================================
+   DR 智能筛查系统 · 动效令牌与关键帧
+   ----------------------------------------------------------------------------
+   时长谱系：120 反馈 / 180 状态 / 320 入场 / 900 数据
+   缓动：统一 cubic-bezier(.16, 1, .3, 1)；位移类用 cubic-bezier(.4, 0, .2, 1)
+   约束：只动 opacity / transform / box-shadow；条形宽度为一次性增长例外
+   降级：系统 prefers-reduced-motion 生效时停掉位移、呼吸、循环，只留颜色与透明度
+   ========================================================================== */
+
+:root {
+  --mo-dur-1: 120ms;
+  --mo-dur-2: 180ms;
+  --mo-dur-3: 320ms;
+  --mo-dur-4: 900ms;
+  --mo-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --mo-ease-std: cubic-bezier(0.4, 0, 0.2, 1);
+  --mo-stagger: 55ms;
+}
+
+/* ============================ 1. 入场编排 ============================ */
+
+@keyframes drs-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/*
+ * 首屏一次性错峰入场。
+ * 用法：容器加 .drs-stagger，子项按顺序写内联 --i（0..8），最多 9 档。
+ * 不监听滚动，播放完即结束（animation-fill-mode: both 保证终态）。
+ */
+.drs-stagger > * {
+  animation: drs-fade-up var(--mo-dur-3) var(--mo-ease-out) both;
+  animation-delay: calc(var(--i, 0) * var(--mo-stagger));
+}
+
+/* ============================ 2. 数据生长 ============================ */
+
+@keyframes drs-grow-x {
+  to {
+    width: var(--w, 100%);
+  }
+}
+
+@keyframes drs-grow-y {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+/* 条形图：元素初始 width:0，配合 --w 与 --d（逐条延迟）使用 */
+.drs-grow-x {
+  width: 0;
+  animation: drs-grow-x var(--mo-dur-4) var(--mo-ease-out) var(--d, 0s) forwards;
+}
+
+/* ============================ 3. 状态呼吸 ============================ */
+
+@keyframes drs-breathe-ring {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.45;
+  }
+  50% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+@keyframes drs-breathe-glow {
+  0%,
+  100% {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+}
+
+/* ============================ 4. 极慢旋转 / 扫描 ============================ */
+
+@keyframes drs-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes drs-spin-rev {
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+@keyframes drs-scan-y {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  8% {
+    opacity: 0.55;
+  }
+  50% {
+    transform: translateY(var(--scan-distance, 80px));
+    opacity: 0.55;
+  }
+  58% {
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(var(--scan-distance, 80px));
+    opacity: 0;
+  }
+}
+
+/* ============================ 5. 降级 ============================ */
+
+/*
+ * 系统开启「减少动态效果」时：
+ * - 位移 / 呼吸 / 循环动画全部停止；
+ * - 颜色、透明度过渡保留（避免界面反馈突然消失）。
+ * 注意 animation-delay 也要清零，否则错峰入场会先空白一段时间。
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* 0.01ms 仍会让位移瞬间发生一次，这里显式取消位移型终态 */
+  .drs-stagger > * {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .el-button--primary:hover,
+  .el-button--primary:active {
+    transform: none !important;
+  }
+}

@@ -4,6 +4,8 @@ import ElementPlus from 'element-plus'
 import zhCn from 'element-plus/es/locale/lang/zh-cn'
 import 'element-plus/dist/index.css'
 import './styles/theme.css'
+// 动效令牌与关键帧必须在 theme.css 之后引入，前者依赖后者的颜色令牌
+import './styles/motion.css'
 import App from './App.vue'
 import router from './router'
 import { setupPermissionDirective } from './directives/permission'

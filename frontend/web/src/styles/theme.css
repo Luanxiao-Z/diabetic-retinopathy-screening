@@ -4,6 +4,7 @@
    视觉身份：医疗青绿（primary #0891B2）+ 健康绿 CTA，浅色、克制、可及性优先。
    布局语言参考「政务侧工作台」原型：顶栏 + 分组侧栏 + 面包屑 + 页头 + 卡片。
    本文件仅定义令牌与全局覆盖，不含业务样式。
+   动效令牌与关键帧见 motion.css（由 main.ts 在本文件之后引入）。
    ========================================================================== */
 
 :root {
@@ -131,7 +132,7 @@ body,
 body {
   background: var(--drs-bg);
   color: var(--drs-ink-900);
-  font-family: 'Figtree', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', system-ui, -apple-system,
+  font-family: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', system-ui, -apple-system,
     'Segoe UI', sans-serif;
   font-size: 14px;
   line-height: 1.6;
@@ -155,17 +156,7 @@ a:hover {
   border-radius: var(--drs-radius-xs);
 }
 
-/* 尊重系统的「减少动态效果」设置 */
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
-}
+/* 动效降级已迁入 motion.css 统一维护（见 prefers-reduced-motion 块） */
 
 /* ============================ 通用原子类 ============================ */
 
@@ -206,10 +197,23 @@ a:hover {
 }
 
 .drs-card-head h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 15px;
   font-weight: 600;
   margin: 0;
   color: var(--drs-ink-800);
+}
+
+/* 标题前 3px 渐变竖条：统一区块节奏，替代裸文字标题 */
+.drs-card-head h3::before {
+  content: '';
+  flex-shrink: 0;
+  width: 3px;
+  height: 14px;
+  border-radius: 2px;
+  background: linear-gradient(to bottom, var(--drs-primary), var(--drs-primary-800));
 }
 
 .drs-card-head .drs-card-meta {
@@ -256,7 +260,10 @@ a:hover {
 
 .el-button {
   font-weight: 500;
-  transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+  transition:
+    background-color var(--mo-dur-2) var(--mo-ease-std),
+    border-color var(--mo-dur-2) var(--mo-ease-std),
+    color var(--mo-dur-2) var(--mo-ease-std);
 }
 
 .el-button--primary {
@@ -266,6 +273,19 @@ a:hover {
   --el-button-hover-border-color: var(--drs-primary-hover);
   --el-button-active-bg-color: var(--drs-primary-active);
   --el-button-active-border-color: var(--drs-primary-active);
+  transition:
+    background-color var(--mo-dur-2) var(--mo-ease-std),
+    border-color var(--mo-dur-2) var(--mo-ease-std),
+    color var(--mo-dur-2) var(--mo-ease-std),
+    transform var(--mo-dur-1) var(--mo-ease-out),
+    box-shadow var(--mo-dur-1) var(--mo-ease-out);
+}
+
+/* 主按钮是全站唯一允许位移的元素：hover 抬升 1px 并加深投影 */
+.el-button--primary:not(.is-disabled):hover,
+.el-button--primary:not(.is-disabled):focus-visible {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(8, 145, 178, 0.3);
 }
 
 .el-card {

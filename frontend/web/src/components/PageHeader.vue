@@ -10,6 +10,7 @@
     <div class="head-row">
       <div class="head-main">
         <h1 class="head-title">{{ title }}</h1>
+        <p v-if="subtitle" class="head-sub">{{ subtitle }}</p>
       </div>
       <div v-if="$slots.actions" class="head-actions">
         <slot name="actions" />
@@ -32,6 +33,7 @@ import { useRoute } from 'vue-router'
  */
 const props = defineProps<{
   title: string
+  subtitle?: string
   crumbs?: string[]
 }>()
 
@@ -88,6 +90,12 @@ const crumbs = computed<string[]>(() => {
   letter-spacing: -0.2px;
   margin: 0;
   color: var(--drs-ink-900);
+}
+
+.head-sub {
+  margin: 3px 0 0;
+  font-size: 12.5px;
+  color: var(--drs-ink-500);
 }
 
 .head-actions {

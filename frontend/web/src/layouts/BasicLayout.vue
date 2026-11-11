@@ -57,6 +57,9 @@
 
     <!-- ===================== 主区 ===================== -->
     <div class="body">
+      <!-- L1 图形层：同心弧水印，固定于内容区右上，不随滚动 -->
+      <RingField class="body-decor" :size="360" :opacity="0.5" />
+
       <header class="topbar">
         <button
           type="button"
@@ -170,6 +173,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import AppIcon from '@/components/AppIcon.vue'
+import RingField from '@/components/decor/RingField.vue'
 import { useUserStore } from '@/stores/user'
 
 interface NavItem {
@@ -417,6 +421,7 @@ function onCommand(cmd: string) {
   flex-shrink: 0;
   background: linear-gradient(135deg, var(--drs-primary) 0%, var(--drs-primary-800) 100%);
   color: #fff;
+  box-shadow: 0 4px 12px rgba(8, 145, 178, 0.28);
 }
 
 .brand-text {
@@ -507,6 +512,24 @@ function onCommand(cmd: string) {
   font-weight: 600;
 }
 
+/*
+ * 活动指示条：3px 竖向渐变，320ms 从中间生长。
+ * 切换菜单时旧元素失去 router-link-active、新元素获得，伪元素重建即重播。
+ * 折叠态（mode-icon）下同样保留，贴侧栏左缘。
+ */
+.nav-item.router-link-active::before {
+  content: '';
+  position: absolute;
+  left: -10px;
+  top: 50%;
+  width: 3px;
+  height: 18px;
+  margin-top: -9px;
+  border-radius: 0 3px 3px 0;
+  background: linear-gradient(to bottom, var(--drs-primary), var(--drs-primary-800));
+  animation: drs-grow-y var(--mo-dur-3) var(--mo-ease-out) both;
+}
+
 .nav-item.router-link-active .nav-ico {
   color: var(--drs-primary);
 }
@@ -558,9 +581,34 @@ function onCommand(cmd: string) {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  position: relative;
+}
+
+/* L0 结构层：点阵底纹，只作用于内容区顶部，向下渐隐避免干扰表格 */
+.body::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: radial-gradient(rgba(100, 116, 139, 0.16) 1px, transparent 1px);
+  background-size: 22px 22px;
+  -webkit-mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.9), transparent 620px);
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.9), transparent 620px);
+}
+
+/* L1 图形层：右上角同心弧，固定不随内容滚动 */
+.body-decor {
+  position: absolute;
+  top: 96px;
+  right: -46px;
+  z-index: 0;
+  pointer-events: none;
 }
 
 .topbar {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -687,6 +735,8 @@ function onCommand(cmd: string) {
 }
 
 .content {
+  position: relative;
+  z-index: 1;
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
@@ -694,6 +744,8 @@ function onCommand(cmd: string) {
 
 /* ---------- 多标签页 ---------- */
 .tabbar {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   gap: 8px;
