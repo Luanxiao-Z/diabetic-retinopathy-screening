@@ -154,10 +154,9 @@ function measure() {
   const parent = root.value?.parentElement
   if (!parent) return
   const w = parent.clientWidth
-  const h = parent.clientHeight
-  if (!w || !h) return
-  // 留 6px 余量，避免亚像素误差触发滚动条
-  zoom.value = Math.min(w / A4_W, (h - 6) / A4_H, 1)
+  if (!w) return
+  // 只按宽度缩放：高度由 A4 比例自然撑开，交给页面滚动
+  zoom.value = Math.min(w / A4_W, 1)
 }
 
 onMounted(() => {

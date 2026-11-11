@@ -3,7 +3,6 @@
     <PageHeader
       title="筛查记录详情"
       :subtitle="record ? `${record.patientName || '未登记'} · ${formatDateTime(record.createTime)}` : '正在加载…'"
-      :crumbs="['筛查业务', '筛查记录', '详情']"
       style="--i: 0"
     >
       <template #actions>
@@ -98,22 +97,20 @@ onMounted(load)
 
 .detail-split {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  /* 报告按 A4 比例占 65%，详情 35% */
+  grid-template-columns: minmax(0, 35fr) minmax(0, 65fr);
   gap: var(--drs-gap);
   align-items: start;
 }
 
 /*
  * 右栏只是定位容器：无背景、无边框，A4 纸直接铺在页面底色上。
- * 高度固定为内容区可视高度，报告由 ReportPaper 的 fit 模式等比缩放，
- * 保证整页完整显示且不出现滚动条。
+ * 高度随报告自然撑开，由页面滚动；报告内部不产生滚动条。
  */
 .report-pane {
-  height: calc(100vh - 232px);
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  overflow: hidden;
 }
 
 @media (max-width: 1280px) {
@@ -121,9 +118,7 @@ onMounted(load)
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .report-pane {
-    height: auto;
-  }
+
 }
 
 .btn-ico {
