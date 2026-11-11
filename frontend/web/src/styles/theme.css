@@ -386,6 +386,24 @@ a:hover {
     display: none !important;
   }
 
+  /* 装饰层全部关闭：报告只输出正文与表格，避免水印/点阵/竖条污染纸张 */
+  .body-decor,
+  .stat-arc {
+    display: none !important;
+  }
+
+  .body::before,
+  .drs-card-head h3::before {
+    display: none !important;
+  }
+
+  /* 入场动画在打印时可能停在 opacity:0，直接落到终态 */
+  .drs-stagger > * {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
   /* 壳层默认是 flex 布局，打印时改为常规流，使内容占满纸宽 */
   .layout,
   .body {
