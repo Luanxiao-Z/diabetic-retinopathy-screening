@@ -13,7 +13,7 @@
 
     <section class="drs-card filter-card">
       <div class="drs-card-body">
-        <el-form :model="query" label-position="top" @submit.prevent>
+        <el-form :model="query" label-position="left" label-width="auto" @submit.prevent>
           <div class="filter-grid">
             <el-form-item label="用户名">
               <el-input v-model="query.username" placeholder="支持模糊匹配" clearable @keyup.enter="handleQuery" />
@@ -394,14 +394,22 @@ onMounted(loadData)
 }
 
 .filter-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 0 var(--drs-gap);
-  align-items: end;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 10px;
 }
 
 .filter-grid :deep(.el-form-item) {
   margin-bottom: 0;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* 标签与控件同行，标签不参与压缩 */
+.filter-grid :deep(.el-form-item__label) {
+  flex-shrink: 0;
+  padding-right: 8px;
 }
 
 .filter-grid :deep(.el-select),

@@ -8,7 +8,7 @@
 
     <section class="drs-card filter-card">
       <div class="drs-card-body">
-        <el-form :model="query" label-position="top" @submit.prevent>
+        <el-form :model="query" label-position="left" label-width="auto" @submit.prevent>
           <div class="filter-grid">
             <el-form-item label="操作人">
               <el-input v-model="query.username" placeholder="支持模糊匹配" clearable @keyup.enter="handleQuery" />
@@ -28,7 +28,7 @@
                 <el-option v-for="o in LOG_RESULT_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
               </el-select>
             </el-form-item>
-            <el-form-item label="时间范围">
+            <el-form-item label="时间范围" class="fi-date">
               <el-date-picker
                 v-model="dateRange"
                 type="daterange"
@@ -208,14 +208,28 @@ onMounted(loadData)
 }
 
 .filter-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 0 var(--drs-gap);
-  align-items: end;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 10px;
 }
 
 .filter-grid :deep(.el-form-item) {
   margin-bottom: 0;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* 标签与控件同行，标签不参与压缩 */
+.filter-grid :deep(.el-form-item__label) {
+  flex-shrink: 0;
+  padding-right: 8px;
+}
+
+/* 日期范围控件本身较宽，给所在表单项更大权重 */
+.filter-grid :deep(.el-form-item.fi-date) {
+  flex: 1.8 1 0;
+  min-width: 240px;
 }
 
 .filter-grid :deep(.el-select),
@@ -225,6 +239,8 @@ onMounted(loadData)
 
 .date-range {
   width: 100%;
+  flex: 1.5 1 0;
+  min-width: 220px;
 }
 
 .filter-actions {
