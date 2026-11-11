@@ -104,10 +104,10 @@
           <el-table-column label="最近置信度" min-width="120">
             <template #default="{ row }">{{ confidenceText(row.latestConfidence) }}</template>
           </el-table-column>
-          <el-table-column label="待复核" min-width="96">
+          <el-table-column label="待复核记录数" min-width="132">
             <template #default="{ row }">
               <span v-if="row.needReviewCount" class="review-badge">{{ row.needReviewCount }}</span>
-              <span v-else class="review-zero">0</span>
+              <span v-else class="review-zero">—</span>
             </template>
           </el-table-column>
           <el-table-column label="最近筛查" min-width="164">
