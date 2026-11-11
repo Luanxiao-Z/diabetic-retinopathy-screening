@@ -235,7 +235,12 @@ onMounted(loadCaptcha)
   justify-content: space-between;
   padding: 40px 48px;
   color: #e6f7fb;
-  background: linear-gradient(150deg, #0e7490 0%, #0891b2 52%, #155e75 100%);
+  background: linear-gradient(
+    150deg,
+    var(--drs-primary-700) 0%,
+    var(--drs-primary) 52%,
+    var(--drs-primary-800) 100%
+  );
 }
 
 .brand-top {
