@@ -82,7 +82,13 @@
         </div>
       </section>
 
-    <el-dialog v-model="profileDialogVisible" title="编辑资料" width="440px" destroy-on-close>
+    <el-dialog
+      v-model="profileDialogVisible"
+      title="编辑资料"
+      width="440px"
+      destroy-on-close
+      append-to-body
+    >
       <p class="pwd-tip">角色与数据范围由管理员分配，不在此处修改。</p>
       <el-form
         ref="profileFormRef"
@@ -103,7 +109,13 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="pwdDialogVisible" title="修改密码" width="440px" destroy-on-close>
+    <el-dialog
+      v-model="pwdDialogVisible"
+      title="修改密码"
+      width="440px"
+      destroy-on-close
+      append-to-body
+    >
       <p class="pwd-tip">修改后当前会话仍有效，下次登录请使用新密码。</p>
       <el-form ref="pwdFormRef" :model="pwdForm" :rules="pwdRules" label-position="top">
             <el-form-item label="原密码" prop="oldPassword">
@@ -327,6 +339,25 @@ const permissionGroups = computed(() => {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--drs-gap);
   align-items: stretch;
+  /* 个人中心信息量少，卡片撑满内容区可用高度，避免下半屏整片空白 */
+  min-height: calc(100vh - 210px);
+}
+
+/*
+ * 卡片撑满内容区；内容顶部对齐并适度加大行距，
+ * 既不出现 space-between 那种上百像素的空行，也不至于缩成一小团。
+ */
+.profile-grid > .drs-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.profile-grid > .drs-card > .drs-card-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  padding-top: 24px;
 }
 
 /* ---------- 账号信息 ---------- */
@@ -376,7 +407,7 @@ const permissionGroups = computed(() => {
   display: flex;
   align-items: flex-start;
   gap: var(--drs-gap);
-  padding: 10px 0;
+  padding: 14px 0;
   border-bottom: 1px solid var(--drs-border);
 }
 
@@ -410,7 +441,7 @@ const permissionGroups = computed(() => {
 
 /* ---------- 功能权限 ---------- */
 .perm-group + .perm-group {
-  margin-top: var(--drs-gap);
+  margin-top: 22px;
 }
 
 .perm-group-title {
