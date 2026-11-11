@@ -86,7 +86,8 @@ SQL
 #    - 含 2 条低置信度记录（触发「待复核」）；
 #    - 含 3 位患者的多次筛查（触发「患者随访」的分级变化）；
 #    - 含 100 天前的记录（触发「逾期未复诊」）；
-#    - 时间跨近 30 天与前 30 天（触发「统计环比」）。
+#    - 时间跨近 30 天与前 30 天（触发「统计环比」）；
+#    - 近 14 天逐日分布（0/1/2/3/5/6/8/10/12 天各有点位），工作台趋势图可见起伏。
 # ---------------------------------------------------------------------------
 echo "==> 插入演示筛查记录…"
 run_sql <<SQL
@@ -138,6 +139,23 @@ VALUES
    'LEVEL_1', 0.8010, '{"LEVEL_0":0.15,"LEVEL_1":0.801,"LEVEL_2":0.04,"LEVEL_3":0.008,"LEVEL_4":0.001}',
    'REVIEW', 'aptos2019-mobilenetv3s-1.0.0', '$DEMO_REMARK', NULL, NULL, NULL, NULL,
    'seed', DATE_SUB(NOW(), INTERVAL 1 DAY), 'seed', NOW(), 'N'),
+  -- 近 14 天补点：让工作台趋势图呈现真实的起伏（0/1/2/3/5/6/8/10/12 天各有分布）
+  (REPLACE(UUID(),'-',''), 'admin', '演示患者-何静', 38, 'FEMALE', 'demo/placeholder.png',
+   'LEVEL_1', 0.7880, '{"LEVEL_0":0.16,"LEVEL_1":0.788,"LEVEL_2":0.042,"LEVEL_3":0.008,"LEVEL_4":0.002}',
+   'REVIEW', 'aptos2019-mobilenetv3s-1.0.0', '$DEMO_REMARK', NULL, NULL, NULL, NULL,
+   'seed', NOW(), 'seed', NOW(), 'N'),
+  (REPLACE(UUID(),'-',''), 'admin', '演示患者-郑凯', 45, 'MALE', 'demo/placeholder.png',
+   'LEVEL_2', 0.8620, '{"LEVEL_0":0.015,"LEVEL_1":0.045,"LEVEL_2":0.862,"LEVEL_3":0.06,"LEVEL_4":0.018}',
+   'CLINIC', 'aptos2019-mobilenetv3s-1.0.0', '$DEMO_REMARK', NULL, NULL, NULL, NULL,
+   'seed', DATE_SUB(NOW(), INTERVAL 2 DAY), 'seed', NOW(), 'N'),
+  (REPLACE(UUID(),'-',''), 'admin', '演示患者-冯敏', 61, 'FEMALE', 'demo/placeholder.png',
+   'LEVEL_4', 0.9340, '{"LEVEL_0":0.003,"LEVEL_1":0.006,"LEVEL_2":0.022,"LEVEL_3":0.035,"LEVEL_4":0.934}',
+   'REFERRAL', 'aptos2019-mobilenetv3s-1.0.0', '$DEMO_REMARK', NULL, NULL, NULL, NULL,
+   'seed', DATE_SUB(NOW(), INTERVAL 6 DAY), 'seed', NOW(), 'N'),
+  (REPLACE(UUID(),'-',''), 'admin', '演示患者-许强', 57, 'MALE', 'demo/placeholder.png',
+   'LEVEL_0', 0.9610, '{"LEVEL_0":0.961,"LEVEL_1":0.03,"LEVEL_2":0.007,"LEVEL_3":0.002,"LEVEL_4":0.0}',
+   'REVIEW', 'aptos2019-mobilenetv3s-1.0.0', '$DEMO_REMARK', NULL, NULL, NULL, NULL,
+   'seed', DATE_SUB(NOW(), INTERVAL 10 DAY), 'seed', NOW(), 'N'),
   -- 前 30 天记录（用于环比对照）
   (REPLACE(UUID(),'-',''), 'admin', '演示患者-周涛', 66, 'MALE', 'demo/placeholder.png',
    'LEVEL_2', 0.8450, '{"LEVEL_0":0.02,"LEVEL_1":0.05,"LEVEL_2":0.845,"LEVEL_3":0.07,"LEVEL_4":0.015}',
