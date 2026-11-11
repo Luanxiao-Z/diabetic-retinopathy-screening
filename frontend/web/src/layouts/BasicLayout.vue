@@ -49,10 +49,6 @@
           当前账号未分配任何业务权限，请联系系统管理员。
         </p>
       </nav>
-
-      <div class="sider-foot">
-        <span class="sider-foot-text">v1.0 · 本地部署</span>
-      </div>
     </aside>
 
     <!-- ===================== 主区 ===================== -->
@@ -544,8 +540,7 @@ function onCommand(cmd: string) {
 }
 
 .mode-icon .nav-txt,
-.mode-icon .brand-text,
-.mode-icon .sider-foot-text {
+.mode-icon .brand-text {
   display: none;
 }
 
@@ -564,15 +559,6 @@ function onCommand(cmd: string) {
   font-size: 12px;
   line-height: 1.7;
   color: var(--drs-ink-500);
-}
-
-.sider-foot {
-  flex-shrink: 0;
-  padding: 12px 16px;
-  border-top: 1px solid var(--drs-border);
-  font-size: 11px;
-  color: var(--drs-ink-400);
-  white-space: nowrap;
 }
 
 /* ===================== 主区 ===================== */
