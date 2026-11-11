@@ -1,6 +1,6 @@
 <template>
   <div class="drs-page drs-stagger">
-    <PageHeader title="随访待办" :crumbs="['筛查业务', '随访待办']">
+    <PageHeader title="随访待办">
     </PageHeader>
 
     <section class="drs-card">

@@ -48,7 +48,7 @@ const routes: RouteRecordRaw[] = [
         path: 'screening/statistics',
         name: 'ScreeningStatistics',
         component: () => import('@/views/screening/statistics.vue'),
-        meta: { permission: 'biz:screening:view', title: '统计分析', group: '筛查业务', crumb: '统计分析' }
+        meta: { permission: 'biz:screening:view', title: '统计分析', group: '综合看板', crumb: '统计分析' }
       },
       {
         path: 'screening/patients',
@@ -84,7 +84,7 @@ const routes: RouteRecordRaw[] = [
         path: 'model-info',
         name: 'ModelInfo',
         component: () => import('@/views/model-info/index.vue'),
-        meta: { permission: 'biz:screening:view', title: '模型信息', group: '综合看板', crumb: '模型信息' }
+        meta: { permission: 'biz:screening:view', title: '模型信息', group: '帮助', crumb: '模型信息' }
       },
       {
         path: 'guide',
