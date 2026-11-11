@@ -1,5 +1,5 @@
 <template>
-  <div class="drs-page">
+  <div class="drs-page drs-stagger">
     <PageHeader
       title="使用指南"
       :crumbs="['帮助', '使用指南']"

@@ -1,5 +1,5 @@
 <template>
-  <div class="drs-page">
+  <div class="drs-page drs-stagger">
     <PageHeader
       title="操作日志"
       :crumbs="['系统管理', '操作日志']"

@@ -1,5 +1,5 @@
 <template>
-  <div class="drs-page">
+  <div class="drs-page drs-stagger">
     <PageHeader title="个人中心" :crumbs="['账户', '个人中心']">
       <template #actions>
         <el-button @click="openProfileDialog">

@@ -1,5 +1,5 @@
 <template>
-  <div class="drs-page">
+  <div class="drs-page drs-stagger">
     <PageHeader
       title="筛查上传"
       :crumbs="['筛查业务', '筛查上传']"

@@ -40,6 +40,26 @@
   animation-delay: calc(var(--i, 0) * var(--mo-stagger));
 }
 
+/* 自动错峰：前 6 个子项依次递增，页面无需逐项写 --i（内联 --i 优先级更高仍可覆盖） */
+.drs-stagger > *:nth-child(1) {
+  --i: 0;
+}
+.drs-stagger > *:nth-child(2) {
+  --i: 1;
+}
+.drs-stagger > *:nth-child(3) {
+  --i: 2;
+}
+.drs-stagger > *:nth-child(4) {
+  --i: 3;
+}
+.drs-stagger > *:nth-child(5) {
+  --i: 4;
+}
+.drs-stagger > *:nth-child(6) {
+  --i: 5;
+}
+
 /* ============================ 2. 数据生长 ============================ */
 
 @keyframes drs-grow-x {

@@ -1,5 +1,5 @@
 <template>
-  <div class="drs-page">
+  <div class="drs-page drs-stagger">
     <PageHeader
       title="模型信息"
       :crumbs="['综合看板', '模型信息']"

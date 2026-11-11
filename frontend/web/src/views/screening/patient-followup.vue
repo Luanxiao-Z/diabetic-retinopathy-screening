@@ -1,5 +1,5 @@
 <template>
-  <div class="drs-page">
+  <div class="drs-page drs-stagger">
     <PageHeader
       title="患者随访"
       :crumbs="['筛查业务', '患者随访']"

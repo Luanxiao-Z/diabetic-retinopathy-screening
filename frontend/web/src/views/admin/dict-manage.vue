@@ -1,5 +1,5 @@
 <template>
-  <div class="drs-page">
+  <div class="drs-page drs-stagger">
     <PageHeader
       title="字典管理"
       :crumbs="['系统管理', '字典管理']"

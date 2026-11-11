@@ -1,5 +1,5 @@
 <template>
-  <div class="drs-page">
+  <div class="drs-page drs-stagger">
     <PageHeader
       title="用户管理"
       :crumbs="['系统管理', '用户管理']"

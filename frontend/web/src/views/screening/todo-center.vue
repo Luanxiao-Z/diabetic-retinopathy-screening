@@ -1,5 +1,5 @@
 <template>
-  <div class="drs-page">
+  <div class="drs-page drs-stagger">
     <PageHeader title="随访待办" :crumbs="['筛查业务', '随访待办']">
       <template #actions>
         <el-button :loading="loading" @click="loadData">

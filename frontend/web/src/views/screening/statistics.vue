@@ -1,5 +1,5 @@
 <template>
-  <div class="drs-page">
+  <div class="drs-page drs-stagger">
     <PageHeader
       title="统计分析"
       :crumbs="['筛查业务', '统计分析']"
