@@ -176,7 +176,7 @@ const levelOption = computed<EChartsOption>(() => {
         avoidLabelOverlap: true,
         itemStyle: { borderColor: '#fff', borderWidth: 2 },
         label: { color: '#334155', fontSize: 12, formatter: '{b}\n{c}' },
-        labelLine: { length: 8, length2: 8 },
+        labelLine: { show: false },
         data
       }
     ]
@@ -200,7 +200,7 @@ const suggestionOption = computed<EChartsOption>(() => {
         center: ['50%', '44%'],
         itemStyle: { borderColor: '#fff', borderWidth: 2 },
         label: { color: '#334155', fontSize: 12, formatter: '{b}\n{c}' },
-        labelLine: { length: 8, length2: 8 },
+        labelLine: { show: false },
         data
       }
     ]
