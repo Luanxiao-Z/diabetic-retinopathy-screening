@@ -99,9 +99,10 @@ function onActivate() {
     box-shadow var(--mo-dur-2) var(--mo-ease-std);
 }
 
-/* 角部弧线：从卡片右下角溢出，hover 时保持不变，只做静态装饰 */
+/* 角部弧线：压到内容层之下，避免遮住「去查看」等文字 */
 .stat-arc {
   position: absolute;
+  z-index: 0;
   right: -24px;
   bottom: -28px;
   width: 92px;
@@ -124,6 +125,11 @@ function onActivate() {
 .stat.is-clickable:focus-visible {
   outline: 2px solid var(--drs-primary);
   outline-offset: 2px;
+}
+
+.stat > :not(.stat-arc) {
+  position: relative;
+  z-index: 1;
 }
 
 .stat-ico {
