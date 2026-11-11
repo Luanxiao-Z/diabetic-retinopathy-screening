@@ -107,7 +107,7 @@
           <el-table-column label="待复核记录数" min-width="132">
             <template #default="{ row }">
               <span v-if="row.needReviewCount" class="review-badge">{{ row.needReviewCount }}</span>
-              <span v-else class="review-zero">—</span>
+              <span v-else class="review-zero">0</span>
             </template>
           </el-table-column>
           <el-table-column label="最近筛查" min-width="164">
@@ -473,15 +473,15 @@ onActivated(() => {
   font-weight: 600;
 }
 
-/* 无待复核时同样使用徽章样式，保证该列视觉统一 */
+/* 无待复核时同样使用徽章样式，仅颜色转绿表示「无需处理」 */
 .review-zero {
   display: inline-block;
   min-width: 22px;
   padding: 1px 7px;
   border-radius: 999px;
   text-align: center;
-  background: var(--drs-surface-2);
-  color: var(--drs-ink-500);
+  background: var(--drs-ok-bg);
+  color: var(--drs-ok);
   font-size: 12px;
   font-weight: 600;
 }
