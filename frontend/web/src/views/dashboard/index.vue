@@ -1,6 +1,6 @@
 <template>
   <div class="drs-page drs-stagger">
-    <PageHeader title="工作台" :crumbs="['综合看板', '工作台']" style="--i: 0">
+    <PageHeader title="工作台" style="--i: 0">
       <template #actions>
         <el-button v-permission="'biz:screening:create'" type="primary" @click="go('/screening/upload')">
           <AppIcon name="upload" :size="15" class="btn-ico" />开始筛查
@@ -91,15 +91,39 @@
 
       <section class="drs-card">
         <div class="drs-card-head">
-          <h3>近 14 天筛查趋势</h3>
+          <h3>近 14 天筛查数量</h3>
           <span class="drs-card-meta">单位：例</span>
         </div>
         <div class="drs-card-body trend-body">
           <template v-if="trendBars.length > 1">
             <svg class="trend" viewBox="0 0 460 150" preserveAspectRatio="none" aria-hidden="true">
-              <line class="trend-grid" x1="0" y1="37" x2="460" y2="37" />
-              <line class="trend-grid" x1="0" y1="75" x2="460" y2="75" />
-              <line class="trend-grid" x1="0" y1="113" x2="460" y2="113" />
+              <!-- 纵轴：0 / 中值 / 最大值三档刻度 -->
+              <line
+                class="trend-axis-line"
+                :x1="TREND_AXIS_W"
+                y1="10"
+                :x2="TREND_AXIS_W"
+                :y2="TREND_H - 10"
+              />
+              <text
+                v-for="t in trendTicks"
+                :key="`t${t.v}`"
+                class="trend-tick"
+                :x="TREND_AXIS_W - 6"
+                :y="t.y + 3"
+                text-anchor="end"
+              >
+                {{ t.v }}
+              </text>
+              <line
+                v-for="t in trendTicks.filter((x) => x.v > 0)"
+                :key="`g${t.v}`"
+                class="trend-grid"
+                :x1="TREND_AXIS_W"
+                :y1="t.y"
+                :x2="TREND_W"
+                :y2="t.y"
+              />
               <rect
                 v-for="(b, i) in trendBars"
                 :key="b.key"
@@ -239,7 +263,9 @@ const referralRateNum = computed(() => {
 /* ---------- 近 14 天趋势（静态 SVG 折线，不做描边动画） ---------- */
 const TREND_W = 460
 const TREND_H = 150
-const TREND_PAD = 10
+/** 左侧纵轴刻度区宽度 */
+const TREND_AXIS_W = 34
+const TREND_PAD_Y = 10
 
 const trendSeries = computed(() => (stats.value?.trend || []).slice(-14))
 
@@ -247,28 +273,43 @@ const trendSeries = computed(() => (stats.value?.trend || []).slice(-14))
  * 柱状而非折线：筛查量在多数日期为 0 或 1，折线会退化成一条平线，
  * 柱状能如实表达「空档日 + 峰值日」，也便于复用条形增长动效。
  */
+/** 纵轴上限：只有 0/1 两档时按 2 计，柱高留余量避免整排顶格 */
+const trendScaleMax = computed(() => {
+  const peak = Math.max(1, ...trendSeries.value.map((d) => d.count))
+  return peak <= 1 ? 2 : peak
+})
+
 const trendBars = computed(() => {
   const arr = trendSeries.value
   if (arr.length < 2) return []
-  const peak = Math.max(1, ...arr.map((d) => d.count))
-  // 只有 0/1 两档时按 2 作为刻度上限，柱高留出余量，避免整排顶格
-  const max = peak <= 1 ? 2 : peak
-  const inner = TREND_W - TREND_PAD * 2
-  const step = inner / arr.length
+  const max = trendScaleMax.value
+  const plotW = TREND_W - TREND_AXIS_W - 6
+  const step = plotW / arr.length
   const w = Math.max(6, Math.min(18, step * 0.56))
-  const plotH = TREND_H - TREND_PAD * 2
+  const plotH = TREND_H - TREND_PAD_Y * 2
 
   return arr.map((d, i) => {
     const h = d.count === 0 ? 2 : Math.max(4, (d.count / max) * plotH)
     return {
       key: d.date || String(i),
       count: d.count,
-      x: Number((TREND_PAD + step * i + (step - w) / 2).toFixed(1)),
-      y: Number((TREND_H - TREND_PAD - h).toFixed(1)),
+      x: Number((TREND_AXIS_W + step * i + (step - w) / 2).toFixed(1)),
+      y: Number((TREND_H - TREND_PAD_Y - h).toFixed(1)),
       w: Number(w.toFixed(1)),
       h: Number(h.toFixed(1))
     }
   })
+})
+
+/** 纵轴刻度：0、中值、上限 */
+const trendTicks = computed(() => {
+  const max = trendScaleMax.value
+  const plotH = TREND_H - TREND_PAD_Y * 2
+  return [
+    { v: max, y: TREND_PAD_Y },
+    { v: Math.round(max / 2), y: TREND_PAD_Y + plotH / 2 },
+    { v: 0, y: TREND_H - TREND_PAD_Y }
+  ]
 })
 
 const trendLabels = computed(() => {
@@ -472,6 +513,16 @@ onActivated(() => {
 .trend-grid {
   stroke: var(--drs-ink-100);
   stroke-width: 1;
+}
+
+.trend-axis-line {
+  stroke: var(--drs-ink-200);
+  stroke-width: 1;
+}
+
+.trend-tick {
+  fill: var(--drs-ink-400);
+  font-size: 10px;
 }
 
 /* 柱状：从底部生长，逐条 40ms 错峰，与条形分布同一动效语言 */
