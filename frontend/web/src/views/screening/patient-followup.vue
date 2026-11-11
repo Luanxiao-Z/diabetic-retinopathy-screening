@@ -4,11 +4,6 @@
       title="患者随访"
       :crumbs="['筛查业务', '患者随访']"
     >
-      <template #actions>
-        <el-button :loading="loading" @click="loadData">
-          <AppIcon name="refresh" :size="15" class="btn-ico" />刷新
-        </el-button>
-      </template>
     </PageHeader>
 
     <section class="drs-card filter-card">
@@ -172,6 +167,7 @@ import { onActivated, onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import AppIcon from '@/components/AppIcon.vue'
 import PageHeader from '@/components/PageHeader.vue'
+import { usePageRefresh } from '@/composables/usePageRefresh'
 import { pagePatients, patientTimeline } from '@/api/screening'
 import { useScreeningStore } from '@/stores/screening'
 import { formatDateTime } from '@/utils/format'
@@ -307,6 +303,9 @@ async function openTimeline(row: PatientFollowUpVO) {
     loadingTimeline.value = false
   }
 }
+
+// 刷新入口统一在多标签栏，页面只负责把 load 注册出去
+usePageRefresh(loadData)
 
 onMounted(loadData)
 

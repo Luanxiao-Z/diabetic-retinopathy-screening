@@ -4,11 +4,6 @@
       title="操作日志"
       :crumbs="['系统管理', '操作日志']"
     >
-      <template #actions>
-        <el-button :loading="loading" @click="loadData">
-          <AppIcon name="refresh" :size="15" class="btn-ico" />刷新
-        </el-button>
-      </template>
     </PageHeader>
 
     <section class="drs-card filter-card">
@@ -127,6 +122,7 @@ import { onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import AppIcon from '@/components/AppIcon.vue'
 import PageHeader from '@/components/PageHeader.vue'
+import { usePageRefresh } from '@/composables/usePageRefresh'
 import { pageOperationLogs } from '@/api/admin'
 import { LOG_ACTION_OPTIONS, LOG_MODULE_OPTIONS, LOG_RESULT_OPTIONS } from '@/types/admin'
 import type { OperationLogVO } from '@/types/admin'
@@ -195,6 +191,9 @@ function handleSizeChange() {
   query.current = 1
   loadData()
 }
+
+// 刷新入口统一在多标签栏，页面只负责把 load 注册出去
+usePageRefresh(loadData)
 
 onMounted(loadData)
 </script>

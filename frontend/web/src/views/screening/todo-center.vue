@@ -1,11 +1,6 @@
 <template>
   <div class="drs-page drs-stagger">
     <PageHeader title="随访待办" :crumbs="['筛查业务', '随访待办']">
-      <template #actions>
-        <el-button :loading="loading" @click="loadData">
-          <AppIcon name="refresh" :size="15" class="btn-ico" />刷新
-        </el-button>
-      </template>
     </PageHeader>
 
     <section class="drs-card">
@@ -102,6 +97,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import AppIcon from '@/components/AppIcon.vue'
 import PageHeader from '@/components/PageHeader.vue'
+import { usePageRefresh } from '@/composables/usePageRefresh'
 import { pageTodos } from '@/api/screening'
 import { useScreeningStore } from '@/stores/screening'
 import { formatDateTime } from '@/utils/format'
@@ -200,6 +196,9 @@ function openReport(id?: string) {
   // 页内跳转，不新开浏览器标签页
   router.push({ path: `/screening/records/${id}/report` })
 }
+
+// 刷新入口统一在多标签栏，页面只负责把 load 注册出去
+usePageRefresh(loadData)
 
 onMounted(loadData)
 

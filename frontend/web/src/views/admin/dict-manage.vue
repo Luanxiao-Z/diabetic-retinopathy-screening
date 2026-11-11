@@ -68,9 +68,6 @@
             >
               <AppIcon name="layers" :size="14" class="btn-ico" />新增字典项
             </el-button>
-            <el-button size="small" @click="loadItems">
-              <AppIcon name="refresh" :size="14" class="btn-ico" />刷新
-            </el-button>
           </div>
 
           <div class="table-wrap">
@@ -182,6 +179,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import AppIcon from '@/components/AppIcon.vue'
 import PageHeader from '@/components/PageHeader.vue'
+import { usePageRefresh } from '@/composables/usePageRefresh'
 import {
   createDictDomain,
   createDictItem,
@@ -419,6 +417,12 @@ async function handleItemDelete(row: DictItemVO) {
     ElMessage.error((e as Error).message || '删除失败')
   }
 }
+
+// 刷新入口统一在多标签栏：字典域与当前域的字典项一起重取
+usePageRefresh(async () => {
+  await loadDomains()
+  await loadItems()
+})
 
 onMounted(loadDomains)
 </script>

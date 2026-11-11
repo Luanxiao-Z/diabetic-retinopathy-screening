@@ -213,6 +213,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import AppIcon from '@/components/AppIcon.vue'
 import PageHeader from '@/components/PageHeader.vue'
+import { usePageRefresh } from '@/composables/usePageRefresh'
 import ResultCard from '@/components/ResultCard.vue'
 import { useFitColumns } from '@/composables/useFitColumns'
 import {
@@ -445,6 +446,9 @@ async function handleBatchDelete() {
     loading.value = false
   }
 }
+
+// 刷新入口统一在多标签栏，页面只负责把 load 注册出去
+usePageRefresh(loadData)
 
 onMounted(() => {
   // 支持从看板「待人工复核」卡片带入筛选

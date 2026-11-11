@@ -4,11 +4,6 @@
       title="统计分析"
       :crumbs="['筛查业务', '统计分析']"
     >
-      <template #actions>
-        <el-button :loading="loading" @click="load">
-          <AppIcon name="refresh" :size="15" class="btn-ico" />刷新
-        </el-button>
-      </template>
     </PageHeader>
 
     <!-- 图表优先展示；明细表作为补充置于其后 -->
@@ -72,9 +67,9 @@
 <script setup lang="ts">
 import { computed, onActivated, onMounted, ref } from 'vue'
 import type { EChartsOption } from 'echarts'
-import AppIcon from '@/components/AppIcon.vue'
 import EChart from '@/components/EChart.vue'
 import PageHeader from '@/components/PageHeader.vue'
+import { usePageRefresh } from '@/composables/usePageRefresh'
 import { statisticsScreening } from '@/api/screening'
 import { useScreeningStore } from '@/stores/screening'
 import { LEVEL_COLOR, LEVEL_LABEL, SUGGESTION_COLOR, SUGGESTION_LABEL } from '@/types/screening'
@@ -255,6 +250,9 @@ async function load() {
     loading.value = false
   }
 }
+
+// 刷新入口统一在多标签栏，页面只负责把 load 注册出去
+usePageRefresh(load)
 
 onMounted(load)
 

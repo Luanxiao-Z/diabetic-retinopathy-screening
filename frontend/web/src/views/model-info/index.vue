@@ -4,11 +4,6 @@
       title="模型信息"
       :crumbs="['综合看板', '模型信息']"
     >
-      <template #actions>
-        <el-button :loading="loading" @click="load">
-          <AppIcon name="refresh" :size="15" class="btn-ico" />刷新
-        </el-button>
-      </template>
     </PageHeader>
 
     <el-alert
@@ -112,9 +107,9 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import type { EChartsOption } from 'echarts'
-import AppIcon from '@/components/AppIcon.vue'
 import EChart from '@/components/EChart.vue'
 import PageHeader from '@/components/PageHeader.vue'
+import { usePageRefresh } from '@/composables/usePageRefresh'
 import StatCard from '@/components/StatCard.vue'
 import { modelInfo } from '@/api/screening'
 import { LEVEL_LABEL, LEVEL_ORDER } from '@/types/screening'
@@ -228,6 +223,9 @@ async function load() {
     loading.value = false
   }
 }
+
+// 刷新入口统一在多标签栏，页面只负责把 load 注册出去
+usePageRefresh(load)
 
 onMounted(load)
 </script>

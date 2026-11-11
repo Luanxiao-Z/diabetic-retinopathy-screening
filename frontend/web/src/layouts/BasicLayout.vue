@@ -132,22 +132,30 @@
         <div class="tabbar-tools">
           <button
             type="button"
-            class="tb-mini"
-            :disabled="tabs.length <= 1"
-            title="关闭其他页签"
-            @click="closeOthers"
+            class="tb-mini tb-icon"
+            :disabled="!canRefresh || refreshing"
+            :title="canRefresh ? '刷新当前页' : '当前页无可刷新数据'"
+            aria-label="刷新当前页"
+            @click="refreshCurrent"
           >
-            关闭其他
+            <AppIcon name="refresh" :size="13" :class="{ 'is-spinning': refreshing }" />
           </button>
-          <button
-            type="button"
-            class="tb-mini"
-            :disabled="tabs.length <= 1"
-            title="关闭全部页签"
-            @click="closeAll"
-          >
-            关闭全部
-          </button>
+
+          <el-dropdown trigger="click" placement="bottom-end" @command="onTabCommand">
+            <button type="button" class="tb-mini tb-icon" title="页签管理" aria-label="页签管理">
+              <AppIcon name="more" :size="14" />
+            </button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="others" :disabled="tabs.length <= 1">
+                  关闭其他页签
+                </el-dropdown-item>
+                <el-dropdown-item command="all" :disabled="tabs.length <= 1">
+                  关闭全部页签
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
         </div>
       </nav>
 
@@ -165,11 +173,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import AppIcon from '@/components/AppIcon.vue'
 import RingField from '@/components/decor/RingField.vue'
+import { REFRESH_KEY, type RefreshHandler } from '@/composables/usePageRefresh'
 import { useUserStore } from '@/stores/user'
 
 interface NavItem {
@@ -236,6 +245,46 @@ const SIDER_LABEL: Record<SiderMode, string> = { full: '展开', icon: '图标',
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
+
+/* ---------- 页面刷新：页面注册 load，刷新按钮按当前路由取用 ---------- */
+const refreshHandlers = new Map<string, RefreshHandler>()
+const refreshVersion = ref(0)
+provide(REFRESH_KEY, {
+  register: (path, handler) => {
+    refreshHandlers.set(path, handler)
+    refreshVersion.value++
+  },
+  unregister: (path) => {
+    refreshHandlers.delete(path)
+    refreshVersion.value++
+  }
+})
+
+const refreshing = ref(false)
+const canRefresh = computed(() => {
+  // 读一下版本号，保证页面注册/注销后按钮禁用态能跟着变
+  refreshVersion.value
+  return refreshHandlers.has(route.path)
+})
+
+async function refreshCurrent() {
+  const handler = refreshHandlers.get(route.path)
+  if (!handler || refreshing.value) return
+  refreshing.value = true
+  try {
+    await handler()
+  } finally {
+    // 数据回得快时也让图标至少转半圈，避免「点了没反应」的错觉
+    window.setTimeout(() => {
+      refreshing.value = false
+    }, 320)
+  }
+}
+
+function onTabCommand(command: string) {
+  if (command === 'others') closeOthers()
+  else if (command === 'all') closeAll()
+}
 
 /* ---------- 侧栏模式：用户偏好 + 视口宽度取更保守者 ---------- */
 const userMode = ref<SiderMode>((() => {
@@ -826,6 +875,19 @@ function onCommand(cmd: string) {
 .tb-mini:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+/* 图标型页签工具按钮：刷新与页签管理都收成正方形图标 */
+.tb-icon {
+  width: 26px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.is-spinning {
+  animation: drs-spin 0.9s linear infinite;
 }
 
 /* 页面切换动画：轻微位移 + 淡入，遵循 prefers-reduced-motion */

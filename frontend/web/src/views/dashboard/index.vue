@@ -2,9 +2,6 @@
   <div class="drs-page drs-stagger">
     <PageHeader title="工作台" :crumbs="['综合看板', '工作台']" style="--i: 0">
       <template #actions>
-        <el-button :loading="loading" @click="load">
-          <AppIcon name="refresh" :size="15" class="btn-ico" />刷新
-        </el-button>
         <el-button v-permission="'biz:screening:create'" type="primary" @click="go('/screening/upload')">
           <AppIcon name="upload" :size="15" class="btn-ico" />开始筛查
         </el-button>
@@ -198,6 +195,7 @@ import { computed, onActivated, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import AppIcon from '@/components/AppIcon.vue'
 import PageHeader from '@/components/PageHeader.vue'
+import { usePageRefresh } from '@/composables/usePageRefresh'
 import StatCard from '@/components/StatCard.vue'
 import RetinaMark from '@/components/decor/RetinaMark.vue'
 import { modelInfo, pagePatients, pageScreening, statisticsScreening } from '@/api/screening'
@@ -425,6 +423,9 @@ async function load() {
     loading.value = false
   }
 }
+
+// 刷新入口统一在多标签栏，页面只负责把 load 注册出去
+usePageRefresh(load)
 
 onMounted(load)
 
