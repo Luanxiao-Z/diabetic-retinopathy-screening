@@ -123,6 +123,7 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import AppIcon from '@/components/AppIcon.vue'
 import { formatDateTime, formatNow } from '@/utils/format'
 import { GENDER_OPTIONS, LEVEL_COLOR, LEVEL_LABEL, LEVEL_ORDER } from '@/types/screening'
 import type { ScreeningRecordVO } from '@/types/screening'
