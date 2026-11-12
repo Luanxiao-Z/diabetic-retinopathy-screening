@@ -16,6 +16,9 @@
           <div class="rc-img-fallback">
             <AppIcon name="image" :size="22" />
             <span>影像不可用</span>
+            <button type="button" class="rc-retry" @click="emit('reload')">
+              <AppIcon name="refresh" :size="12" />重新加载
+            </button>
           </div>
         </template>
       </el-image>
@@ -145,6 +148,9 @@ import {
 
 const props = defineProps<{ record: ScreeningRecordVO }>()
 
+/** 影像不可用时通知父组件重取详情（预签名 URL 有 30 分钟时效，需要重新签发） */
+const emit = defineEmits<{ reload: [] }>()
+
 const showCam = ref(false)
 
 const previewList = computed(() => {
@@ -261,6 +267,24 @@ function hexToRgba(hex: string, alpha: number) {
 }
 
 /* ===================== 影像区 ===================== */
+.rc-retry {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+  padding: 2px 8px;
+  border: 1px solid var(--drs-border);
+  border-radius: 999px;
+  background: var(--drs-surface);
+  color: var(--drs-ink-500);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.rc-retry:hover {
+  color: var(--drs-primary);
+  border-color: var(--drs-primary);
+}
 .rc-image {
   position: relative;
   height: 200px;

@@ -18,7 +18,7 @@
     <div class="detail-split" style="--i: 1">
       <!-- 左：ResultCard 自带 drs-card，不再套一层卡片容器 -->
       <div v-loading="loading" class="detail-pane">
-        <ResultCard v-if="record" :record="record" />
+        <ResultCard v-if="record" :record="record" @reload="load" />
         <el-empty v-else-if="!loading" :image-size="80" description="记录不存在或已被删除" />
       </div>
 
