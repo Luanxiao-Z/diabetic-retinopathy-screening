@@ -1,11 +1,31 @@
 <template>
-  <div ref="el" class="echart" :style="{ height }"></div>
+  <div ref="el" class="echart" role="img" aria-label="统计图表" :style="{ height }"></div>
 </template>
 
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
-import * as echarts from 'echarts'
+// 按需引入：全项目只用折线/饼/柱三类图，全量 echarts 会显著增大构建产物
+import * as echarts from 'echarts/core'
+import { BarChart, LineChart, PieChart } from 'echarts/charts'
+import {
+  GridComponent,
+  LegendComponent,
+  TitleComponent,
+  TooltipComponent
+} from 'echarts/components'
+import { CanvasRenderer } from 'echarts/renderers'
 import type { EChartsOption } from 'echarts'
+
+echarts.use([
+  BarChart,
+  LineChart,
+  PieChart,
+  GridComponent,
+  LegendComponent,
+  TitleComponent,
+  TooltipComponent,
+  CanvasRenderer
+])
 
 /**
  * ECharts 容器。height 支持尺寸档位（如 240px / 300px / 360px），
