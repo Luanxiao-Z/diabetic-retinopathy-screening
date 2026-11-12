@@ -35,6 +35,42 @@ public class RateLimiter {
         this.jedis = jedis;
     }
 
+    /** 登录防爆破：每 IP 5 分钟窗口最多 10 次失败尝试（成功登录即清零） */
+    private static final int LOGIN_IP_LIMIT = 10;
+    private static final int LOGIN_IP_WINDOW_SECONDS = 300;
+
+    /**
+     * 登录前校验：该 IP 近期失败次数达到上限时抛出 429。
+     *
+     * <p>只统计失败尝试，成功登录立即清零，正常用户不受影响。</p>
+     */
+    public void checkLogin(String ip) {
+        if (ip == null || ip.isBlank()) {
+            return;
+        }
+        String count = jedis.get("drs:auth:login:ip:" + ip);
+        if (count != null && Long.parseLong(count) >= LOGIN_IP_LIMIT) {
+            throw new BusinessException(429,
+                    "登录尝试过于频繁，请 " + formatWait(LOGIN_IP_WINDOW_SECONDS) + "后再试");
+        }
+    }
+
+    /** 记录一次登录失败（按 IP 计入固定窗口） */
+    public void recordLoginFailure(String ip) {
+        if (ip == null || ip.isBlank()) {
+            return;
+        }
+        increment("drs:auth:login:ip:" + ip, LOGIN_IP_WINDOW_SECONDS);
+    }
+
+    /** 登录成功后清除该 IP 的失败计数 */
+    public void clearLoginFailures(String ip) {
+        if (ip == null || ip.isBlank()) {
+            return;
+        }
+        jedis.del("drs:auth:login:ip:" + ip);
+    }
+
     /**
      * 校验注册请求是否放行，超限抛出 429。
      *

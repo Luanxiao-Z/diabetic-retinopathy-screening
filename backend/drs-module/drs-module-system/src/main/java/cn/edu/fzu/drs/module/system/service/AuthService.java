@@ -13,7 +13,7 @@ public interface AuthService {
     /**
      * 校验用户名/密码，成功返回登录结果（含令牌与权限集）。
      */
-    LoginVO login(LoginDTO dto);
+    LoginVO login(LoginDTO dto, String ip);
 
     /**
      * 登出：销毁令牌（token 为空则视为成功）。

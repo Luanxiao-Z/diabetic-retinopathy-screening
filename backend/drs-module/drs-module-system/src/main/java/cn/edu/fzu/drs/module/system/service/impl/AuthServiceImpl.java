@@ -50,13 +50,16 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public LoginVO login(LoginDTO dto) {
+    public LoginVO login(LoginDTO dto, String ip) {
         long startedAt = System.currentTimeMillis();
+        // 登录防爆破：同一 IP 的近期失败次数达到上限时直接拒绝（验证码校验前，避免白耗一次性验证码）
+        rateLimiter.checkLogin(ip);
         // 先校验验证码：一次性消费，无论后续密码是否正确都不复用
         captchaService.verify(dto.getCaptchaKey(), dto.getCaptchaCode());
         SysUserEntity user = userMapper.selectOne(
                 new LambdaQueryWrapper<SysUserEntity>().eq(SysUserEntity::getUsername, dto.getUsername()));
         if (user == null || !PasswordUtil.matches(dto.getPassword(), user.getPassword())) {
+            rateLimiter.recordLoginFailure(ip);
             // 登录失败同样留痕（安全审计关注点）
             audit.record(OperationLogRecorder.MODULE_AUTH, OperationLogRecorder.ACTION_LOGIN,
                     dto.getUsername(), false, "用户名或密码错误",
@@ -69,6 +72,7 @@ public class AuthServiceImpl implements AuthService {
                     System.currentTimeMillis() - startedAt, dto.getUsername());
             throw new BusinessException(401, "账号已被停用");
         }
+        rateLimiter.clearLoginFailures(ip);
         String token = tokenService.createToken(user.getId(), user.getUsername(), user.getRole());
         AuthPrincipal principal = tokenService.getPrincipal(token);
         audit.record(OperationLogRecorder.MODULE_AUTH, OperationLogRecorder.ACTION_LOGIN,

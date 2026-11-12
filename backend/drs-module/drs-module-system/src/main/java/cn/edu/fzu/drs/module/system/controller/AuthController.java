@@ -44,10 +44,10 @@ public class AuthController {
         return Result.ok(captchaService.generate());
     }
 
-    @Operation(summary = "登录", description = "校验验证码与用户名/密码，签发 UUID 令牌（X-Access-Token）")
+    @Operation(summary = "登录", description = "校验验证码与用户名/密码，签发 UUID 令牌（X-Access-Token）；同一 IP 失败次数受防爆破限流")
     @PostMapping("/sessions")
-    public Result<LoginVO> login(@Valid @RequestBody LoginDTO dto) {
-        return Result.ok(authService.login(dto));
+    public Result<LoginVO> login(@Valid @RequestBody LoginDTO dto, HttpServletRequest request) {
+        return Result.ok(authService.login(dto, clientIp(request)));
     }
 
     @Operation(summary = "登出", description = "销毁当前令牌；匿名路径，令牌缺失视为成功")
