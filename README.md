@@ -1,5 +1,7 @@
 # 糖尿病视网膜病变（DR）智能筛查系统
 
+**简体中文** | [English](README.en.md)
+
 [![CI](https://github.com/Luanxiao-Z/diabetic-retinopathy-screening/actions/workflows/ci.yml/badge.svg)](https://github.com/Luanxiao-Z/diabetic-retinopathy-screening/actions/workflows/ci.yml)
 
 一个面向基层医疗与眼科筛查场景的**开源学习项目**（[GitHub](https://github.com/Luanxiao-Z/diabetic-retinopathy-screening)，[MIT 协议](LICENSE)）。系统以 AI 辅助眼底筛查为业务背景，完整覆盖前端、后端、模型推理与容器化部署，适合作为医学人工智能方向的工程实践参考。上传眼底照片后，系统自动完成糖尿病视网膜病变五级分级（LEVEL_0 正常 ~ LEVEL_4 增殖期），生成 Grad-CAM 可解释热力图，并给出分级转诊建议；同时提供筛查记录管理、不确定性驱动的人工复核、患者纵向随访、统计分析与诊断报告导出等业务能力。
