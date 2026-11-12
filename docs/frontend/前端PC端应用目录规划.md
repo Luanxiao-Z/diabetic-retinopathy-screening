@@ -10,12 +10,17 @@ frontend/
     │   ├── api/                   # 接口封装（auth / user / admin / screening）
     │   ├── components/            # 通用组件
     │   │   ├── AppIcon.vue        # 统一图标组件
-    │   │   ├── EChart.vue
-    │   │   ├── PageHeader.vue
-    │   │   ├── ResultCard.vue
-    │   │   └── StatCard.vue
+    │   │   ├── EChart.vue         # ECharts 容器（echarts/core 按需引入）
+    │   │   ├── PageHeader.vue     # 页头：返回类操作居左、页面操作居右
+    │   │   ├── ResultCard.vue     # 筛查结果卡（影像失效支持重新加载）
+    │   │   ├── StatCard.vue
+    │   │   ├── CountUp.vue        # 数字滚动入场
+    │   │   └── report/
+    │   │       └── ReportPaper.vue # A4 诊断报告纸（报告页与详情页共用）
     │   ├── composables/           # 组合式函数
-    │   │   └── useFitColumns.ts   # 列表列宽自适应
+    │   │   ├── useFitColumns.ts   # 列表列宽自适应
+    │   │   ├── usePageRefresh.ts  # 页签栏统一刷新注册
+    │   │   └── useLatestRequest.ts # 列表请求竞态保护
     │   ├── directives/
     │   │   └── permission.ts      # v-permission 指令
     │   ├── layouts/
