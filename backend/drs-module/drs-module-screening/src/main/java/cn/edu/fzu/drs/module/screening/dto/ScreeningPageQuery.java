@@ -54,4 +54,12 @@ public class ScreeningPageQuery {
 
     @Schema(description = "每页条数", example = "10")
     private Long pageSize = 10L;
+
+    /**
+     * 每页条数钳制在 1~100：防止外部传超大值变相拉取全表。
+     * 显式声明 setter 以覆盖 Lombok 生成版本，分页/统计/随访待办等入口一处生效。
+     */
+    public void setPageSize(Long pageSize) {
+        this.pageSize = pageSize == null ? 10L : Math.min(Math.max(pageSize, 1L), 100L);
+    }
 }
