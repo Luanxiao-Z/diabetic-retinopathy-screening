@@ -60,7 +60,9 @@ jobs:
       - name: Ruff 静态检查
         working-directory: model-service
         run: |
-          pip install ruff
+          # 锁定版本：未锁定时 ruff 升级会改变默认规则集，导致 CI 无故失败
+          # （0.17 起默认集加入 BLE/PERF/RUF）。规则集另由 model-service/ruff.toml 固定。
+          pip install ruff==0.17.4
           ruff check app/ training/
       - name: 语法检查
         working-directory: model-service
