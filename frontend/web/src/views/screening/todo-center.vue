@@ -98,6 +98,7 @@ import { ElMessage } from 'element-plus'
 import AppIcon from '@/components/AppIcon.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import { usePageRefresh } from '@/composables/usePageRefresh'
+import { useLatestRequest } from '@/composables/useLatestRequest'
 import { pageTodos } from '@/api/screening'
 import { useScreeningStore } from '@/stores/screening'
 import { formatDateTime } from '@/utils/format'
@@ -133,22 +134,26 @@ const emptyText = computed(() => {
   return activeTab.value === 'all' ? '暂无待办事项' : `暂无${TYPE_LABEL[activeTab.value as TodoType]}记录`
 })
 
+const guard = useLatestRequest()
+
 async function loadData() {
   loading.value = true
   try {
-    const res = await pageTodos({
+    const res = await guard(pageTodos({
       todoType: activeTab.value,
       patientName: keyword.value.trim() || undefined,
       current: query.current,
       pageSize: query.pageSize
-    })
+    }))
+    if (res === undefined) return
     list.value = res.list
     total.value = res.total
     loadedVersion.value = screeningStore.dataVersion
-  } catch (e) {
-    ElMessage.error((e as Error).message || '待办加载失败')
-  } finally {
+    if (res === undefined) return
     loading.value = false
+  } catch (e) {
+    loading.value = false
+    ElMessage.error((e as Error).message || '待办加载失败')
   }
 }
 

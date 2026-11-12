@@ -180,6 +180,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import AppIcon from '@/components/AppIcon.vue'
 import PageHeader from '@/components/PageHeader.vue'
+import { useLatestRequest } from '@/composables/useLatestRequest'
 import {
   changeUserState,
   createUser,
@@ -256,16 +257,19 @@ function initial(name?: string) {
   return name ? name.charAt(0).toUpperCase() : '?'
 }
 
+const guard = useLatestRequest()
+
 async function loadData() {
   loading.value = true
   try {
-    const res = await pageUsers({ ...query })
+    const res = await guard(pageUsers({ ...query }))
+    if (res === undefined) return
     list.value = res.list
     total.value = res.total
-  } catch (e) {
-    ElMessage.error((e as Error).message || '查询失败')
-  } finally {
     loading.value = false
+  } catch (e) {
+    loading.value = false
+    ElMessage.error((e as Error).message || '查询失败')
   }
 }
 

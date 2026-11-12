@@ -168,6 +168,7 @@ import { ElMessage } from 'element-plus'
 import AppIcon from '@/components/AppIcon.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import { usePageRefresh } from '@/composables/usePageRefresh'
+import { useLatestRequest } from '@/composables/useLatestRequest'
 import { pagePatients, patientTimeline } from '@/api/screening'
 import { useScreeningStore } from '@/stores/screening'
 import { formatDateTime } from '@/utils/format'
@@ -247,25 +248,29 @@ function hexToRgba(hex: string, alpha: number) {
   return `rgba(${parseInt(full.slice(0, 2), 16)}, ${parseInt(full.slice(2, 4), 16)}, ${parseInt(full.slice(4, 6), 16)}, ${alpha})`
 }
 
+const guard = useLatestRequest()
+
 async function loadData() {
   loading.value = true
   try {
     // 日期选择器只精确到「日」，结束日需补到 23:59:59，否则会漏掉当天记录
     const [start, end] = latestRange.value || ['', '']
     const { hasPendingReview, ...rest } = query
-    const res = await pagePatients({
+    const res = await guard(pagePatients({
       ...rest,
       latestStartDate: start ? `${start} 00:00:00` : '',
       latestEndDate: end ? `${end} 23:59:59` : '',
       hasPendingReview: hasPendingReview === '' ? undefined : hasPendingReview === 'true'
-    })
+    }))
+    if (res === undefined) return
     list.value = res.list
     total.value = res.total
     loadedVersion.value = screeningStore.dataVersion
-  } catch (e) {
-    ElMessage.error((e as Error).message || '随访数据加载失败')
-  } finally {
+    if (res === undefined) return
     loading.value = false
+  } catch (e) {
+    loading.value = false
+    ElMessage.error((e as Error).message || '随访数据加载失败')
   }
 }
 

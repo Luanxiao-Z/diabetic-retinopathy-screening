@@ -200,6 +200,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import AppIcon from '@/components/AppIcon.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import { usePageRefresh } from '@/composables/usePageRefresh'
+import { useLatestRequest } from '@/composables/useLatestRequest'
 import { useFitColumns } from '@/composables/useFitColumns'
 import {
   exportScreening,
@@ -291,17 +292,20 @@ function buildQuery() {
   return q
 }
 
+const guard = useLatestRequest()
+
 async function loadData() {
   loading.value = true
   try {
-    const res = await pageScreening(buildQuery())
+    const res = await guard(pageScreening(buildQuery()))
+    if (res === undefined) return
     list.value = res.list
     total.value = res.total
     loadedVersion.value = screeningStore.dataVersion
-  } catch (e) {
-    ElMessage.error((e as Error).message || '查询失败')
-  } finally {
     loading.value = false
+  } catch (e) {
+    loading.value = false
+    ElMessage.error((e as Error).message || '查询失败')
   }
 }
 
