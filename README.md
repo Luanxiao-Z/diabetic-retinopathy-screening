@@ -623,6 +623,8 @@ unzip diabetic-retinopathy-224x224-2019-data.zip -d datasets/
 
 ## 十二、模型说明
 
+> 模型的训练数据、性能、局限、伦理考量与禁止用途，见独立文档 [docs/model-card.md](docs/model-card.md)（Model Card）。
+
 | 项 | 说明 |
 | --- | --- |
 | 骨干网络 | MobileNetV3-Small（5 类分类头） |
