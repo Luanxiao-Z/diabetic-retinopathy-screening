@@ -395,8 +395,20 @@ function persistTabs() {
   }
 }
 
-watch(() => route.path, syncTab, { immediate: true })
-watch(tabs, persistTabs, { deep: true })
+/**
+ * 路由变化时同步页签。
+ * syncTab 内部显式调用 persistTabs：不能依赖 watch(tabs) 深度监听，
+ * 因为整页刷新后首次进入页面时，syncTab（immediate）先于该 watch 注册执行，
+ * 首个标签会来不及持久化，刷新后页签丢失。
+ */
+watch(
+  () => route.path,
+  () => {
+    syncTab()
+    persistTabs()
+  },
+  { immediate: true }
+)
 
 function closeTab(path: string) {
   const idx = tabs.value.findIndex((t) => t.path === path)
