@@ -41,6 +41,7 @@ import java.time.LocalDateTime;
 import java.time.Duration;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -208,18 +209,12 @@ public class ScreeningRecordServiceImpl implements ScreeningRecordService {
     @Override
     public ScreeningStatisticsVO statistics(ScreeningPageQuery query) {
         LambdaQueryWrapper<BizScreeningRecordEntity> wrapper = buildQueryWrapper(query);
-        List<BizScreeningRecordEntity> all = mapper.selectList(wrapper);
 
-        long total = all.size();
-        Map<String, Long> levelDistribution = all.stream()
-                .filter(e -> e.getResultLevel() != null)
-                .collect(Collectors.groupingBy(BizScreeningRecordEntity::getResultLevel, Collectors.counting()));
-        Map<String, Long> suggestionDistribution = all.stream()
-                .filter(e -> e.getSuggestion() != null)
-                .collect(Collectors.groupingBy(BizScreeningRecordEntity::getSuggestion, Collectors.counting()));
-        long referralCount = all.stream()
-                .filter(e -> "REFERRAL".equals(e.getSuggestion()))
-                .count();
+        // 分布与趋势全部下推为 SQL GROUP BY（见 Mapper），不再把全量记录拉回内存
+        long total = mapper.selectCount(wrapper);
+        Map<String, Long> levelDistribution = toCountMap(mapper.selectLevelDistribution(wrapper));
+        Map<String, Long> suggestionDistribution = toCountMap(mapper.selectSuggestionDistribution(wrapper));
+        long referralCount = suggestionDistribution.getOrDefault("REFERRAL", 0L);
         BigDecimal referralRate = total == 0 ? BigDecimal.ZERO
                 : BigDecimal.valueOf(referralCount).divide(BigDecimal.valueOf(total), 4, RoundingMode.HALF_UP);
 
@@ -228,9 +223,9 @@ public class ScreeningRecordServiceImpl implements ScreeningRecordService {
         vo.setLevelDistribution(levelDistribution);
         vo.setSuggestionDistribution(suggestionDistribution);
         vo.setReferralRate(referralRate);
-        vo.setTrend(buildTrend(all));
-        // 环比：近 30 天 vs 前 30 天（与上方筛选条件同一口径）
         LocalDate today = LocalDate.now();
+        vo.setTrend(buildTrendRows(mapper.selectDailyCounts(today.minusDays(29).atStartOfDay(), wrapper), today));
+        // 环比：近 30 天 vs 前 30 天（与上方筛选条件同一口径）
         LocalDateTime from30 = today.minusDays(29).atStartOfDay();
         LocalDateTime toToday = today.plusDays(1).atStartOfDay().minusNanos(1);
         LocalDateTime from60 = today.minusDays(59).atStartOfDay();
@@ -246,10 +241,8 @@ public class ScreeningRecordServiceImpl implements ScreeningRecordService {
         vo.setPrevTotal(prevTotal);
         vo.setGrowthRate(growthRate);
 
-        vo.setNeedReviewCount(all.stream()
-                .filter(e -> BizScreeningRecordConvert.needReview(e.getUncertainty()))
-                .filter(e -> !"CONFIRMED".equals(e.getReviewStatus()))
-                .count());
+        vo.setNeedReviewCount(mapper.selectNeedReviewCount(
+                BizScreeningRecordConvert.REVIEW_UNCERTAINTY_THRESHOLD, wrapper));
         vo.setReviewThreshold(BizScreeningRecordConvert.REVIEW_UNCERTAINTY_THRESHOLD);
         return vo;
     }
@@ -704,22 +697,29 @@ public class ScreeningRecordServiceImpl implements ScreeningRecordService {
         }
     }
 
-    private List<DailyCountVO> buildTrend(List<BizScreeningRecordEntity> all) {
-        Map<String, Long> actual = all.stream()
-                .filter(e -> e.getCreateTime() != null)
-                .collect(Collectors.groupingBy(
-                        e -> e.getCreateTime().toLocalDate().format(DATE_FMT),
-                        Collectors.counting()));
-        // 近 30 天（含今日），缺失日期补 0，按日期升序
-        Map<String, Long> trendMap = new LinkedHashMap<>();
-        LocalDate today = LocalDate.now();
+    /** 按数据库返回的逐日计数补齐近 30 天缺失日期（补 0），日期升序 */
+    private List<DailyCountVO> buildTrendRows(List<DailyCountVO> actual, LocalDate today) {
+        Map<String, Long> byDate = actual.stream().collect(Collectors.toMap(
+                DailyCountVO::getDate, DailyCountVO::getCount, (a, b) -> a, LinkedHashMap::new));
+        List<DailyCountVO> trend = new ArrayList<>();
         for (int i = 29; i >= 0; i--) {
             String date = today.minusDays(i).format(DATE_FMT);
-            trendMap.put(date, actual.getOrDefault(date, 0L));
+            trend.add(new DailyCountVO(date, byDate.getOrDefault(date, 0L)));
         }
-        List<DailyCountVO> trend = new ArrayList<>();
-        trendMap.forEach((date, count) -> trend.add(new DailyCountVO(date, count)));
         return trend;
+    }
+
+    /** 数据库聚合行（code/count）转 Map，数值统一转 long */
+    private Map<String, Long> toCountMap(List<Map<String, Object>> rows) {
+        Map<String, Long> result = new HashMap<>();
+        for (Map<String, Object> row : rows) {
+            Object code = row.get("code");
+            Object count = row.get("count");
+            if (code != null && count != null) {
+                result.put(code.toString(), ((Number) count).longValue());
+            }
+        }
+        return result;
     }
 
     private LocalDateTime parseDateTime(String value) {
