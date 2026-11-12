@@ -256,7 +256,7 @@ onMounted(loadCaptcha)
   width: 46px;
   height: 46px;
   border-radius: 13px;
-  background: rgba(255, 255, 255, 0.16);
+  background: rgb(255 255 255 / 16%);
   color: #fff;
   flex-shrink: 0;
 }
@@ -305,7 +305,7 @@ onMounted(loadCaptcha)
   height: 32px;
   border-radius: 9px;
   flex-shrink: 0;
-  background: rgba(255, 255, 255, 0.14);
+  background: rgb(255 255 255 / 14%);
   color: #fff;
 }
 
@@ -493,7 +493,7 @@ onMounted(loadCaptcha)
 }
 
 /* ===================== 响应式 ===================== */
-@media (max-width: 900px) {
+@media (width <= 900px) {
   .login-page {
     grid-template-columns: minmax(0, 1fr);
   }

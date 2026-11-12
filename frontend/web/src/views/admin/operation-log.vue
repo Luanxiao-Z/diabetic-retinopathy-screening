@@ -283,13 +283,13 @@ onMounted(loadData)
 .chip-ok {
   color: var(--drs-ok);
   background: var(--drs-ok-bg);
-  border-color: rgba(22, 163, 74, 0.22);
+  border-color: rgb(22 163 74 / 22%);
 }
 
 .chip-fail {
   color: var(--drs-danger);
   background: var(--drs-danger-bg);
-  border-color: rgba(220, 38, 38, 0.22);
+  border-color: rgb(220 38 38 / 22%);
 }
 
 .target {

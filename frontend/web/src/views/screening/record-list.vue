@@ -619,7 +619,7 @@ onActivated(() => {
   font-weight: 600;
 }
 
-@media (max-width: 900px) {
+@media (width <= 900px) {
   .filter-actions {
     padding-bottom: 0;
     padding-top: 4px;

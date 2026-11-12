@@ -235,7 +235,7 @@ function probPercent(lv: string): string {
   margin: 24px auto;
   padding: 18mm 16mm;
   background: #fff;
-  box-shadow: 0 2px 20px rgba(15, 23, 42, 0.1);
+  box-shadow: 0 2px 20px rgb(15 23 42 / 10%);
   color: #0f172a;
   font-size: 13px;
   line-height: 1.7;
@@ -521,7 +521,7 @@ function probPercent(lv: string): string {
   }
 
   @page {
-    size: A4;
+    size: a4;
     margin: 14mm 12mm;
   }
 }

@@ -493,7 +493,7 @@ function onCommand(cmd: string) {
   flex-shrink: 0;
   background: linear-gradient(135deg, var(--drs-primary) 0%, var(--drs-primary-800) 100%);
   color: #fff;
-  box-shadow: 0 4px 12px rgba(8, 145, 178, 0.28);
+  box-shadow: 0 4px 12px rgb(8 145 178 / 28%);
 }
 
 .brand-text {
@@ -516,8 +516,7 @@ function onCommand(cmd: string) {
 
 .sider-nav {
   flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden auto;
   padding: 10px 10px 16px;
 }
 
@@ -653,10 +652,9 @@ function onCommand(cmd: string) {
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  background-image: radial-gradient(rgba(100, 116, 139, 0.16) 1px, transparent 1px);
+  background-image: radial-gradient(rgb(100 116 139 / 16%) 1px, transparent 1px);
   background-size: 22px 22px;
-  -webkit-mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.9), transparent 620px);
-  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.9), transparent 620px);
+  mask-image: linear-gradient(to bottom, rgb(0 0 0 / 90%), transparent 620px);
 }
 
 /* L1 图形层：右上角同心弧，固定不随内容滚动 */
@@ -800,8 +798,7 @@ function onCommand(cmd: string) {
   position: relative;
   z-index: 1;
   flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden auto;
 }
 
 /* ---------- 多标签页 ---------- */
@@ -933,7 +930,7 @@ function onCommand(cmd: string) {
 }
 
 /* ===================== 响应式 ===================== */
-@media (max-width: 900px) {
+@media (width <= 900px) {
   .topbar {
     padding: 0 12px;
     gap: 8px;

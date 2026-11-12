@@ -339,6 +339,7 @@ const permissionGroups = computed(() => {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--drs-gap);
   align-items: stretch;
+
   /* 个人中心信息量少，卡片撑满内容区可用高度，避免下半屏整片空白 */
   min-height: calc(100vh - 210px);
 }
@@ -428,6 +429,7 @@ const permissionGroups = computed(() => {
   font-size: 13.5px;
   color: var(--drs-ink-800);
 }
+
 .scope-pill {
   display: inline-block;
   padding: 2px 10px;
@@ -498,7 +500,7 @@ const permissionGroups = computed(() => {
   margin-right: 5px;
 }
 
-@media (max-width: 1024px) {
+@media (width <= 1024px) {
   .profile-grid {
     grid-template-columns: minmax(0, 1fr);
   }

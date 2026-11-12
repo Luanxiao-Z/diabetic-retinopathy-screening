@@ -310,7 +310,7 @@ onActivated(() => {
   grid-column: 1 / -1;
 }
 
-@media (max-width: 1024px) {
+@media (width <= 1024px) {
   .chart-grid {
     grid-template-columns: minmax(0, 1fr);
   }

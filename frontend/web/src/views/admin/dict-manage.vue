@@ -437,6 +437,7 @@ onMounted(loadDomains)
   display: grid;
   grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
   gap: var(--drs-gap);
+
   /* 左右两张卡片等高，底部对齐 */
   align-items: stretch;
 }
@@ -558,7 +559,7 @@ onMounted(loadDomains)
   width: 100%;
 }
 
-@media (max-width: 1024px) {
+@media (width <= 1024px) {
   .dict-grid {
     grid-template-columns: minmax(0, 1fr);
   }

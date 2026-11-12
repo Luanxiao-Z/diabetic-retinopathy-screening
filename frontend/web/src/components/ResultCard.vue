@@ -285,6 +285,7 @@ function hexToRgba(hex: string, alpha: number) {
   color: var(--drs-primary);
   border-color: var(--drs-primary);
 }
+
 .rc-image {
   position: relative;
   height: 200px;
@@ -337,7 +338,7 @@ function hexToRgba(hex: string, alpha: number) {
   gap: 6px;
   padding: 4px 10px;
   border-radius: 999px;
-  background: rgba(15, 23, 42, 0.62);
+  background: rgb(15 23 42 / 62%);
   color: #e2e8f0;
   font-size: 11.5px;
   cursor: pointer;

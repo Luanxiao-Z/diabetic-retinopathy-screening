@@ -626,6 +626,7 @@ async function loadDemoSample() {
   display: grid;
   grid-template-columns: minmax(360px, 440px) minmax(0, 1fr);
   gap: var(--drs-gap);
+
   /* 两列等高：以视口为基准给定列高，列内各自滚动。
      不用内容互相撑高，避免长队列把右侧结果卡一并拉高（此前曾因弹性拉伸把影像区撑到 801px） */
   align-items: stretch;
@@ -680,6 +681,7 @@ async function loadDemoSample() {
 }
 
 /* ---------- 上传区 ---------- */
+
 /*
  * 统一宽度基准：Element Plus 的 .el-upload 默认 inline-block，
  * 而「队列为空」态曾改为 display:flex，两种 display 下宽度计算方式不同，
@@ -918,6 +920,7 @@ async function loadDemoSample() {
 /* ---------- 结果区 ---------- */
 .result-empty {
   padding: 20px 0 8px;
+
   /* 空态在卡片内垂直居中，避免内容堆在顶部、与卡片底部留白失衡 */
   display: flex;
   flex-direction: column;
@@ -1098,9 +1101,10 @@ async function loadDemoSample() {
   flex-shrink: 0;
 }
 
-@media (max-width: 1024px) {
+@media (width <= 1024px) {
   .upload-cols {
     grid-template-columns: minmax(0, 1fr);
+
     /* 单列时取消定高，恢复随内容自适应 */
     height: auto;
     min-height: 0;

@@ -475,7 +475,7 @@ onMounted(loadData)
 .chip-admin {
   color: var(--drs-violet);
   background: var(--drs-violet-bg);
-  border-color: rgba(124, 58, 237, 0.22);
+  border-color: rgb(124 58 237 / 22%);
 }
 
 .chip-doctor {

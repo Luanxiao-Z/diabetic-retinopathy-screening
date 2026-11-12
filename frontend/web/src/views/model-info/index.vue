@@ -303,7 +303,7 @@ onMounted(load)
   color: var(--drs-primary-800);
 }
 
-@media (max-width: 1024px) {
+@media (width <= 1024px) {
   .grid-2 {
     grid-template-columns: minmax(0, 1fr);
   }

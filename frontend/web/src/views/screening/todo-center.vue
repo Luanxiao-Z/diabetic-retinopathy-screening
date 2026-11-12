@@ -265,7 +265,7 @@ onActivated(() => {
   color: var(--drs-primary-800);
 }
 
-@media (max-width: 900px) {
+@media (width <= 900px) {
   .drs-card-head {
     flex-direction: column;
     align-items: flex-start;

@@ -147,6 +147,7 @@ const scanFill = `url(#${scanId})`
 
 .retina-mark__scan {
   --scan-distance: 80px;
+
   animation: drs-scan-y 7s cubic-bezier(0.45, 0, 0.55, 1) infinite;
 }
 

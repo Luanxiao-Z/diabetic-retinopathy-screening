@@ -54,7 +54,7 @@
   /* ---------- 表面与描边 ---------- */
   --drs-bg: #f4f6f8;
   --drs-bg-soft: #fafbfc;
-  --drs-surface: #ffffff;
+  --drs-surface: #fff;
   --drs-surface-2: #f8fafc;
   --drs-border: #e4e8ee;
   --drs-border-strong: #d3dae3;
@@ -66,11 +66,11 @@
   --drs-radius-lg: 16px;
 
   /* ---------- 阴影（分层、低饱和） ---------- */
-  --drs-shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
-  --drs-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04), 0 2px 8px rgba(15, 23, 42, 0.05);
-  --drs-shadow: 0 1px 3px rgba(15, 23, 42, 0.05), 0 8px 24px rgba(15, 23, 42, 0.06);
-  --drs-shadow-lg: 0 12px 40px rgba(15, 23, 42, 0.12);
-  --drs-ring: 0 0 0 3px rgba(8, 145, 178, 0.22);
+  --drs-shadow-xs: 0 1px 2px rgb(15 23 42 / 4%);
+  --drs-shadow-sm: 0 1px 2px rgb(15 23 42 / 4%), 0 2px 8px rgb(15 23 42 / 5%);
+  --drs-shadow: 0 1px 3px rgb(15 23 42 / 5%), 0 8px 24px rgb(15 23 42 / 6%);
+  --drs-shadow-lg: 0 12px 40px rgb(15 23 42 / 12%);
+  --drs-ring: 0 0 0 3px rgb(8 145 178 / 22%);
 
   /* ---------- 间距节奏 ---------- */
   --drs-gap-xs: 8px;
@@ -273,6 +273,7 @@ a:hover {
   --el-button-hover-border-color: var(--drs-primary-hover);
   --el-button-active-bg-color: var(--drs-primary-active);
   --el-button-active-border-color: var(--drs-primary-active);
+
   transition:
     background-color var(--mo-dur-2) var(--mo-ease-std),
     border-color var(--mo-dur-2) var(--mo-ease-std),
@@ -285,7 +286,7 @@ a:hover {
 .el-button--primary:not(.is-disabled):hover,
 .el-button--primary:not(.is-disabled):focus-visible {
   transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(8, 145, 178, 0.3);
+  box-shadow: 0 6px 18px rgb(8 145 178 / 30%);
 }
 
 .el-card {
@@ -298,6 +299,9 @@ a:hover {
   --el-table-header-bg-color: var(--drs-surface-2);
   --el-table-header-text-color: var(--drs-ink-600);
   --el-table-row-hover-bg-color: var(--drs-primary-50);
+
+  /* 窄屏下允许横向滚动，避免撑破布局 */
+  width: 100%;
   font-size: 13px;
 }
 
@@ -305,12 +309,8 @@ a:hover {
   font-weight: 600;
 }
 
-/* 表格在窄屏下允许横向滚动，避免撑破布局 */
-.el-table {
-  width: 100%;
-}
-
 /* ===== 列表：仅保留横向框线，去除纵向框线与外框 ===== */
+
 /* 即使个别表格仍带 border 属性，也不显示纵向分隔线 */
 .el-table--border .el-table__cell,
 .el-table--border th.el-table__cell,
@@ -357,13 +357,13 @@ a:hover {
 
 /* ============================ 响应式 ============================ */
 
-@media (max-width: 1280px) {
+@media (width <= 1280px) {
   .drs-grid-4 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-@media (max-width: 900px) {
+@media (width <= 900px) {
   .drs-page {
     padding: var(--drs-gap) var(--drs-gap) var(--drs-gap-lg);
   }
@@ -375,6 +375,7 @@ a:hover {
 }
 
 /* ============================ 打印 ============================ */
+
 /*
  * 诊断报告在应用壳层内渲染，若不加处理会把侧栏、顶栏与标签栏一并打印。
  * 此处全局隐藏壳层元素，仅输出报告正文（report.vue 再隐藏自身工具栏）。

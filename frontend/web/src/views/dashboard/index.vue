@@ -1,6 +1,8 @@
 <template>
   <div class="drs-page drs-stagger">
-    <PageHeader title="工作台" style="--i: 0">
+    <PageHeader title="工作台" style="
+
+--i: 0">
       <template #actions>
         <el-button v-permission="'biz:screening:create'" type="primary" @click="go('/screening/upload')">
           <AppIcon name="upload" :size="15" class="btn-ico" />开始筛查
@@ -9,7 +11,9 @@
     </PageHeader>
 
     <!-- ============ 关键指标（概览） ============ -->
-    <div class="drs-grid-4 kpi-row" style="--i: 1">
+    <div class="drs-grid-4 kpi-row" style="
+
+--i: 1">
       <StatCard
         icon="activity"
         label="累计筛查"
@@ -62,7 +66,9 @@
     </div>
 
     <!-- ============ 待办摘要 / 近 14 天趋势 ============ -->
-    <div class="dash-row mt" style="--i: 2">
+    <div class="dash-row mt" style="
+
+--i: 2">
       <section class="drs-card">
         <div class="drs-card-head">
           <h3>待办事项</h3>
@@ -155,7 +161,9 @@
     </div>
 
     <!-- ============ 快捷入口 / 模型状态 ============ -->
-    <div class="dash-row mt" style="--i: 3">
+    <div class="dash-row mt" style="
+
+--i: 3">
       <section class="drs-card">
         <div class="drs-card-head">
           <h3>快捷操作</h3>
@@ -547,6 +555,7 @@ onActivated(() => {
 }
 
 /* ---------- 近 14 天趋势（静态折线，不做描边动画） ---------- */
+
 /* 卡片纵向撑满：卡片头固定，图表吃掉剩余高度 */
 .trend-card {
   display: flex;
@@ -668,7 +677,7 @@ onActivated(() => {
   width: 9px;
   height: 9px;
   border-radius: 50%;
-  background: currentColor;
+  background: currentcolor;
   flex-shrink: 0;
 }
 
@@ -677,7 +686,7 @@ onActivated(() => {
   position: absolute;
   inset: -3px;
   border-radius: 50%;
-  border: 1.5px solid currentColor;
+  border: 1.5px solid currentcolor;
   opacity: 0.45;
   animation: drs-breathe-ring 3.4s var(--mo-ease-std) infinite;
 }
@@ -690,7 +699,9 @@ onActivated(() => {
 .model-version {
   font-size: 15px;
   line-height: 1.35;
-  word-break: break-word;
+
+  /* 长版本号需在任意位置断行；break-word 已废弃，等价现代写法为 anywhere */
+  overflow-wrap: anywhere;
   font-weight: 600;
   color: var(--drs-ink-900);
 }
@@ -727,7 +738,7 @@ onActivated(() => {
   color: var(--drs-ink-500);
 }
 
-@media (max-width: 1180px) {
+@media (width <= 1180px) {
   .dash-row {
     grid-template-columns: 1fr;
   }

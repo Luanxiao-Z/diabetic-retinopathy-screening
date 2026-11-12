@@ -436,7 +436,7 @@ const faqs = [
   color: var(--drs-ink-600);
 }
 
-@media (max-width: 1024px) {
+@media (width <= 1024px) {
   .guide-layout {
     grid-template-columns: minmax(0, 1fr);
   }

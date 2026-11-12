@@ -3,7 +3,9 @@
     <PageHeader
       title="筛查记录详情"
       :subtitle="record ? `${record.patientName || '未登记'} · ${formatDateTime(record.createTime)}` : '正在加载…'"
-      style="--i: 0"
+      style="
+
+--i: 0"
     >
       <template #actions>
         <el-button @click="goBack">
@@ -15,7 +17,9 @@
       </template>
     </PageHeader>
 
-    <div class="detail-split" style="--i: 1">
+    <div class="detail-split" style="
+
+--i: 1">
       <!-- 左：ResultCard 自带 drs-card，不再套一层卡片容器 -->
       <div v-loading="loading" class="detail-pane">
         <ResultCard v-if="record" :record="record" @reload="load" />
@@ -97,6 +101,7 @@ onMounted(load)
 
 .detail-split {
   display: grid;
+
   /* 报告按 A4 比例占 65%，详情 35% */
   grid-template-columns: minmax(0, 35fr) minmax(0, 65fr);
   gap: var(--drs-gap);
@@ -113,7 +118,7 @@ onMounted(load)
   justify-content: center;
 }
 
-@media (max-width: 1280px) {
+@media (width <= 1280px) {
   .detail-split {
     grid-template-columns: minmax(0, 1fr);
   }
