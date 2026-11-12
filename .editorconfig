@@ -1,0 +1,33 @@
+# 统一编辑器行为：缩进、换行、字符集与行尾空格
+# 说明：项目在 Windows 与类 Unix 环境同时开发，Git 已通过 autocrlf 处理工作区换行，
+#       这里统一以 LF 作为仓库内换行基准，避免出现 LF/CRLF 混杂的提交。
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+# Java / XML：Maven 与 Spring 生态惯用 4 空格
+[*.{java,xml}]
+indent_size = 4
+
+# Python：PEP 8
+[*.py]
+indent_size = 4
+
+# Markdown 允许行尾双空格换行
+[*.md]
+trim_trailing_whitespace = false
+
+# Windows 脚本保持 CRLF
+[*.{bat,cmd,ps1}]
+end_of_line = crlf
+
+# 二进制与压缩产物不做文本规范化
+[*.{png,jpg,jpeg,gif,ico,webp,pdf,jar,pth,zip}]
+insert_final_newline = false
+trim_trailing_whitespace = false
