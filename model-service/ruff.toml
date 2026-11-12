@@ -1,0 +1,9 @@
+# Ruff 静态检查配置。
+# 显式声明规则集，避免 ruff 版本升级时默认规则集漂移导致 CI 不稳定
+# （ruff 0.17 起默认集加入了 BLE/PERF/RUF 等风格规则）。
+# 只保留与正确性直接相关的基础错误与未用导入检查；风格类规则暂不启用。
+line-length = 100
+target-version = "py313"
+
+[lint]
+select = ["E4", "E7", "E9", "F"]

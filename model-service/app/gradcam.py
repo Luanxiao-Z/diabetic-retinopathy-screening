@@ -9,7 +9,6 @@
 """
 from __future__ import annotations
 
-from io import BytesIO
 from pathlib import Path
 from typing import Tuple
 
@@ -18,7 +17,7 @@ import torch
 import torch.nn as nn
 from PIL import Image
 
-from .config import DEVICE, HEATMAPS_DIR, LEVEL_CODES
+from .config import HEATMAPS_DIR, LEVEL_CODES
 from .model_loader import get_model
 from .preprocess import load_image, to_tensor
 

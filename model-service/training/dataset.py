@@ -355,7 +355,7 @@ def build_loaders(
         test_ds, batch_size=batch_size, shuffle=False,
         num_workers=0, pin_memory=pin_memory,
     )
-    class_weights = compute_class_weights([l for _, l in train_s], scheme=weight_scheme)
+    class_weights = compute_class_weights([label for _, label in train_s], scheme=weight_scheme)
     logger.info("数据划分 -> train:%d val:%d test:%d", len(train_s), len(val_s), len(test_s))
     logger.info("类别权重 -> %s", [round(w, 4) for w in class_weights.tolist()])
     return train_loader, val_loader, test_loader, class_weights
