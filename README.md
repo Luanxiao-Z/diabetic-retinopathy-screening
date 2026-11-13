@@ -775,12 +775,21 @@ APTOS 训练集的类别分布高度倾斜（最大/最小类 **9.4 倍**）：
 - **后端**：统一响应体、统一异常处理、接口提供 Knife4j 中文注解
 - **提交信息**：遵循 Conventional Commits（`feat` / `fix` / `docs` / `refactor` / `perf` / `chore` 等）
 - **CI**：GitHub Actions（[.github/workflows/ci.yml](.github/workflows/ci.yml)）——推送与 PR 自动触发后端编译、前端类型检查与构建、模型服务静态检查三 job；状态徽标见 README 顶部
+- **镜像发布**：[.github/workflows/release-images.yml](.github/workflows/release-images.yml) 在推送 `v*` 标签（或手动触发）时，于 GitHub runner 上构建 `backend` 与 `web` 镜像并推送到 GHCR：`ghcr.io/<owner>/<repo>/{backend,web}`，标签同时打版本号与 `latest`。模型服务镜像体积较大（CPU 版约 1.15 GB），不在 CI 发布，按需本地构建
 
 ---
 
 ## 十四、部署
 
 - **本地运行**：见“六、快速开始”的方式二，三个应用服务分别启动，基础设施复用方式一的基础设施容器
+- **预构建镜像（GHCR）**：无需本地构建前端与后端，可直接拉取发布产物：
+
+  ```bash
+  docker pull ghcr.io/luanxiao-z/diabetic-retinopathy-screening/backend:latest
+  docker pull ghcr.io/luanxiao-z/diabetic-retinopathy-screening/web:latest
+  ```
+
+  与编排联用时，把 `deploy/docker-compose.yml` 中对应服务的 `build` 换成 `image:` 指向上述地址即可。
 - **容器化**：`deploy/` 提供 `docker-compose.yml`、三个 Dockerfile 与 Nginx 配置。模型服务由宿主机 Python 常驻时**必须绑定 `0.0.0.0`**（容器经 `host.docker.internal` 访问，回环地址不可达）默认启动 5 个服务（MySQL / Redis / Silo / 后端 / 前端），模型服务由宿主机 Python 常驻；需要完整容器化时追加 `--profile model`。镜像源可通过 `DOCKER_REGISTRY` 切换国内加速源。详见 [deploy/README.md](deploy/README.md)
 
 ---

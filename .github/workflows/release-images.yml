@@ -1,0 +1,91 @@
+# ============================================================================
+# 发布应用镜像到 GitHub Container Registry（GHCR）
+# ----------------------------------------------------------------------------
+# 触发：推送 v* 标签（如 v1.0.1）或手动 workflow_dispatch
+# 范围：仅 backend 与 web 两个应用镜像。
+#       模型服务镜像（约 1.15 GB CPU / 5~7 GB GPU）不在 CI 发布，按需本地构建：
+#       docker compose -f deploy/docker-compose.yml --env-file deploy/.env --profile model build model-service
+#
+# 产物：
+#   ghcr.io/<owner>/<repo>/backend:<version> 与 :latest
+#   ghcr.io/<owner>/<repo>/web:<version>     与 :latest
+#
+# 说明：
+#   - 构建在 GitHub 托管 runner 上完成，本机只需推标签；拉取用 docker pull（公开包匿名可拉）。
+#   - 认证使用自动注入的 GITHUB_TOKEN，无需自建 secret；需声明 packages: write。
+#   - 使用 GitHub Actions 缓存（type=gha）复用镜像层，首次约 5~8 分钟，之后 1~2 分钟。
+#   - 仅构建 linux/amd64；如需 arm64，先确认基础镜像与依赖在该架构可用。
+# ============================================================================
+name: Release Images
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: release-images-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    name: 构建并推送 ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: backend
+            dockerfile: deploy/docker/Dockerfile.backend
+          - name: web
+            dockerfile: deploy/docker/Dockerfile.frontend
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: 启用 Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 登录 GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 生成镜像标签与注解
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          # 镜像路径会自动转为小写，符合 GHCR 命名要求
+          images: ghcr.io/${{ github.repository }}/${{ matrix.name }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest
+          labels: |
+            org.opencontainers.image.title=DR Screening ${{ matrix.name }}
+            org.opencontainers.image.description=Diabetic retinopathy screening system — ${{ matrix.name }} service
+
+      - name: 构建并推送
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+
+      - name: 输出镜像摘要
+        run: |
+          echo "### ${{ matrix.name }}" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "${{ steps.meta.outputs.tags }}" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
