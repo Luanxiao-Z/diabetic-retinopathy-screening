@@ -201,7 +201,7 @@ diabetic-retinopathy-screening/
 
 ## 6. Quick Start
 
-### One-command container startup (fastest path)
+### Option 1: one-command startup of all six services (recommended)
 
 If you just want to see the system running, start all six services
 (MySQL / Redis / Silo / model service / backend / frontend) with a single command:
@@ -227,11 +227,22 @@ Then open <http://localhost> and sign in with `admin / admin123`.
 > defines `DB_PASSWORD` / `REDIS_PASSWORD` / `MINIO_ACCESS_KEY`, containers use those values. When debugging
 > credentials, trust `docker exec <container> printenv <VAR>` over the `.env` file.
 
-> If you already have your own MySQL / Redis / Silo, skip this section and start the three application services step by step below.
+### Option 2: local development (three application services on the host)
+
+> Use this when you need to modify code, debug, or want the model service to use the host GPU.
+> The database, cache and object storage can simply reuse the infrastructure containers from Option 1
+> (see Prerequisites below) — nothing else needs to be installed.
 
 ### 0. Prerequisites
 
-Infrastructure is **not bundled** — start MySQL (3306), Redis (26379) and Silo (9000/9001) first, either via [`deploy/`](deploy/README.md) or your own installation.
+In local development mode the three application services run on the host, so MySQL / Redis / Silo must be up first.
+The easiest way is to start only the infrastructure containers from Option 1 (no image build, starts in seconds):
+
+```bash
+docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d mysql redis minio
+```
+
+If these services are already installed locally, just confirm the ports below:
 
 ```bash
 # Linux / macOS
@@ -569,7 +580,7 @@ The threshold lives in `BizScreeningRecordConvert.REVIEW_UNCERTAINTY_THRESHOLD`.
 
 ## 14. Deployment
 
-- **Local**: three processes as described in [Section 6](#6-quick-start); infrastructure must be provided separately
+- **Local**: three processes as described in Option 2 of [Section 6](#6-quick-start); infrastructure reuses the containers from Option 1
 - **Containers**: `deploy/` ships `docker-compose.yml`, three Dockerfiles and an Nginx config. When the model service runs on the host Python, it **must bind `0.0.0.0`** (containers reach it via `host.docker.internal`; a loopback address is unreachable) Default profile starts five services (MySQL / Redis / Silo / backend / frontend); the model service normally runs on the host Python and can be containerized with `--profile model`. Registry mirrors are switchable via `DOCKER_REGISTRY`. See [deploy/README.md](deploy/README.md)
 
 ---

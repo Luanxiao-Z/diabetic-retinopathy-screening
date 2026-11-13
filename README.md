@@ -248,7 +248,7 @@ diabetic-retinopathy-screening/
 
 ## 六、快速开始
 
-### 一键容器化启动（想快速跑通时用这个）
+### 方式一：一键编排启动全部 6 个服务（推荐先跑通）
 
 不需要改代码、只想看到系统跑起来时，用容器编排一条命令拉起全部服务
 （MySQL / Redis / Silo / 模型服务 / 后端 / 前端，共 6 个）：
@@ -274,7 +274,10 @@ docker compose -f deploy/docker-compose.yml --env-file deploy/.env --profile mod
 > `DB_PASSWORD` / `REDIS_PASSWORD` / `MINIO_ACCESS_KEY` 等同名变量，容器会使用环境变量的值——
 > 排查密码相关问题时请以 `docker exec <容器> printenv <变量名>` 的实际值为准。
 
-> 需要接入自备的 MySQL / Redis / Silo 时，跳过本节，按下面的分步方式启动三个应用服务。
+### 方式二：本地开发启动（宿主机运行三个应用服务）
+
+> 适用场景：需要改代码、调试，或希望模型服务使用宿主机 GPU。
+> 数据库、缓存与对象存储可直接复用方式一里的基础设施容器（见下方「前置条件」），无需另装。
 
 ### 0. 前置条件
 
@@ -287,7 +290,14 @@ docker compose -f deploy/docker-compose.yml --env-file deploy/.env --profile mod
 | Python | 3.13（推荐；与 torch cu130 轮子匹配） | `python --version` |
 | MySQL / Redis / Silo | 8.0 / 7 / 最新 | 见下 |
 
-**基础设施必须先就绪**——本项目不自带数据库、缓存与对象存储。可以直接使用 `deploy/` 下的容器编排一键启动，或自行准备后按下表检查端口：
+本地开发方式下三个应用服务跑在宿主机，MySQL / Redis / Silo 三件基础设施需要先就绪。
+最省事的做法是只启动方式一里的基础设施容器（不构建应用镜像，秒级启动）：
+
+```bash
+docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d mysql redis minio
+```
+
+若已在本机安装这三件服务，按下表确认端口即可：
 
 ```bash
 # Linux / macOS
@@ -770,7 +780,7 @@ APTOS 训练集的类别分布高度倾斜（最大/最小类 **9.4 倍**）：
 
 ## 十四、部署
 
-- **本地运行**：见“六、快速开始”，三个服务分别启动，基础设施需自行准备（MySQL / Redis / Silo）
+- **本地运行**：见“六、快速开始”的方式二，三个应用服务分别启动，基础设施复用方式一的基础设施容器
 - **容器化**：`deploy/` 提供 `docker-compose.yml`、三个 Dockerfile 与 Nginx 配置。模型服务由宿主机 Python 常驻时**必须绑定 `0.0.0.0`**（容器经 `host.docker.internal` 访问，回环地址不可达）默认启动 5 个服务（MySQL / Redis / Silo / 后端 / 前端），模型服务由宿主机 Python 常驻；需要完整容器化时追加 `--profile model`。镜像源可通过 `DOCKER_REGISTRY` 切换国内加速源。详见 [deploy/README.md](deploy/README.md)
 
 ---
