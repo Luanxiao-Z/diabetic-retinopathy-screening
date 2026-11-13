@@ -268,6 +268,16 @@ curl http://127.0.0.1:8000/health
 # expected: {"status":"UP","model":"aptos2019-mobilenetv3s-1.0.0","device":"cuda","trained":true,...}
 ```
 
+> **Binding address when running alongside docker-compose (important)**: the backend container reaches the host model
+> service via `host.docker.internal:8000`. If the service binds only `127.0.0.1`, containers cannot reach it and uploads
+> return `code=503` ("cannot reach inference service"). Bind all interfaces in that case:
+>
+> ```bash
+> uvicorn app.main:app --host 0.0.0.0 --port 8000
+> ```
+>
+> When running locally without containers, keep `127.0.0.1` — it is the safer default.
+
 > Without an NVIDIA GPU, replace the last two lines of `requirements.txt` with the `+cpu` wheels — the service falls back to CPU (`device` reports `cpu`). If `models/best_model.pth` is missing, the service still starts with `trained=false` and random weights, which is **only useful for API debugging**.
 
 ### 4. Start the backend (port 8080)
@@ -531,7 +541,7 @@ The threshold lives in `BizScreeningRecordConvert.REVIEW_UNCERTAINTY_THRESHOLD`.
 ## 14. Deployment
 
 - **Local**: three processes as described in [Section 6](#6-quick-start); infrastructure must be provided separately
-- **Containers**: `deploy/` ships `docker-compose.yml`, three Dockerfiles and an Nginx config. Default profile starts five services (MySQL / Redis / Silo / backend / frontend); the model service normally runs on the host Python and can be containerized with `--profile model`. Registry mirrors are switchable via `DOCKER_REGISTRY`. See [deploy/README.md](deploy/README.md)
+- **Containers**: `deploy/` ships `docker-compose.yml`, three Dockerfiles and an Nginx config. When the model service runs on the host Python, it **must bind `0.0.0.0`** (containers reach it via `host.docker.internal`; a loopback address is unreachable) Default profile starts five services (MySQL / Redis / Silo / backend / frontend); the model service normally runs on the host Python and can be containerized with `--profile model`. Registry mirrors are switchable via `DOCKER_REGISTRY`. See [deploy/README.md](deploy/README.md)
 
 ---
 

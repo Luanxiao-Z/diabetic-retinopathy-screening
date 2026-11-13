@@ -359,6 +359,16 @@ curl http://127.0.0.1:8000/health
 # 期望：{"status":"UP","model":"aptos2019-mobilenetv3s-1.0.0","device":"cuda","trained":true,...}
 ```
 
+> **与 docker-compose 配合时的绑定地址（重要）**：容器内的后端通过 `host.docker.internal:8000` 访问宿主机模型服务，
+> 若服务只绑定 `127.0.0.1`，容器侧不可达（上传会返回 `code=503`「无法连接模型推理服务」）。
+> 此时请改为绑定全部网卡：
+>
+> ```bash
+> uvicorn app.main:app --host 0.0.0.0 --port 8000
+> ```
+>
+> 仅本机直接运行（不经容器）时，保持 `127.0.0.1` 即可，安全性更好。
+
 > **依赖说明**：`requirements.txt` 默认拉取 CUDA 版 PyTorch（`torch==2.14.0+cu130`），首次安装需下载约 3 GB 轮子；pip 会复用 HTTP 缓存，重复安装不再下载。无 NVIDIA GPU 时把末两行改为 `+cpu` 轮子即可，服务支持 CPU 回退（`device` 显示 `cpu`）。
 > 若权重 `model-service/models/best_model.pth` 缺失，服务仍可启动但 `trained=false`，推理为随机初始化输出，**仅可用于接口调试**。
 
@@ -732,7 +742,7 @@ APTOS 训练集的类别分布高度倾斜（最大/最小类 **9.4 倍**）：
 ## 十四、部署
 
 - **本地运行**：见“六、快速开始”，三个服务分别启动，基础设施需自行准备（MySQL / Redis / Silo）
-- **容器化**：`deploy/` 提供 `docker-compose.yml`、三个 Dockerfile 与 Nginx 配置。默认启动 5 个服务（MySQL / Redis / Silo / 后端 / 前端），模型服务由宿主机 Python 常驻；需要完整容器化时追加 `--profile model`。镜像源可通过 `DOCKER_REGISTRY` 切换国内加速源。详见 [deploy/README.md](deploy/README.md)
+- **容器化**：`deploy/` 提供 `docker-compose.yml`、三个 Dockerfile 与 Nginx 配置。模型服务由宿主机 Python 常驻时**必须绑定 `0.0.0.0`**（容器经 `host.docker.internal` 访问，回环地址不可达）默认启动 5 个服务（MySQL / Redis / Silo / 后端 / 前端），模型服务由宿主机 Python 常驻；需要完整容器化时追加 `--profile model`。镜像源可通过 `DOCKER_REGISTRY` 切换国内加速源。详见 [deploy/README.md](deploy/README.md)
 
 ---
 
