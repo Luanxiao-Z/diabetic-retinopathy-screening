@@ -154,7 +154,7 @@ const hasHistory = computed(() => (metrics.value?.history?.length || 0) > 0)
 const f1Option = computed<EChartsOption>(() => {
   const f1 = metrics.value?.test_f1_per_class || []
   return {
-    tooltip: { trigger: 'axis', formatter: '{b}<br/>F1: {c}' },
+    tooltip: { trigger: 'axis', valueFormatter: (v) => Number(v).toFixed(3) },
     grid: { left: 8, right: 16, top: 24, bottom: 8, containLabel: true },
     xAxis: {
       type: 'category',
@@ -177,7 +177,13 @@ const f1Option = computed<EChartsOption>(() => {
           value: v,
           itemStyle: { color: v >= 0.7 ? '#0891b2' : v >= 0.5 ? '#d97706' : '#dc2626' }
         })),
-        label: { show: true, position: 'top', formatter: '{c}', fontSize: 11 }
+        // 原始值为多位浮点（如 0.9807162534435261），统一保留 3 位小数展示
+        label: {
+          show: true,
+          position: 'top',
+          fontSize: 11,
+          formatter: (p) => Number((p as { value: number }).value).toFixed(3)
+        }
       }
     ]
   }
