@@ -589,6 +589,9 @@ The threshold lives in `BizScreeningRecordConvert.REVIEW_UNCERTAINTY_THRESHOLD`.
   docker pull ghcr.io/luanxiao-z/diabetic-retinopathy-screening/web:latest
   ```
 
+  > Tags are derived from the Git tag (`v1.0.1` → `1.0.1`, `1.0`, `latest`; the `v` prefix is dropped).
+  > Packages of a public repository can be pulled anonymously — no `docker login` required.
+
   To use them with the compose file, replace the corresponding `build` block with an `image:` reference.
 - **Containers**: `deploy/` ships `docker-compose.yml`, three Dockerfiles and an Nginx config. When the model service runs on the host Python, it **must bind `0.0.0.0`** (containers reach it via `host.docker.internal`; a loopback address is unreachable) Default profile starts five services (MySQL / Redis / Silo / backend / frontend); the model service normally runs on the host Python and can be containerized with `--profile model`. Registry mirrors are switchable via `DOCKER_REGISTRY`. See [deploy/README.md](deploy/README.md)
 

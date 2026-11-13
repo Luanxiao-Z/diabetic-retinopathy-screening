@@ -789,6 +789,9 @@ APTOS 训练集的类别分布高度倾斜（最大/最小类 **9.4 倍**）：
   docker pull ghcr.io/luanxiao-z/diabetic-retinopathy-screening/web:latest
   ```
 
+  > 镜像标签由 `v1.0.1` 这类 Git 标签自动生成：`1.0.1`（完整版本，去掉 `v` 前缀）、`1.0`（主次版本）、`latest`。
+  > 公开仓库的包可匿名拉取，无需 `docker login`。
+
   与编排联用时，把 `deploy/docker-compose.yml` 中对应服务的 `build` 换成 `image:` 指向上述地址即可。
 - **容器化**：`deploy/` 提供 `docker-compose.yml`、三个 Dockerfile 与 Nginx 配置。模型服务由宿主机 Python 常驻时**必须绑定 `0.0.0.0`**（容器经 `host.docker.internal` 访问，回环地址不可达）默认启动 5 个服务（MySQL / Redis / Silo / 后端 / 前端），模型服务由宿主机 Python 常驻；需要完整容器化时追加 `--profile model`。镜像源可通过 `DOCKER_REGISTRY` 切换国内加速源。详见 [deploy/README.md](deploy/README.md)
 
