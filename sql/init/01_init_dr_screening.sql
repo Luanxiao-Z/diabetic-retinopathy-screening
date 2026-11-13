@@ -11,6 +11,11 @@ CREATE DATABASE IF NOT EXISTS dr_screening
 
 USE dr_screening;
 
+-- 显式声明连接字符集：MySQL 官方镜像内客户端的默认字符集为 latin1，
+-- 若脚本内不切换，UTF-8 中文字节会按 latin1 解读后写入 utf8mb4 列，
+-- 形成双重编码（页面表现为「DR å††çº§」这类乱码）。
+SET NAMES utf8mb4;
+
 -- ---------------- 字典域 ----------------
 CREATE TABLE IF NOT EXISTS sys_dict_domain (
   id          CHAR(32)     NOT NULL,

@@ -201,6 +201,34 @@ diabetic-retinopathy-screening/
 
 ## 6. Quick Start
 
+### One-command container startup (fastest path)
+
+If you just want to see the system running, start all six services
+(MySQL / Redis / Silo / model service / backend / frontend) with a single command:
+
+```bash
+cp deploy/.env.example deploy/.env       # adjust passwords and ports as needed
+docker compose -f deploy/docker-compose.yml --env-file deploy/.env --profile model up -d --build
+```
+
+Then open <http://localhost> and sign in with `admin / admin123`.
+
+| Note | Detail |
+| --- | --- |
+| Services | mysql(3307) / redis(26379) / minio(9000-9001) / model(8000) / backend(8080) / web(80) |
+| `--profile model` | The model service is **not** part of the default profile (the image carries PyTorch); pass this flag to start it too |
+| First run | ~8–12 minutes (Maven packaging, frontend build, ~200 MB CPU PyTorch download); restarts are seconds |
+| Inference device | The container ships **CPU** PyTorch (image ≈ 1.15 GB). For GPU acceleration run the model service on the host instead and bind `0.0.0.0` |
+| Persistence | Data lives in the named volumes `mysql-data` / `redis-data` / `minio-data`; `down` keeps them |
+| Stop | `docker compose -f deploy/docker-compose.yml --env-file deploy/.env --profile model down` |
+| Status / logs | `... ps` / `docker logs -f drs-backend` (containers: drs-mysql, drs-redis, drs-minio, drs-model, drs-backend, drs-web) |
+
+> **Password precedence**: `.env` only supplies defaults — **shell environment variables win**. If your machine already
+> defines `DB_PASSWORD` / `REDIS_PASSWORD` / `MINIO_ACCESS_KEY`, containers use those values. When debugging
+> credentials, trust `docker exec <container> printenv <VAR>` over the `.env` file.
+
+> If you already have your own MySQL / Redis / Silo, skip this section and start the three application services step by step below.
+
 ### 0. Prerequisites
 
 Infrastructure is **not bundled** — start MySQL (3306), Redis (26379) and Silo (9000/9001) first, either via [`deploy/`](deploy/README.md) or your own installation.
@@ -334,6 +362,7 @@ There is no hard ordering between the three applications: the backend starts wit
 | "Cannot reach inference service" on upload | Model service (8000) is down; start it and use "Retry failed" |
 | Backend fails to connect to MySQL | MySQL offline, or `DB_PASSWORD` not visible in the current terminal |
 | "Invalid username or password" for seed accounts | Seeds are created on the **first** backend start; ensure the schema was initialized |
+| Chinese text shows as mojibake (e.g. `DR å††çº§`) | The MySQL client defaulted to latin1 during init, double-encoding the text. The init script now sets `SET NAMES utf8mb4`; for an already-corrupted database, truncate the dictionary tables and re-import with `--default-character-set=utf8mb4` |
 | "Login attempts too frequent" | Brute-force protection: 10 failed attempts per IP in 5 minutes; wait for the window to expire |
 | "Registration too frequent" | Two-layer rate limit (5 per IP per 10 min, 30 per site per min); retry later |
 | Pagination / empty states in English | Element Plus locale not injected (`zhCn` in `main.ts`) |

@@ -248,6 +248,34 @@ diabetic-retinopathy-screening/
 
 ## 六、快速开始
 
+### 一键容器化启动（想快速跑通时用这个）
+
+不需要改代码、只想看到系统跑起来时，用容器编排一条命令拉起全部服务
+（MySQL / Redis / Silo / 模型服务 / 后端 / 前端，共 6 个）：
+
+```bash
+cp deploy/.env.example deploy/.env       # 按需修改密码与端口
+docker compose -f deploy/docker-compose.yml --env-file deploy/.env --profile model up -d --build
+```
+
+启动完成后访问 <http://localhost>，用 `admin / admin123` 登录。
+
+| 说明 | 内容 |
+| --- | --- |
+| 包含服务 | mysql(3307) / redis(26379) / minio(9000-9001) / model(8000) / backend(8080) / web(80) |
+| `--profile model` | 模型服务默认**不**参与编排（镜像含 PyTorch，体积较大），必须带上该参数才会一起启动 |
+| 首次耗时 | 约 8~12 分钟（容器内 Maven 打包 + 前端构建 + 下载 CPU 版 PyTorch 约 200 MB），之后重启为秒级 |
+| 推理设备 | 容器内使用 **CPU** 版 PyTorch（镜像约 1.15 GB）；需要 GPU 加速时按下面的分步方式在宿主机跑模型服务，并绑定 `0.0.0.0` |
+| 数据持久化 | 数据位于命名卷 `mysql-data` / `redis-data` / `minio-data`，`down` 不会删除 |
+| 停止 | `docker compose -f deploy/docker-compose.yml --env-file deploy/.env --profile model down` |
+| 查看状态 / 日志 | `... ps` / `docker logs -f drs-backend`（服务名：drs-mysql、drs-redis、drs-minio、drs-model、drs-backend、drs-web） |
+
+> **密码优先级**：`.env` 只提供默认值，**shell 环境变量优先级更高**。若本机已存在
+> `DB_PASSWORD` / `REDIS_PASSWORD` / `MINIO_ACCESS_KEY` 等同名变量，容器会使用环境变量的值——
+> 排查密码相关问题时请以 `docker exec <容器> printenv <变量名>` 的实际值为准。
+
+> 需要接入自备的 MySQL / Redis / Silo 时，跳过本节，按下面的分步方式启动三个应用服务。
+
 ### 0. 前置条件
 
 | 组件 | 版本要求 | 检查命令 |
@@ -440,6 +468,7 @@ MySQL / Redis / Silo（前置，必须先就绪）
 | 打印诊断报告时带出侧栏/顶栏 | 打印样式已全局隐藏壳层元素；若仍出现，请检查浏览器是否禁用了页面样式 |
 | 验证码看不清 | 点击验证码图片可刷新；验证码 5 分钟有效且**校验后立即失效**，登录失败需重新输入 |
 | 注册提示“注册过于频繁” | 已启用限流（同一 IP 每 10 分钟最多 5 次、全站每分钟最多 30 次），等待后重试即可 |
+| 页面/字典中文显示为乱码（如「DR å††çº§」） | 初始化时 MySQL 客户端字符集为 latin1，中文被双重编码写入。初始化脚本已内置 `SET NAMES utf8mb4`；已乱码的库需清空字典表后重新导入，或直接用 `--default-character-set=utf8mb4` 重导 |
 | 登录提示“登录尝试过于频繁” | 同一 IP 5 分钟内累计 10 次登录失败触发防爆破限流；等待窗口过期即可，成功登录会立即清零计数 |
 
 ---
