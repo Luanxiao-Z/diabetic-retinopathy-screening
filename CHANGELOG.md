@@ -3,6 +3,27 @@
 本项目的所有重要变更记录于此。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [v1.0.1] - 2026-11-13
+
+容器化启动路径的完善与镜像发布能力。
+
+### 新增
+
+- **一键编排启动**：README 快速开始拆为两条路径——「方式一：一条命令启动全部 6 个服务」与「方式二：本地开发（基础设施复用方式一的基础设施容器）」
+- **镜像发布流水线**：`.github/workflows/release-images.yml` 在推送 `v*` 标签（或手动触发）时构建 `backend` 与 `web` 镜像并推送到 GHCR，自动打版本号与 `latest` 标签
+- 模型服务镜像纳入编排（`docker compose --profile model`），CPU 版约 1.15 GB
+
+### 修复
+
+- **容器初始化中文乱码**：MySQL 官方镜像客户端默认 latin1，脚本导入时中文被双重编码（页面显示「DR å††çº§」）；初始化脚本显式 `SET NAMES utf8mb4`
+- **各分级 F1 标签**：原始浮点（如 `0.9807162534435261`）格式化为三位小数
+
+### 文档
+
+- 补充「容器访问宿主机模型服务须绑定 `0.0.0.0`」的说明（中英文）
+- 补充 GHCR 镜像标签规则（`v1.0.1` → `1.0.1` / `1.0` / `latest`）与匿名拉取方式
+- 常见问题补充中文乱码排查条目
+
 ## [v1.0.0] - 2026-11-12
 
 首个正式发布版本：覆盖眼底影像上传、AI 五级分级、人工复核、患者随访、统计分析与诊断报告导出的完整筛查系统，
@@ -52,5 +73,6 @@
 - 功能截图全量更新（18 张），补充多标签管理与弹窗遮罩演示
 - 开发规范同步近期实现：Lombok、登录限流错误码、目录结构与组合式函数
 
-[Unreleased]: https://github.com/Luanxiao-Z/diabetic-retinopathy-screening/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/Luanxiao-Z/diabetic-retinopathy-screening/compare/v1.0.1...HEAD
+[v1.0.1]: https://github.com/Luanxiao-Z/diabetic-retinopathy-screening/releases/tag/v1.0.1
 [v1.0.0]: https://github.com/Luanxiao-Z/diabetic-retinopathy-screening/releases/tag/v1.0.0
